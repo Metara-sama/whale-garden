@@ -7,39 +7,58 @@ const SITE = {
   name: "Whale's Garden",
   tagline: "把想法养成一片海。",
   // 关于我：一两句就够
-  about: "这里是某某的项目花园。放着一些还在做的事：人工智能、脑科学，以及各种半成品。慢慢养，不着急。",
+  about: "这里是 Metara-sama 的项目花园。放着一些还在做的事：人工智能、脑科学、化学，以及各种半成品。慢慢养，不着急。",
   // 顶部按钮，想删就删掉整行
   links: [
-    { label: "GitHub", url: "https://github.com/yourname" },
-    { label: "邮箱", url: "mailto:you@example.com" },
+    { label: "GitHub", url: "https://github.com/Metara-sama" }
   ],
   footer: "© 2025 Whale's Garden · 用海浪和手写 HTML 搭建"
 };
 
 /* 每个项目：name 名称 / desc 一句话介绍 / tags 标签
    status: "live" 已完成上线 / "wip" 进行中 / "" 普通
-   links: 一个或多个链接（GitHub、在线预览、文章……）         */
+   links: 一个或多个链接（在线玩、源码、文章……）            */
 
 const PROJECTS = [
   {
-    name: "项目一：示例占位",
-    desc: "一句话说清楚它是什么、解决什么问题。别看描述短，别人点不点进来看全靠这一句。",
-    tags: ["Python", "AI"],
-    status: "wip",
-    year: "2025",
-    links: [
-      { label: "源码", url: "https://github.com/yourname/repo" }
-    ]
-  },
-  {
-    name: "项目二：示例占位",
-    desc: "另一个小东西。可以是脚本、笔记库、小工具、实验记录，什么都能放。",
-    tags: ["工具", "自动化"],
+    name: "Millsage 剧情演示",
+    desc: "带语音的剧情演示页：立绘 + 对白逐句推进。有声版和静音版各一个入口，素材全部内嵌在单文件里，点开就能看。",
+    tags: ["HTML", "剧情", "语音"],
     status: "live",
     year: "2025",
     links: [
-      { label: "在线预览", url: "https://example.com" },
-      { label: "源码", url: "https://github.com/yourname/repo2" }
+      { label: "有声版", url: "projects/millsage/" },
+      { label: "静音版", url: "projects/millsage/silent.html" }
+    ]
+  },
+  {
+    name: "离子鉴定大冒险",
+    desc: "化学盲测小游戏：随机抽几个未知阳离子放进表头，你用阴离子试剂逐个试探、看现象自己推断，最后提交判分。",
+    tags: ["化学", "游戏"],
+    status: "live",
+    year: "2025",
+    links: [
+      { label: "开始游戏", url: "projects/ion-id/" }
+    ]
+  },
+  {
+    name: "金属离子反应现象图鉴",
+    desc: "18 种金属离子 × 7 种常见试剂的实拍现象汇总，每格配反应方程式，会生成沉淀的都标了 Ksp。",
+    tags: ["化学", "图鉴"],
+    status: "live",
+    year: "2025",
+    links: [
+      { label: "打开图鉴", url: "projects/ion-id/phenomena.html" }
+    ]
+  },
+  {
+    name: "有机化学幸存者",
+    desc: "把有机化学的知识点塞进生存类玩法的单文件小游戏，边玩边把反应规律记进脑子。",
+    tags: ["化学", "游戏"],
+    status: "live",
+    year: "2025",
+    links: [
+      { label: "开始游戏", url: "projects/organic-chem-survivor.html" }
     ]
   }
 ];
