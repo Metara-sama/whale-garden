@@ -36,7 +36,7 @@
       return '<span class="tag">' + esc(t) + "</span>";
     }).join("");
     var links = (p.links || []).map(function (l) {
-      return '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.label) + " ↗</a>";
+      return '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.label) + "</a>";
     }).join("");
 
     return '<article class="card" data-tags="' + esc((p.tags || []).join(",")) + '">' +

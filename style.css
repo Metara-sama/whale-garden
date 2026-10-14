@@ -173,6 +173,12 @@ main{max-width:var(--max);margin:0 auto;padding:0 20px 26px;background:#fff}
 .card-links{margin-top:14px;display:flex;flex-wrap:wrap;gap:14px;font-size:13px}
 .card-links a{color:var(--blue-500);text-decoration:none;border-bottom:1.5px dashed var(--blue-200)}
 .card-links a:hover{color:var(--blue-700);border-bottom-style:solid}
+/* 纯 CSS 画的外链小箭头，不依赖字体符号 */
+.card-links a::after{
+  content:"";display:inline-block;width:5px;height:5px;margin-left:6px;
+  border-top:1.5px solid currentColor;border-right:1.5px solid currentColor;
+  transform:rotate(45deg);vertical-align:1px;
+}
 
 .badge{
   font-family:var(--font-bubble);font-size:10.5px;
