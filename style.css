@@ -1,0 +1,164 @@
+:root{
+  --bg-0:#02101d;
+  --bg-1:#061d33;
+  --card:rgba(255,255,255,.045);
+  --card-hover:rgba(63,193,255,.10);
+  --line:rgba(126,190,230,.18);
+  --accent:#3fc1ff;
+  --accent-2:#7ee8ff;
+  --text:#dceaf6;
+  --muted:#7d9db4;
+  --radius:16px;
+  --max:1040px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+html{scroll-behavior:smooth}
+
+body{
+  font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  color:var(--text);
+  line-height:1.7;
+  min-height:100vh;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 620px at 50% -12%, #0e4068 0%, transparent 62%),
+    radial-gradient(900px 500px at 90% 110%, #0a2f4d 0%, transparent 60%),
+    linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 55%, #010a13 100%);
+  background-attachment:fixed;
+}
+
+/* ---------- 气泡背景 ---------- */
+.bubbles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.bubble{
+  position:absolute;bottom:-80px;border-radius:50%;
+  background:radial-gradient(circle at 30% 30%, rgba(126,232,255,.35), rgba(63,193,255,.06) 60%, transparent 70%);
+  border:1px solid rgba(126,232,255,.18);
+  animation:rise linear infinite;
+  will-change:transform,opacity;
+}
+@keyframes rise{
+  0%{transform:translateY(0) translateX(0) scale(.9);opacity:0}
+  12%{opacity:.9}
+  100%{transform:translateY(-115vh) translateX(var(--drift,20px)) scale(1.15);opacity:0}
+}
+
+/* ---------- Hero ---------- */
+.hero{position:relative;z-index:1;padding:clamp(56px,14vw,104px) 20px clamp(28px,6vw,44px);text-align:center}
+.hero-inner{max-width:var(--max);margin:0 auto}
+.logo{
+  position:relative;
+  display:flex;justify-content:center;
+  animation:float 5.5s ease-in-out infinite;
+}
+/* 立绘背后的柔光，让角色融进深海 */
+.logo::before{
+  content:"";position:absolute;left:50%;top:5%;
+  width:min(80vw,320px);aspect-ratio:1;transform:translateX(-50%);
+  border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle, rgba(63,193,255,.20) 0%, rgba(63,193,255,.07) 45%, transparent 70%);
+}
+.logo picture{position:relative;z-index:1}
+.logo img{
+  display:block;width:clamp(148px,42vw,208px);height:auto;
+  filter:drop-shadow(0 12px 30px rgba(63,193,255,.42)) drop-shadow(0 3px 8px rgba(1,10,19,.55));
+}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+
+.hero h1{
+  margin-top:14px;
+  font-size:clamp(30px,8.4vw,52px);
+  letter-spacing:.02em;
+  font-weight:700;
+  background:linear-gradient(180deg,#ffffff 8%, var(--accent-2) 55%, var(--accent) 100%);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+}
+.tagline{margin-top:10px;color:var(--muted);font-size:clamp(13.5px,3.6vw,16px)}
+
+.links{margin-top:22px;display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.links a{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:7px 15px;border-radius:999px;font-size:13.5px;
+  color:var(--text);text-decoration:none;
+  border:1px solid var(--line);background:rgba(255,255,255,.03);
+  transition:.22s;
+}
+.links a:hover{border-color:var(--accent);color:#fff;background:rgba(63,193,255,.13);transform:translateY(-2px)}
+
+/* ---------- 版块 ---------- */
+main{position:relative;z-index:1;max-width:var(--max);margin:0 auto;padding:0 20px 40px}
+.section{margin-top:clamp(34px,8vw,56px)}
+.section-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:20px}
+.section h2{
+  font-size:clamp(17px,4.6vw,21px);font-weight:600;
+  display:flex;align-items:center;gap:9px;
+}
+.section h2::before{content:"";width:4px;height:19px;border-radius:3px;background:linear-gradient(180deg,var(--accent-2),var(--accent))}
+
+.filters{display:flex;flex-wrap:wrap;gap:8px}
+.filters button{
+  font:inherit;font-size:12.5px;cursor:pointer;
+  padding:5px 13px;border-radius:999px;
+  color:var(--muted);background:transparent;border:1px solid var(--line);
+  transition:.2s;
+}
+.filters button:hover{color:var(--text);border-color:var(--accent)}
+.filters button.on{color:#04121f;background:var(--accent);border-color:var(--accent);font-weight:600}
+
+/* ---------- 项目卡 ---------- */
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(min(100%,272px),1fr))}
+.card{
+  position:relative;display:flex;flex-direction:column;
+  padding:20px;border-radius:var(--radius);
+  background:var(--card);border:1px solid var(--line);
+  backdrop-filter:blur(6px);
+  transition:.25s cubic-bezier(.4,0,.2,1);
+  overflow:hidden;
+}
+.card::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(400px 160px at 100% 0%, rgba(63,193,255,.13), transparent 70%);
+  opacity:0;transition:.25s;
+}
+.card:hover{transform:translateY(-5px);border-color:rgba(63,193,255,.55);background:var(--card-hover);box-shadow:0 14px 34px rgba(0,20,40,.55)}
+.card:hover::after{opacity:1}
+
+.card h3{font-size:16.5px;font-weight:600;line-height:1.45;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.card h3 a{color:inherit;text-decoration:none}
+.card h3 a:hover{color:var(--accent-2);text-decoration:underline;text-underline-offset:3px}
+.desc{margin-top:9px;font-size:13.8px;color:#a9c2d4;flex:1}
+.tags{margin-top:14px;display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:11.5px;padding:2px 9px;border-radius:6px;color:var(--accent-2);background:rgba(63,193,255,.11);border:1px solid rgba(63,193,255,.22)}
+.card-links{margin-top:14px;display:flex;flex-wrap:wrap;gap:14px;font-size:13px}
+.card-links a{color:var(--accent);text-decoration:none;border-bottom:1px dashed rgba(63,193,255,.4)}
+.card-links a:hover{color:var(--accent-2);border-bottom-style:solid}
+
+.badge{
+  font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:6px;
+  border:1px solid var(--line);color:var(--muted);white-space:nowrap;
+}
+.badge.live{color:#8bf5c8;border-color:rgba(139,245,200,.35);background:rgba(139,245,200,.08)}
+.badge.wip{color:#ffd58a;border-color:rgba(255,213,138,.35);background:rgba(255,213,138,.08)}
+.year{font-size:11.5px;color:#5c7c93;margin-left:auto}
+
+.empty{color:var(--muted);text-align:center;padding:36px 0}
+
+/* ---------- 关于 ---------- */
+.about p{color:#a9c2d4;font-size:14.5px;max-width:62ch}
+
+footer{
+  position:relative;z-index:1;
+  text-align:center;padding:34px 20px 44px;
+  color:#4f6b80;font-size:12.5px;
+  border-top:1px solid rgba(126,190,230,.1);
+  margin-top:40px;
+}
+footer .fish{display:inline-block;margin-left:6px;animation:float 4s ease-in-out infinite}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  html{scroll-behavior:auto}
+}

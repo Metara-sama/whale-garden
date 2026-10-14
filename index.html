@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Whale's Garden</title>
+<meta name="description" content="Whale's Garden —— 把想法养成一片海。">
+<meta name="theme-color" content="#02101d">
+<link rel="icon" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/favicon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="bubbles" aria-hidden="true"></div>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="logo">
+      <picture>
+        <source srcset="assets/mascot.webp" type="image/webp">
+        <img src="assets/mascot.png" alt="Whale's Garden 吉祥物">
+      </picture>
+    </div>
+    <h1 id="site-name">Whale's Garden</h1>
+    <p class="tagline" id="tagline"></p>
+    <nav class="links" id="links" aria-label="外部链接"></nav>
+  </div>
+</header>
+
+<main>
+  <section class="section">
+    <div class="section-head">
+      <h2>项目</h2>
+      <div class="filters" id="filters"></div>
+    </div>
+    <div class="grid" id="projects"></div>
+    <p class="empty" id="empty" hidden>这片海域还没有项目 🫧</p>
+  </section>
+
+  <section class="section about">
+    <h2>关于</h2>
+    <p id="about"></p>
+  </section>
+</main>
+
+<footer>
+  <span id="footer-text"></span>
+  <span class="fish">🐋</span>
+</footer>
+
+<script src="projects.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
