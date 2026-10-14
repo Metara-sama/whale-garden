@@ -98,3 +98,38 @@ Netlify 还支持直接把文件夹拖进网页里部署，连 Git 都不用。
 
 全部 **0 元**。以上都提供免费 HTTPS 和免费子域名，
 只有绑自己的域名时才需要单独买域名（约 30–70 元/年），这一步可以不做。
+
+---
+
+## 已部署状态（本机备忘）
+
+- 站点：https://Metara-sama.github.io/whale-garden/
+- 仓库：https://github.com/Metara-sama/whale-garden （Public）
+
+### 本机快捷命令
+
+```bash
+/root/preview     # 本地预览，浏览器打开 http://127.0.0.1:18800
+/root/wg status   # 项目仓库的 git（仓库在 /root/whale-garden.git，工作树在 sdcard）
+```
+
+### 更新内容的两种方式
+
+1. **网页改**（最省事）：GitHub 上打开 `projects.js` → 铅笔图标 → Commit changes，Pages 自动重建
+2. **命令行**：
+
+   ```bash
+   /root/wg add -A && /root/wg commit -m "更新" && /root/wg push
+   ```
+
+   推送认证走 SSH 密钥（`/root/.ssh/id_ed25519`），需先把公钥加到
+   https://github.com/settings/ssh/new 。若改用 HTTPS + token，
+   执行 `python3 tools/deploy.py <token>` 也可以一条龙搞定。
+
+### 注意事项
+
+- **GitHub Pages 的 CDN 缓存约 10 分钟**，更新后可能要等一会儿才看到；
+  它**不区分 URL 查询参数**（`?v=2` 绕不过缓存），耐心等一下或强制刷新即可。
+- `projects/` 里是 `/sdcard/Download/项目总集/` 的副本，中文文件名换成了 URL 友好的英文名；原始工程未改动。
+- proot 环境若被重置，`/root/whale-garden.git` 和 SSH 密钥会丢失：
+  重新生成密钥、把公钥加到 GitHub、再 `git clone` 一次就能恢复，线上站点不受影响。
