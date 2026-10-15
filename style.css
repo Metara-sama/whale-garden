@@ -208,6 +208,15 @@ footer .fish{display:inline-block;margin-left:6px;animation:float 4s ease-in-out
   .banner-title{letter-spacing:0}
 }
 
+/* ---------- 宽屏适配：顶栏不再按图片比例铺满，而是限制高度，让珊瑚礁上下被裁掉 ---------- */
+@media (min-width:900px){
+  .reef{height:clamp(180px,22vw,250px)}      /* 高屏不再长高，图片自动上下裁剪 */
+  .reef-mascot{height:min(30vw,280px);left:clamp(20px,4vw,60px)}
+  .banner-bar{padding:16px clamp(20px,3vw,36px) 18px clamp(200px,31vw,340px)}
+  .banner-title{font-size:clamp(32px,4.2vw,46px)}
+  .tagline{margin-top:4px;font-size:15px}
+}
+
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
   html{scroll-behavior:auto}
