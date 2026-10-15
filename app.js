@@ -16,9 +16,12 @@
   $("#tagline").textContent = SITE.tagline || "";
   $("#about").textContent = SITE.about || "";
   $("#footer-text").textContent = SITE.footer || SITE.name;
-  $("#links").innerHTML = (SITE.links || []).map(function (l) {
+
+  var linksHTML = (SITE.links || []).map(function (l) {
     return '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.label) + "</a>";
   }).join("");
+  $("#links").innerHTML = linksHTML;
+  if (!linksHTML) $("#links").hidden = true;
 
   var STATUS = { live: ["已完成", "live"], wip: ["进行中", "wip"] };
 
@@ -32,17 +35,13 @@
     var title = p.links && p.links[0] && p.links[0].url
       ? '<a href="' + esc(p.links[0].url) + '" target="_blank" rel="noopener">' + esc(p.name) + "</a>"
       : esc(p.name);
-    var tags = (p.tags || []).map(function (t) {
-      return '<span class="tag">' + esc(t) + "</span>";
-    }).join("");
     var links = (p.links || []).map(function (l) {
       return '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.label) + "</a>";
     }).join("");
 
-    return '<article class="card" data-tags="' + esc((p.tags || []).join(",")) + '">' +
+    return '<article class="card">' +
       "<h3>" + title + badge + year + "</h3>" +
       '<p class="desc">' + esc(p.desc) + "</p>" +
-      (tags ? '<div class="tags">' + tags + "</div>" : "") +
       (links ? '<div class="card-links">' + links + "</div>" : "") +
       "</article>";
   }
@@ -51,43 +50,28 @@
   grid.innerHTML = all.map(cardHTML).join("");
   if (!all.length) $("#empty").hidden = false;
 
-  /* ---------- 标签筛选 ---------- */
-  var tags = [];
-  all.forEach(function (p) {
-    (p.tags || []).forEach(function (t) { if (tags.indexOf(t) < 0) tags.push(t); });
-  });
-
-  if (tags.length) {
-    var fw = $("#filters");
-    ["全部"].concat(tags).forEach(function (t, i) {
-      var b = document.createElement("button");
-      b.textContent = t;
-      b.className = i === 0 ? "on" : "";
-      b.onclick = function () {
-        fw.querySelectorAll("button").forEach(function (x) { x.classList.remove("on"); });
-        b.classList.add("on");
-        grid.querySelectorAll(".card").forEach(function (c) {
-          var ok = t === "全部" || (c.dataset.tags || "").split(",").indexOf(t) >= 0;
-          c.style.display = ok ? "" : "none";
-        });
-      };
-      fw.appendChild(b);
-    });
+  /* ---------- 气泡（只在顶部珊瑚礁区域里飘） ---------- */
+  /* 珊瑚礁区域的高度随屏幕宽度变化，实时写进 --rise，让气泡正好升到图顶 */
+  var reef = $(".reef");
+  function setRise() {
+    if (reef) document.documentElement.style.setProperty("--rise", (reef.clientHeight + 80) + "px");
   }
+  setRise();
+  window.addEventListener("resize", setRise);
+  window.addEventListener("load", setRise);
 
-  /* ---------- 气泡 ---------- */
   var box = document.querySelector(".bubbles");
   if (box && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    for (var i = 0; i < 16; i++) {
+    for (var i = 0; i < 14; i++) {
       var d = document.createElement("div");
-      var size = 6 + Math.random() * 26;
+      var size = 5 + Math.random() * 16;
       d.className = "bubble";
       d.style.width = size + "px";
       d.style.height = size + "px";
       d.style.left = Math.random() * 100 + "%";
-      d.style.animationDuration = (9 + Math.random() * 13).toFixed(1) + "s";
-      d.style.animationDelay = (-Math.random() * 20).toFixed(1) + "s";
-      d.style.setProperty("--drift", (Math.random() * 80 - 40).toFixed(0) + "px");
+      d.style.animationDuration = (7 + Math.random() * 9).toFixed(1) + "s";
+      d.style.animationDelay = (-Math.random() * 16).toFixed(1) + "s";
+      d.style.setProperty("--drift", (Math.random() * 70 - 35).toFixed(0) + "px");
       box.appendChild(d);
     }
   }

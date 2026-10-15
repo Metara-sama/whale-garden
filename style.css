@@ -1,9 +1,9 @@
 /* ============================================================
-   Whale's Garden —— 蓝白海洋气泡主题
+   Whale's Garden —— 蓝白海洋主题
    想换配色，只改下面这一块变量就够了
    ============================================================ */
 :root{
-  --blue-900:#0b3053;   /* 顶栏深蓝 */
+  --blue-900:#0b3053;   /* 横幅标题条深蓝 */
   --blue-800:#12476f;
   --blue-700:#1a6096;
   --blue-500:#2f8fd8;
@@ -22,6 +22,9 @@
   --shadow-hover:0 14px 34px rgba(24,90,150,.18);
 
   --max:1040px;
+  /* 气泡上升距离：珊瑚礁区域宽度变化时，由 app.js 实时写入 */
+  --rise:400px;
+
   /* 气泡字体：英文用 Fredoka，中文用站酷快乐体，按 unicode-range 自动分派 */
   --font-bubble:'WhaleBubbleEN','WhaleBubble',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;
   --font-body:system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
@@ -41,110 +44,110 @@ body{
   -webkit-font-smoothing:antialiased;
 }
 
-/* ---------- 顶栏：深蓝，logo 在左、标题在右 ---------- */
-.topbar{
-  position:sticky;top:0;z-index:50;
-  background:linear-gradient(180deg,var(--blue-900) 0%, var(--blue-800) 100%);
-  box-shadow:0 2px 16px rgba(11,48,83,.28);
-}
-.topbar-inner{
-  max-width:var(--max);margin:0 auto;
-  padding:10px 18px;
-  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
-}
-.brand{
-  display:flex;align-items:center;gap:11px;
-  flex:1 1 auto;min-width:0;text-decoration:none;
-}
-.brand-logo{
-  width:42px;height:42px;flex-shrink:0;
-  object-fit:cover;object-position:50%16%;
-  border-radius:50%;
-  background:#fff;
-  border:2px solid rgba(255,255,255,.85);
-  box-shadow:0 3px 10px rgba(0,20,40,.25);
-}
-.brand-title{
-  font-family:var(--font-bubble);
-  font-weight:400;
-  font-size:clamp(19px,5.2vw,27px);
-  line-height:1.25;
-  color:#fff;
-  text-shadow:0 2px 0 rgba(4,30,55,.35);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.links{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-.links a{
-  font-family:var(--font-bubble);
-  font-size:13.5px;line-height:1;
-  color:#eaf6ff;text-decoration:none;
-  padding:7px 14px;border-radius:999px;
-  background:rgba(255,255,255,.14);
-  border:1px solid rgba(255,255,255,.3);
-  transition:.2s;
-}
-.links a:hover{background:#fff;color:var(--blue-900);border-color:#fff;transform:translateY(-1px)}
+/* ---------- 顶部横幅：珊瑚礁原图（不裁切）+ 深蓝标题条 + 贯穿两层的吉祥物 ---------- */
+.banner{position:relative;background:var(--blue-900)}
 
-/* ---------- Hero：白底 + 立绘 + 气泡 ---------- */
-.hero{
+/* 珊瑚礁图整张放上去：高度 = 宽度 × 334/1024，不做裁切，所以整条显得扁 */
+.reef{
   position:relative;overflow:hidden;
-  background:linear-gradient(180deg,var(--blue-50) 0%, #fff 60%);
-  padding:clamp(22px,6vw,38px) 20px clamp(6px,2vw,14px);
-  text-align:center;
-}
-.hero-inner{position:relative;z-index:1;max-width:var(--max);margin:0 auto}
-.hero-mascot{
-  display:block;margin:0 auto;
-  width:clamp(124px,32vw,172px);height:auto;
-  filter:drop-shadow(0 10px 22px rgba(24,90,150,.22));
-  animation:float 5s ease-in-out infinite;
-}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-
-.tagline{
-  margin-top:4px;
-  font-family:var(--font-bubble);
-  font-weight:400;
-  font-size:clamp(17px,4.6vw,23px);
-  color:var(--blue-700);
-  letter-spacing:.02em;
+  height:32.6vw;          /* 1024:334，图片原始比例 */
+  max-height:440px;
+  background:var(--blue-800);
 }
 
-.bubbles{position:absolute;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+/* 珊瑚礁照片：整体压一点透明度，让它和水色融在一起 */
+.reef-img{
+  position:absolute;inset:0;
+  background:#0d3f66 url("assets/reef.jpg") center/cover no-repeat;
+  opacity:.74;
+}
+
+/* 蓝色滤镜：顶部透光、两侧压深、底部与标题条无缝衔接 */
+.reef-veil{
+  position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(130% 80% at 50% -12%, rgba(255,255,255,.30), transparent 58%),
+    linear-gradient(90deg, rgba(6,32,58,.55) 0%, rgba(6,32,58,.10) 42%, rgba(6,32,58,.22) 100%),
+    linear-gradient(180deg, rgba(11,48,83,.40) 0%, rgba(11,48,83,.10) 40%, rgba(11,48,83,.30) 78%, var(--blue-900) 100%);
+}
+
+/* 气泡：只在这一层里飘 */
+.bubbles{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1}
 .bubble{
   position:absolute;bottom:-70px;border-radius:50%;
-  background:radial-gradient(circle at 30% 30%, rgba(120,200,245,.42), rgba(120,200,245,.08) 62%, transparent 72%);
-  border:1px solid rgba(120,200,245,.32);
+  background:radial-gradient(circle at 32% 30%, rgba(255,255,255,.62), rgba(255,255,255,.12) 60%, transparent 72%);
+  border:1px solid rgba(255,255,255,.45);
   animation:rise linear infinite;
   will-change:transform,opacity;
 }
 @keyframes rise{
-  0%{transform:translateY(0) translateX(0) scale(.9);opacity:0}
-  15%{opacity:1}
-  100%{transform:translateY(-105vh) translateX(var(--drift,20px)) scale(1.1);opacity:0}
+  0%{transform:translateY(0) translateX(0) scale(.85);opacity:0}
+  14%{opacity:.95}
+  78%{opacity:.7}
+  100%{transform:translateY(calc(-1 * var(--rise,400px))) translateX(var(--drift,20px)) scale(1.12);opacity:0}
+}
+
+/* 吉祥物：从珊瑚礁一路下沉进标题条，贯穿两层（压在最上层） */
+.reef-mascot{
+  position:absolute;z-index:6;
+  left:clamp(8px,4vw,50px);
+  bottom:clamp(6px,1.8vw,16px);
+  height:min(40vw,340px);width:auto;
+  filter:drop-shadow(0 8px 18px rgba(2,18,34,.45));
+  animation:float 6s ease-in-out infinite;
+}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+
+/* 右上角外链 */
+.links{position:absolute;z-index:3;top:clamp(10px,2.6vw,16px);right:clamp(10px,3vw,22px);display:flex;gap:8px}
+.links a{
+  font-family:var(--font-bubble);font-size:13px;line-height:1;
+  color:#fff;text-decoration:none;padding:8px 15px;border-radius:999px;
+  background:rgba(255,255,255,.16);
+  border:1px solid rgba(255,255,255,.44);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  text-shadow:0 1px 3px rgba(4,26,46,.55);
+  transition:.22s;
+}
+.links a:hover{background:#fff;color:var(--blue-900);border-color:#fff;transform:translateY(-1px);text-shadow:none}
+
+/* 深蓝标题条：整个文字区右移，给左侧下沉的吉祥物让位 */
+.banner-bar{
+  position:relative;z-index:4;
+  background:linear-gradient(180deg,#0e3a62,var(--blue-900));
+  text-align:center;
+  padding:
+    clamp(12px,3.2vw,20px)
+    clamp(14px,4vw,28px)
+    clamp(15px,3.8vw,24px)
+    clamp(160px,41.5vw,340px);   /* 左内边距 = 吉祥物宽度 + 余量 */
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10);
+}
+.banner-title{
+  font-family:var(--font-bubble);font-weight:400;
+  font-size:clamp(24px,6.9vw,54px);
+  line-height:1.1;color:#fff;letter-spacing:.01em;
+  text-shadow:0 3px 0 rgba(3,22,40,.32), 0 12px 28px rgba(3,22,40,.35);
+}
+.tagline{
+  margin-top:6px;
+  font-family:var(--font-bubble);
+  font-size:clamp(12.5px,3.3vw,16.5px);
+  color:var(--blue-200);letter-spacing:.04em;
 }
 
 /* ---------- 版块 ---------- */
 main{max-width:var(--max);margin:0 auto;padding:0 20px 26px;background:#fff}
 .section{margin-top:clamp(28px,7vw,44px)}
-.section-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:20px}
+.section-first{margin-top:clamp(26px,6.5vw,42px)}
 .section h2{
   font-family:var(--font-bubble);font-weight:400;
   font-size:clamp(18px,4.8vw,23px);
   color:var(--blue-900);
   display:flex;align-items:center;gap:10px;
+  margin-bottom:20px;
 }
 .section h2::before{content:"";width:18px;height:18px;flex-shrink:0;border-radius:50% 50% 50% 0;background:linear-gradient(140deg,var(--blue-400),var(--blue-700));transform:rotate(-45deg)}
-
-.filters{display:flex;flex-wrap:wrap;gap:8px}
-.filters button{
-  font:inherit;font-family:var(--font-bubble);font-size:13px;cursor:pointer;
-  padding:5px 14px;border-radius:999px;
-  color:var(--blue-700);background:var(--blue-50);border:1.5px solid var(--line);
-  transition:.2s;
-}
-.filters button:hover{border-color:var(--blue-400);background:var(--blue-100)}
-.filters button.on{color:#fff;background:var(--blue-500);border-color:var(--blue-500);box-shadow:0 3px 10px rgba(47,143,216,.3)}
 
 /* ---------- 项目卡 ---------- */
 .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(min(100%,274px),1fr))}
@@ -164,12 +167,6 @@ main{max-width:var(--max);margin:0 auto;padding:0 20px 26px;background:#fff}
 .card h3 a{color:inherit;text-decoration:none}
 .card h3 a:hover{color:var(--blue-500)}
 .desc{margin-top:9px;font-size:13.8px;color:var(--ink-soft);flex:1}
-.tags{margin-top:14px;display:flex;flex-wrap:wrap;gap:6px}
-.tag{
-  font-family:var(--font-bubble);font-size:11.5px;
-  padding:3px 10px;border-radius:999px;
-  color:var(--blue-700);background:var(--blue-100);border:1px solid var(--blue-200);
-}
 .card-links{margin-top:14px;display:flex;flex-wrap:wrap;gap:14px;font-size:13px}
 .card-links a{color:var(--blue-500);text-decoration:none;border-bottom:1.5px dashed var(--blue-200)}
 .card-links a:hover{color:var(--blue-700);border-bottom-style:solid}
@@ -207,9 +204,8 @@ footer{
 footer .fish{display:inline-block;margin-left:6px;animation:float 4s ease-in-out infinite}
 
 @media (max-width:430px){
-  .topbar-inner{gap:10px;padding:9px 14px}
-  .brand-logo{width:36px;height:36px}
-  .links a{font-size:12.5px;padding:6px 11px}
+  .links a{font-size:12px;padding:7px 12px}
+  .banner-title{letter-spacing:0}
 }
 
 @media (prefers-reduced-motion:reduce){

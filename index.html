@@ -8,36 +8,30 @@
 <meta name="theme-color" content="#0b3053">
 <link rel="icon" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/favicon.png">
+<link rel="preload" as="image" href="assets/reef.jpg">
 <link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<header class="topbar">
-  <div class="topbar-inner">
-    <a class="brand" href="#top">
-      <img class="brand-logo" src="assets/mascot.webp" alt="Whale's Garden 吉祥物">
-      <span class="brand-title" id="site-name">Whale's Garden</span>
-    </a>
+<header class="banner">
+  <div class="reef">
+    <div class="reef-img" aria-hidden="true"></div>
+    <div class="reef-veil" aria-hidden="true"></div>
     <nav class="links" id="links" aria-label="外部链接"></nav>
+    <div class="bubbles" aria-hidden="true"></div>
+  </div>
+  <img class="reef-mascot" src="assets/mascot-right.webp" alt="Whale's Garden 吉祥物">
+  <div class="banner-bar">
+    <h1 class="banner-title" id="site-name">Whale's Garden</h1>
+    <p class="tagline" id="tagline"></p>
   </div>
 </header>
 
-<main id="top">
+<main>
 
-  <section class="hero">
-    <div class="bubbles" aria-hidden="true"></div>
-    <div class="hero-inner">
-      <img class="hero-mascot" src="assets/mascot.webp" alt="">
-      <p class="tagline" id="tagline"></p>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="section-head">
-      <h2>项目</h2>
-      <div class="filters" id="filters"></div>
-    </div>
+  <section class="section section-first">
+    <h2>项目</h2>
     <div class="grid" id="projects"></div>
     <p class="empty" id="empty" hidden>这片海域还没有项目 🫧</p>
   </section>
