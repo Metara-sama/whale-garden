@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>文献翻译嵌字机 · 大肥鱼</title>
+<style>
+:root{
+  --bg:#0d1117;--card:#161b22;--card2:#1b2230;--line:#263141;--fg:#e6edf3;--dim:#8b98a5;
+  --blue:#4aa3ff;--blue2:#1f6feb;--ok:#3fb950;--warn:#d29922;--err:#f85149;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--fg);
+  font:14px/1.55 "Noto Sans SC","Noto Sans CJK SC","Source Han Sans SC","HarmonyOS Sans SC",system-ui,-apple-system,sans-serif;
+  padding:0 0 48px;
+}
+header{
+  padding:12px 14px 10px;border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:20;
+  background:linear-gradient(180deg,rgba(13,17,23,.97),rgba(13,17,23,.86));
+  backdrop-filter:blur(8px);
+}
+header h1{margin:0;font-size:16px;letter-spacing:.3px}
+header h1 span{color:var(--blue)}
+header p{margin:2px 0 0;font-size:12px;color:var(--dim)}
+main{padding:12px;max-width:920px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
+.card > h2{margin:0 0 10px;font-size:13px;color:var(--blue);letter-spacing:.5px;font-weight:600}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row + .row{margin-top:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+label.f{display:block;font-size:11px;color:var(--dim);margin:0 0 3px}
+input,select,textarea,button{font-family:inherit;font-size:13px}
+input[type=text],input[type=password],input[type=number],select,textarea{
+  width:100%;background:#0b1017;color:var(--fg);border:1px solid var(--line);border-radius:9px;padding:8px 10px;outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--blue2)}
+textarea{resize:vertical;line-height:1.5}
+button{
+  background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:9px;
+  padding:9px 13px;cursor:pointer;transition:.15s;white-space:nowrap;
+}
+button:hover{border-color:var(--blue2)}
+button:active{transform:scale(.98)}
+button.pri{background:var(--blue2);border-color:var(--blue2);color:#fff;font-weight:600}
+button.ghost{background:transparent}
+button:disabled{opacity:.42;cursor:not-allowed}
+.chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--fg);background:#0b1017;border:1px solid var(--line);border-radius:9px;padding:7px 9px;cursor:pointer}
+.chk input{width:15px;height:15px;accent-color:var(--blue2)}
+.bar{height:7px;background:#0b1017;border:1px solid var(--line);border-radius:99px;overflow:hidden;margin-top:10px}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--blue2),var(--blue));transition:width .25s}
+.hint{font-size:11px;color:var(--dim)}
+.log{margin-top:8px;max-height:170px;overflow:auto;background:#080c12;border:1px solid var(--line);border-radius:9px;padding:8px;font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-break:break-all}
+.log b{font-weight:600}
+.l-ok{color:var(--ok)}.l-warn{color:var(--warn)}.l-err{color:var(--err)}.l-dim{color:var(--dim)}
+.page{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
+.page .ph{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);font-size:12px}
+.page .ph .no{font-weight:700;color:var(--blue)}
+.page .ph .sp{flex:1}
+.page .body{padding:12px;display:grid;grid-template-columns:minmax(120px,1fr) minmax(0,1.6fr);gap:12px}
+@media(max-width:620px){.page .body{grid-template-columns:1fr}}
+.thumb{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:zoom-in;display:block}
+.seg{border:1px solid var(--line);border-radius:9px;padding:8px;margin-bottom:8px;background:#0f141c}
+.seg.sk{opacity:.5}
+.seg .src{font-size:11px;color:var(--dim);max-height:64px;overflow:auto;margin-bottom:5px;word-break:break-word}
+.seg textarea{font-size:12.5px;min-height:52px}
+.tag{font-size:10px;padding:1px 6px;border-radius:99px;border:1px solid var(--line);color:var(--dim)}
+.tag.ok{color:var(--ok);border-color:#1f4d2b}.tag.sk{color:var(--warn);border-color:#4d3d1f}
+.viewer{position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:99;display:none;overflow:auto;padding:10px}
+.viewer.on{display:block}
+.viewer img{width:100%;max-width:1400px;margin:0 auto;display:block;background:#fff;border-radius:6px}
+.viewer .close{position:fixed;right:12px;top:12px;z-index:100}
+.empty{color:var(--dim);font-size:12.5px;text-align:center;padding:18px 6px}
+.kv{font-size:11.5px;color:var(--dim)}
+.kv b{color:var(--fg)}
+</style>
+</head>
+<body>
+<header>
+  <h1>🐋 文献翻译嵌字机 <span>· 大肥鱼版</span></h1>
+  <p>PDF 进 → API 翻译 → 自动排版嵌字 → PDF 出。API 只管翻译，嵌字全自动。</p>
+</header>
+
+<main>
+  <!-- 1. API -->
+  <section class="card">
+    <h2>① 翻译 API（OpenAI 兼容）</h2>
+    <div class="grid">
+      <div style="grid-column:1/-1">
+        <label class="f">Base URL</label>
+        <input id="base" type="text" placeholder="https://api.deepseek.com/v1" value="https://api.deepseek.com/v1" />
+      </div>
+      <div style="grid-column:1/-1">
+        <label class="f">API Key</label>
+        <input id="key" type="password" placeholder="sk-..." />
+      </div>
+      <div>
+        <label class="f">模型</label>
+        <input id="model" type="text" placeholder="deepseek-chat" value="deepseek-chat" />
+      </div>
+      <div>
+        <label class="f">温度</label>
+        <input id="temp" type="number" step="0.1" min="0" max="1.5" value="0.2" />
+      </div>
+      <div>
+        <label class="f">并发请求</label>
+        <input id="conc" type="number" min="1" max="8" value="2" />
+      </div>
+      <div>
+        <label class="f">每批字符数</label>
+        <input id="batchChars" type="number" min="200" max="6000" step="100" value="1600" />
+      </div>
+      <div style="grid-column:1/-1">
+        <label class="f">领域提示（可选，提升术语准确率，例：计算机视觉 / 有机化学）</label>
+        <input id="domain" type="text" placeholder="例如：计算机视觉，Transformer 架构" />
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="btnTest">测试连接</button>
+      <span id="apiStatus" class="kv">未测试</span>
+    </div>
+  </section>
+
+  <!-- 2. 文件 -->
+  <section class="card">
+    <h2>② 文献与排版参数</h2>
+    <div class="grid">
+      <div style="grid-column:1/-1">
+        <label class="f">选择 PDF（文献 / 论文 / 讲义）</label>
+        <input id="file" type="file" accept="application/pdf" />
+      </div>
+      <div>
+        <label class="f">页范围（空=全部，如 1-6,9）</label>
+        <input id="pages" type="text" placeholder="1-3" />
+      </div>
+      <div>
+        <label class="f">渲染倍率（清晰度）</label>
+        <select id="scale">
+          <option value="1.5">1.5×（快）</option>
+          <option value="2">2.0×</option>
+          <option value="2.5" selected>2.5×（推荐）</option>
+          <option value="3">3.0×（清晰但慢）</option>
+        </select>
+      </div>
+      <div>
+        <label class="f">嵌字模式</label>
+        <select id="mode">
+          <option value="replace" selected>替换原文（擦原+写译文）</option>
+          <option value="aside">双语：原文保留，译文写在下方空隙</option>
+        </select>
+      </div>
+      <div>
+        <label class="f">译文字号系数</label>
+        <input id="fontScale" type="number" step="0.05" min="0.6" max="1.5" value="1" />
+      </div>
+    </div>
+    <div class="grid" style="margin-top:8px">
+      <label class="chk"><input id="optSmartBg" type="checkbox" checked> 智能底色（保留原底色）</label>
+      <label class="chk"><input id="optSkipFormula" type="checkbox" checked> 跳过公式与表格数字</label>
+      <label class="chk"><input id="optKeepNumbers" type="checkbox"> 也翻译纯数字行</label>
+      <label class="chk"><input id="optGrow" type="checkbox" checked> 允许向下利用空隙</label>
+      <label class="chk"><input id="optAutoFill" type="checkbox" checked> 译文过短时自动放大</label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="btnRunAll" class="pri">▶ 一键跑完全流程</button>
+      <button id="btnAnalyze">1. 分析 PDF</button>
+      <button id="btnTranslate">2. 翻译</button>
+      <button id="btnRender">3. 生成嵌字</button>
+      <button id="btnExport" class="pri">4. 导出 PDF</button>
+      <button id="btnClear" class="ghost">清空</button>
+    </div>
+    <div class="bar"><i id="progFill"></i></div>
+    <div class="row" style="margin-top:6px"><span id="progText" class="hint">待开始</span></div>
+    <div id="logBox" class="log">🐋 大肥鱼已就位，塞 PDF 进来吧。译文可逐条手改后再重新生成。</div>
+  </section>
+
+  <!-- 3. 结果 -->
+  <section id="pagesBox">
+    <div class="empty">还没有内容 —— 先选 PDF，然后点「一键跑完全流程」。</div>
+  </section>
+</main>
+
+<div class="viewer" id="viewer"><button class="close" id="viewerClose">关闭</button><img id="viewerImg" alt="预览" /></div>
+
+<script src="lib/pdf.min.js"></script>
+<script src="lib/jspdf.umd.min.js"></script>
+<script src="js/pdfparse.js"></script>
+<script src="js/translate.js"></script>
+<script src="js/render.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

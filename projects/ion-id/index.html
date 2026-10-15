@@ -22,6 +22,9 @@
     font-size:12px;cursor:pointer}
   .pbtn:hover{background:#3b93e6}
   .pbtn.ghost{background:#1b4571;border:1px solid #2d5c8c}
+  .chk{display:block;margin:6px 0;font-size:12px;color:#dbe9f8;cursor:pointer;line-height:1.3}
+  .chk input{vertical-align:-2px;accent-color:#3b93e6;width:14px;height:14px}
+  .chk span{display:block;font-size:10px;color:#8fb6dd;margin-left:18px}
   #score{font-size:12px;color:#8fe3b0;text-align:center;margin-top:6px;font-weight:600}
   #board{flex:1;overflow:auto;padding:10px}
   #tip{font-size:12px;color:#5b7185;margin-bottom:8px;line-height:1.6}
@@ -52,7 +55,9 @@
   <div id="panel">
     <h2>试剂选择</h2>
     <div id="reagents"></div>
-    <div class="panelrow">未知溶液数 N：<input id="nInput" type="number" min="2" max="10" value="4"></div>
+    <div class="panelrow">未知溶液数 N：<input id="nInput" type="number" min="2" max="18" value="4">
+      <label class="chk"><input type="checkbox" id="clMode">无色模式<span>只随机无色离子（12 种）</span></label>
+    </div>
     <button class="pbtn" id="newBtn">🎲 新一局</button>
     <button class="pbtn ghost" id="revBtn">👁 揭晓全部</button>
     <div id="score">猜对 0 / 0</div>
@@ -80,6 +85,9 @@ const REAGENTS = [
   {key:'G', name:'SO₄²⁻',    hint:'硫酸钠'},
   {key:'H', name:'I⁻',       hint:'碘化钾'}
 ];
+
+// 无色离子（A 列描述为「无色透明 / 无色」的行号，共 12 种）
+const COLORLESS = [1,2,3,5,11,12,13,14,15,16,17,18];
 
 let N = 4;
 let picked = [];      // 每列对应的离子行号(1..18)
@@ -127,9 +135,15 @@ function useReagent(key){
 }
 
 function newGame(){
-  N = Math.max(2, Math.min(10, parseInt($('#nInput').value)||4));
+  const base = $('#clMode').checked
+      ? COLORLESS.slice()
+      : [...Array(IONS.length).keys()].map(i=>i+1);
+  let n = parseInt($('#nInput').value) || 4;
+  n = Math.max(2, Math.min(18, n));
+  if(n > base.length) n = base.length;
+  N = n;
   $('#nInput').value = N;
-  picked = shuffle([...Array(IONS.length).keys()].map(i=>i+1)).slice(0,N);
+  picked = shuffle(base).slice(0,N);
   used={}; locked=new Array(N).fill(false);
   document.querySelectorAll('.reagent').forEach(b=>b.disabled=false);
 
@@ -211,6 +225,7 @@ buildReagentButtons();
 $('#newBtn').onclick=newGame;
 $('#revBtn').onclick=revealAll;
 $('#nInput').addEventListener('change',()=>{});
+$('#clMode').addEventListener('change',newGame);
 newGame();
 </script>
 </body>
