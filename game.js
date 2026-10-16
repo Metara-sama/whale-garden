@@ -72,19 +72,17 @@
      转场：一颗颗看得见的气泡柱（三层混搭）
      ① A 层密铺（直径 1.55~2.15 倍格距，实测 5 种屏幕 100% 无缝）
      ② B 大泡 / C 小泡点缀，半透明叠出前后层次
-     ③ 所有泡同速上涌（约 600px/s）→ 上升感；前沿波浪 + 一排露头气泡
+     ③ 整层固定排布、一起匀速上推（不在屏幕上「生成」）；幕顶一排露头泡，边缘是圆的
      游戏层在气泡完全盖住屏幕之前是隐藏的，所以不会提前变蓝。
      ============================================================ */
   var cur = null, curCvs = null, curCtx = null;
   var curSprites = [[], [], []];
-  var bubs = [], bubSpan = 0, bubTop = 0, bubCell = 60;
+  var bubs = [], bubLayH = 0, bubCell = 60, curTop = 0, curOver = 0;
   var frontPop = [];
   var curMode = 0, curLevel = 1.2, curT = 0, curLast = 0, curRaf = 0;
   var curCb = null, curOutCb = null, curFail = 0, curTexT = 0;
   var curW = 0, curH = 0, curDPR = 1, texDPR = 1;
   var CUR_IN = 1.05, CUR_OUT = 0.80;   /* 涌上来 / 退下去 的时长 */
-  var CUR_FULL = -0.40, CUR_START = 1.2;
-  var CUR_RISE = 600;                  /* 泡沫整体上升速度 px/s */
 
   /* 预渲染一颗气泡（不透明实心 + 泡壁 + 冷色反光 + 高光），tone 决定色调 */
   function bubbleSprite(size, tone) {
@@ -95,10 +93,10 @@
     if (!g || !g.createRadialGradient) return c;
     var R = s / 2 - 1;
     var pal = tone === 1
-      ? ["#ffffff", "#f1fbff", "#c9e6fb", "#9dcff3"]
+      ? ["#e8f2f9", "#d5e6f2", "#b3cde2", "#8db0cd"]
       : tone === 2
-        ? ["#ffffff", "#f2feff", "#cdeffb", "#a8dff0"]
-        : ["#ffffff", "#f7fcff", "#d8ecfd", "#b2d8f4"];
+        ? ["#ebf4f7", "#d9ebf0", "#b7d6e0", "#91b9cb"]
+        : ["#edf4f9", "#dbe8f2", "#b8cfe2", "#93b3cf"];
 
     var rg = g.createRadialGradient(R * 1.26, R * 1.3, R * 0.1, R, R, R * 1.46);
     rg.addColorStop(0, pal[0]);
@@ -141,43 +139,43 @@
     return curSprites[tone][idx];
   }
 
-  /* 铺一座气泡柱：A 层密铺（一颗颗看得清，负责无缝）＋B 大泡＋C 小泡做层次 */
   function mkBub(x, y, dia, tone, a, bw) {
     return { x0: x, y0: y, r: dia / 2, sp: pickSprite(dia, tone), a: a, bw: bw, ph: rnd(0, 6.28) };
   }
 
+  /* 铺一层气泡幕：A 层密铺（一颗颗看得清、负责无缝）＋B 大泡＋C 小泡点缀。
+     层内每颗泡的位置是固定的，整层一起匀速上推 —— 不在屏幕上「生成」 */
   function buildBubbles() {
     bubs = [];
     if (!curW || !curH) return;
-    var cell = clamp(Math.min(curW, curH) * 0.085, 46, 86);
+    var cell = clamp(Math.min(curW, curH) * 0.082, 44, 80);
     bubCell = cell;
-    CUR_RISE = clamp(curH * 0.80, 520, 900);
-    bubTop = -cell * 3;
-    bubSpan = curH + cell * 6;          /* 循环区间，比屏幕高一点 */
+    curOver = cell * 3;                       /* 层顶多升出屏幕这么多px，确保盖满 */
+    bubLayH = curH + curOver * 2 + cell * 2;
     var cols = Math.ceil(curW / cell) + 2;
-    var rows = Math.ceil(bubSpan / cell) + 2;
+    var rows = Math.ceil(bubLayH / cell) + 2;
 
     for (var gy = -1; gy < rows; gy++) {
       for (var gx = -1; gx < cols; gx++) {
-        var bx = gx * cell + (Math.random() - 0.5) * cell * 0.24 + (gy % 2 ? cell * 0.5 : 0);
-        var by = gy * cell + (Math.random() - 0.5) * cell * 0.24;
+        var bx = gx * cell + (Math.random() - 0.5) * cell * 0.16 + (gy % 2 ? cell * 0.5 : 0);
+        var by = gy * cell + (Math.random() - 0.5) * cell * 0.16;
 
-        /* A：主角，密铺（直径 1.55~2.15 倍格距 → 叠满无缝隙） */
-        var dA = cell * rnd(1.55, 2.15);
-        bubs.push(mkBub(bx, by, dA, (Math.random() * 3) | 0, 1, cell * 0.09));
+        /* A：主角，密铺（直径 1.35~1.85 倍格距，抖动极小 → 叠满无缝隙） */
+        var dA = cell * rnd(1.35, 1.85);
+        bubs.push(mkBub(bx, by, dA, (Math.random() * 3) | 0, 1, cell * 0.05));
 
         /* B：大泡点缀 */
-        if (Math.random() < 0.25) {
-          var dB = cell * rnd(1.9, 3.2);
+        if (Math.random() < 0.22) {
+          var dB = cell * rnd(1.6, 2.6);
           bubs.push(mkBub(bx + rnd(-cell, cell), by + rnd(-cell, cell), dB,
-            (Math.random() * 3) | 0, rnd(0.9, 1), cell * 0.13));
+            (Math.random() * 3) | 0, rnd(0.88, 1), cell * 0.07));
         }
 
         /* C：小泡点缀（半透明，打碎细节） */
         if (Math.random() < 0.85) {
-          var dC = cell * rnd(0.34, 0.86);
+          var dC = cell * rnd(0.28, 0.70);
           bubs.push(mkBub(bx + rnd(-cell, cell), by + rnd(-cell, cell), dC,
-            (Math.random() * 3) | 0, rnd(0.34, 0.8), cell * 0.18));
+            (Math.random() * 3) | 0, rnd(0.32, 0.78), cell * 0.09));
         }
       }
     }
@@ -218,7 +216,7 @@
     frontPop = [];
     var n = Math.round(curW / (bubCell * 0.9)) + 2;
     for (var i = 0; i < n; i++) {
-      var dia = bubCell * rnd(1.5, 2.8);
+      var dia = bubCell * rnd(1.2, 2.2);
       frontPop.push({
         x: (i + 0.5) * curW / n + rnd(-16, 16),
         r: dia / 2,
@@ -230,10 +228,6 @@
     }
   }
 
-  function frontAt(x) {
-    return curLevel * curH + Math.sin(x * 0.013 + curT * 2.2) * 26;
-  }
-
   function drawCurtain() {
     if (!curCtx || !curCvs) return;
     var c = curCtx;
@@ -241,24 +235,22 @@
     c.clearRect(0, 0, curCvs.width, curCvs.height);
     c.setTransform(curDPR, 0, 0, curDPR, 0, 0);
 
-    /* 气泡柱：所有泡以同一速度往上涌（同速 → 行列不乱，覆盖一直满） */
-    var rise = curT * CUR_RISE;
+    /* 气泡幕：整层固定排布，一起匀速向上推（泡相对层是不动的） */
     for (var i = 0; i < bubs.length; i++) {
       var b = bubs[i];
-      var y = b.y0 - rise;
-      y = bubTop + ((((y - bubTop) % bubSpan) + bubSpan) % bubSpan);
-      var x = b.x0 + Math.sin(curT * 1.6 + b.ph) * b.bw;
-      if (y + b.r * 0.7 < frontAt(x)) continue;   /* 泡沫柱上面不画 */
+      var y = b.y0 + curTop;
+      if (y + b.r < 0 || y - b.r > curH) continue;      /* 屏幕外不画 */
+      var x = b.x0 + Math.sin(curT * 1.4 + b.ph) * b.bw;
       c.globalAlpha = b.a;
       c.drawImage(b.sp, x - b.r, y - b.r, b.r * 2, b.r * 2);
     }
     c.globalAlpha = 1;
 
-    /* 前沿露头的泡 */
+    /* 幕顶那排露头的泡，边缘是圆的而不是一刀切 */
     for (var p = 0; p < frontPop.length; p++) {
       var f = frontPop[p];
-      var fx = f.x + Math.sin(curT * 1.5 + f.ph) * f.bw;
-      var fy = frontAt(fx) + f.dy + Math.sin(curT * 2.1 + f.ph * 1.7) * 6;
+      var fx = f.x + Math.sin(curT * 1.2 + f.ph) * f.bw;
+      var fy = curTop + f.dy + Math.sin(curT * 1.8 + f.ph * 1.7) * 5;
       if (fy < -curH * 0.3 || fy > curH + curH * 0.3) continue;
       c.drawImage(f.sp, fx - f.r, fy - f.r, f.r * 2, f.r * 2);
     }
@@ -273,9 +265,9 @@
     var dur = curMode === 1 ? CUR_IN : CUR_OUT;
     var p = dur > 0 ? Math.min(1, curT / dur) : 1;
     var e = curMode === 1 ? 1 - Math.pow(1 - p, 3) : p * p;
-    var from = curMode === 1 ? CUR_START : CUR_FULL;
-    var to = curMode === 1 ? CUR_FULL : CUR_START + 0.04;
-    curLevel = from + (to - from) * e;
+    /* 幕顶位置：涌上来时从屏底升到屏幕上方（多升 curOver 保证盖满），退出时退回 */
+    var travel = curH + curOver;
+    curTop = curMode === 1 ? (curH - e * travel) : (-curOver + e * travel);
 
     drawCurtain();
 
@@ -296,7 +288,7 @@
     var ok = buildCurtain();
     playSfx();                      /* 气泡声与气泡柱同拍响起 */
     curCb = cb || null;
-    curMode = 1; curT = 0; curLast = 0; curLevel = CUR_START;
+    curMode = 1; curT = 0; curLast = 0; curTop = curH;
     if (curRaf) { cancelAnimationFrame(curRaf); curRaf = 0; }
     clearTimeout(curFail);
 
