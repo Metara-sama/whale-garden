@@ -98,6 +98,23 @@ body{
 }
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
 
+/* 吉祥物可点（彩蛋）：只有跳动反馈，不要点击高亮/蓝框 */
+.reef-mascot{
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;
+  -webkit-user-drag:none;
+  user-select:none;-webkit-user-select:none;
+  outline:none;
+}
+.reef-mascot.egg-tap{animation:eggTap .32s ease}
+@keyframes eggTap{
+  0%{transform:translateY(0) scale(1)}
+  35%{transform:translateY(-7px) scale(1.07)}
+  70%{transform:translateY(0) scale(.985)}
+  100%{transform:translateY(0) scale(1)}
+}
+
 /* 右上角外链 */
 .links{position:absolute;z-index:3;top:clamp(10px,2.6vw,16px);right:clamp(10px,3vw,22px);display:flex;gap:8px}
 .links a{

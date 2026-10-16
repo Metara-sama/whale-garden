@@ -75,4 +75,71 @@
       box.appendChild(d);
     }
   }
+
+  /* ---------- 彩蛋：连点吉祥物 10 次 ---------- */
+  var eggCount = 0, eggTimer = 0, eggBusy = false;
+  var mascot = document.querySelector(".reef-mascot");
+
+  function loadCssOnce(href) {
+    if (document.querySelector('link[data-wg="' + href + '"]')) return;
+    var l = document.createElement("link");
+    l.rel = "stylesheet";
+    l.href = href;
+    l.setAttribute("data-wg", href);
+    document.head.appendChild(l);
+  }
+
+  /* 在用户手势里预热音频，绕开浏览器的自动播放拦截 */
+  function warmAudio() {
+    /* 气泡声：点击的这一瞬间就响，和气泡柱同拍 */
+    try {
+      var s = window.__wgSfx || (window.__wgSfx = new Audio("assets/game/bubble.mp3"));
+      s.volume = 1;
+      s.currentTime = 0;
+      var p1 = s.play(); if (p1 && p1.catch) p1.catch(function () {});
+    } catch (e) {}
+    /* BGM：只做「解锁」，静音播一下立刻收掉，等过场结束再真正响 */
+    try {
+      var b = window.__wgBgm || (window.__wgBgm = new Audio("assets/game/bgm.mp3"));
+      b.loop = true;
+      b.muted = true;
+      var p2 = b.play();
+      if (p2 && p2.then) {
+        p2.then(function () {
+          try { b.pause(); b.currentTime = 0; b.muted = false; } catch (e2) {}
+        }).catch(function () { b.muted = false; });
+      } else {
+        try { b.pause(); b.currentTime = 0; } catch (e3) {}
+        b.muted = false;
+      }
+    } catch (e) {}
+  }
+
+  function startEgg() {
+    if (eggBusy) return;
+    eggBusy = true;
+    warmAudio();
+    loadCssOnce("game.css");
+    var s = document.createElement("script");
+    s.src = "game.js";
+    s.onload = function () {
+      if (window.WGGame) window.WGGame.boot();
+      eggBusy = false;          /* 玩完还能再触发 */
+    };
+    s.onerror = function () { eggBusy = false; };
+    document.body.appendChild(s);
+  }
+
+  if (mascot) {
+    mascot.addEventListener("click", function () {
+      if (eggBusy) return;
+      eggCount++;
+      mascot.classList.remove("egg-tap");
+      void mascot.offsetWidth;
+      mascot.classList.add("egg-tap");
+      clearTimeout(eggTimer);
+      eggTimer = setTimeout(function () { eggCount = 0; }, 1500);
+      if (eggCount >= 10) { eggCount = 0; startEgg(); }
+    });
+  }
 })();
