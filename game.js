@@ -82,7 +82,7 @@
   var curMode = 0, curLevel = 1.2, curT = 0, curLast = 0, curRaf = 0;
   var curCb = null, curOutCb = null, curFail = 0, curTexT = 0;
   var curW = 0, curH = 0, curDPR = 1, texDPR = 1;
-  var CUR_IN = 1.05, CUR_OUT = 0.80;   /* 涌上来 / 退下去 的时长 */
+  var CUR_IN = 1.05, CUR_OUT = 1.10;   /* 涌上来 / 退下去 的时长（都是往上走） */
 
   /* 预渲染一颗气泡（不透明实心 + 泡壁 + 冷色反光 + 高光），tone 决定色调 */
   function bubbleSprite(size, tone) {
@@ -143,39 +143,47 @@
     return { x0: x, y0: y, r: dia / 2, sp: pickSprite(dia, tone), a: a, bw: bw, ph: rnd(0, 6.28) };
   }
 
-  /* 铺一层气泡幕：A 层密铺（一颗颗看得清、负责无缝）＋B 大泡＋C 小泡点缀。
-     层内每颗泡的位置是固定的，整层一起匀速上推 —— 不在屏幕上「生成」 */
+  /* 铺一层气泡幕：A1 层小而密铺（负责无缝）＋A2 随机小泡＋B 大泡点缀。
+     层内每颗泡的位置是固定的，整层一直往上走 —— 不在屏幕上「生成」也不回落 */
   function buildBubbles() {
     bubs = [];
     if (!curW || !curH) return;
-    var cell = clamp(Math.min(curW, curH) * 0.082, 44, 80);
+    var cell = clamp(Math.min(curW, curH) * 0.075, 40, 70);
     bubCell = cell;
-    curOver = cell * 3;                       /* 层顶多升出屏幕这么多px，确保盖满 */
-    bubLayH = curH + curOver * 2 + cell * 2;
+    curOver = cell * 2;
+    bubLayH = curH + curOver * 2 + cell * 4;
     var cols = Math.ceil(curW / cell) + 2;
     var rows = Math.ceil(bubLayH / cell) + 2;
 
     for (var gy = -1; gy < rows; gy++) {
       for (var gx = -1; gx < cols; gx++) {
-        var bx = gx * cell + (Math.random() - 0.5) * cell * 0.16 + (gy % 2 ? cell * 0.5 : 0);
-        var by = gy * cell + (Math.random() - 0.5) * cell * 0.16;
+        var cxp = gx * cell + (gy % 2 ? cell * 0.5 : 0);
+        var cyp = gy * cell;
 
-        /* A：主角，密铺（直径 1.35~1.85 倍格距，抖动极小 → 叠满无缝隙） */
-        var dA = cell * rnd(1.35, 1.85);
-        bubs.push(mkBub(bx, by, dA, (Math.random() * 3) | 0, 1, cell * 0.05));
+        /* A1：密铺底线（直径 1.42~1.85 倍格距、抖动极小 → 叠满无缝隙） */
+        var d1 = cell * rnd(1.42, 1.85);
+        bubs.push(mkBub(
+          cxp + rnd(-0.06, 0.06) * cell,
+          cyp + rnd(-0.06, 0.06) * cell,
+          d1, (Math.random() * 3) | 0, 1, cell * 0.04));
 
-        /* B：大泡点缀 */
-        if (Math.random() < 0.22) {
-          var dB = cell * rnd(1.6, 2.6);
-          bubs.push(mkBub(bx + rnd(-cell, cell), by + rnd(-cell, cell), dB,
-            (Math.random() * 3) | 0, rnd(0.88, 1), cell * 0.07));
+        /* A2：随机小泡（位置随意，提升随机感） */
+        var n2 = Math.random() < 0.45 ? 2 : (Math.random() < 0.75 ? 1 : 0);
+        for (var k = 0; k < n2; k++) {
+          var d2 = cell * rnd(0.42, 1.12);
+          bubs.push(mkBub(
+            cxp + rnd(-0.75, 0.75) * cell,
+            cyp + rnd(-0.75, 0.75) * cell,
+            d2, (Math.random() * 3) | 0, rnd(0.5, 1), cell * 0.12));
         }
 
-        /* C：小泡点缀（半透明，打碎细节） */
-        if (Math.random() < 0.85) {
-          var dC = cell * rnd(0.28, 0.70);
-          bubs.push(mkBub(bx + rnd(-cell, cell), by + rnd(-cell, cell), dC,
-            (Math.random() * 3) | 0, rnd(0.32, 0.78), cell * 0.09));
+        /* B：大泡点缀，拉开大小差 */
+        if (Math.random() < 0.20) {
+          var d3 = cell * rnd(1.5, 2.6);
+          bubs.push(mkBub(
+            cxp + rnd(-1.2, 1.2) * cell,
+            cyp + rnd(-1.2, 1.2) * cell,
+            d3, (Math.random() * 3) | 0, rnd(0.85, 1), cell * 0.10));
         }
       }
     }
@@ -265,9 +273,10 @@
     var dur = curMode === 1 ? CUR_IN : CUR_OUT;
     var p = dur > 0 ? Math.min(1, curT / dur) : 1;
     var e = curMode === 1 ? 1 - Math.pow(1 - p, 3) : p * p;
-    /* 幕顶位置：涌上来时从屏底升到屏幕上方（多升 curOver 保证盖满），退出时退回 */
-    var travel = curH + curOver;
-    curTop = curMode === 1 ? (curH - e * travel) : (-curOver + e * travel);
+    /* 幕顶位置：一直是往上走 —— 进场从屏底升到屏幕上方，退场继续往上升出屏幕 */
+    var travelIn = curH + curOver;
+    var travelOut = bubLayH + curOver;
+    curTop = curMode === 1 ? (curH - e * travelIn) : (-curOver - e * travelOut);
 
     drawCurtain();
 
@@ -776,7 +785,7 @@
     var jobs = AIS.map(function (ai) {
       return loadImg(BASE + "ai-" + ai.id + ".webp").then(function (im) { imgs.ai[ai.id] = im; });
     });
-    jobs.push(loadImg(BASE + "token.webp").then(function (im) { imgs.token = im; }));
+    jobs.push(loadImg(BASE + "token.png").then(function (im) { imgs.token = im; }));
     jobs.push(loadImg(MASCOT).then(function (im) { imgs.mascot = im; }));
     jobs.push(loadImg(REEF_BG).then(function (im) { imgs.reefBg = im; }));
     return Promise.all(jobs);
