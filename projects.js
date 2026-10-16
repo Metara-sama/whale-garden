@@ -23,6 +23,15 @@ const SITE = {
 
 const PROJECTS = [
   {
+    name: "谁在冲浪 · Live2D 冲浪测试器",
+    desc: "下面那个模型横躺着当冲浪板，上面那个踩着它冲浪 —— 两个模型都能换，25 个角色随你挑。自带 10 个整体动画（腾空 / 海豚跳 / 钻浪管 / 加速冲刺…）、会跟着鼓点起伏的海浪，也能传自己的 BGM。",
+    status: "live",
+    year: "2025",
+    links: [
+      { label: "开始冲浪", url: "projects/live2d-surf/" }
+    ]
+  },
+  {
     name: "Millsage 剧情演示",
     desc: "带语音的剧情演示页：立绘 + 对白逐句推进。有声版和静音版各一个入口，素材全部内嵌在单文件里，点开就能看。",
     status: "live",

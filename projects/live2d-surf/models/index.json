@@ -1,0 +1,28 @@
+[
+  {
+    "slug": "001_adv_tomori_001_casual_spring_01",
+    "name": "高松灯 · 春装便服",
+    "sakikoId": "001_adv-tomori_001_casual_spring_01",
+    "model3": "adv_live2d_tomori_001_casual_spring_01.model3.json",
+    "dir": "001_Tomori/剧情_ADV/adv_live2d_tomori_001_casual_spring_01",
+    "character": "001_Tomori",
+    "category": "剧情_ADV",
+    "motions": 63,
+    "expressions": 32,
+    "still": false,
+    "complete": true
+  },
+  {
+    "slug": "002_adv_anon_002_casual_spring_01",
+    "name": "千早爱音 · 春装便服",
+    "sakikoId": "002_adv-anon_002_casual_spring_01",
+    "model3": "adv_live2d_anon_002_casual_spring_01.model3.json",
+    "dir": "002_Anon/剧情_ADV/adv_live2d_anon_002_casual_spring_01",
+    "character": "002_Anon",
+    "category": "剧情_ADV",
+    "motions": 66,
+    "expressions": 36,
+    "still": false,
+    "complete": true
+  }
+]

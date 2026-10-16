@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0d1220" />
+<title>谁在冲浪 · Live2D 冲浪测试器</title>
+<meta name="description" content="冲浪版的鹈鹕骑自行车：冲浪者和冲浪板都是可替换的 Live2D 模型。" />
+<link rel="stylesheet" href="style.css" />
+<script src="vendor/live2dcubismcore.min.js"></script>
+<script src="vendor/pixi.min.js"></script>
+<script src="vendor/cubism4.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
+</head>
+<body>
+<div id="app">
+  <main id="stage">
+    <div class="topbar">
+      <div class="brand"><b>谁在冲浪</b></div>
+      <div class="tools">
+        <button id="btn-random" title="随机换一片海">🎲</button>
+        <button id="btn-shot" title="保存截图">📷</button>
+        <button id="btn-share" title="复制分享链接">🔗</button>
+      </div>
+    </div>
+    <div id="status" class="status"></div>
+  </main>
+
+  <aside id="panel">
+    <nav class="tabs">
+      <button class="tab active" data-tab="motion">动作</button>
+      <button class="tab" data-tab="rider">冲浪者</button>
+      <button class="tab" data-tab="mount">冲浪板</button>
+      <button class="tab" data-tab="sea">海况</button>
+      <button class="tab" data-tab="bgm">BGM</button>
+    </nav>
+    <div class="panes">
+      <section class="pane active" data-pane="motion">
+        <div class="card">
+          <div class="label">动画</div>
+          <div class="acts" id="acts">
+            <button class="btn big" data-act="hop"><i>🏄</i><span>腾空</span></button>
+            <button class="btn big" data-act="dolphin"><i>🐬</i><span>海豚跳</span></button>
+            <button class="btn big" data-act="spin"><i>🌀</i><span>转板</span></button>
+            <button class="btn big" data-act="swap"><i>🔁</i><span>人和板对调</span></button>
+            <button class="btn big" data-act="tube"><i>🌊</i><span>钻浪管</span></button>
+            <button class="btn big" data-act="dive"><i>🤿</i><span>潜水</span></button>
+            <button class="btn big" data-act="dash"><i>⚡</i><span>加速冲刺</span></button>
+            <button class="btn big" data-act="cyclone"><i>🌪️</i><span>旋风</span></button>
+            <button class="btn big" data-act="glory"><i>✨</i><span>高光时刻</span></button>
+            <button class="btn big" data-act="splash"><i>💦</i><span>炸水花</span></button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="label">播放动作 / 表情</div>
+          <div class="row"><label>对象</label>
+            <select id="act-target" class="grow">
+              <option value="rider">冲浪者</option>
+              <option value="mount">冲浪板</option>
+            </select>
+          </div>
+          <div class="row"><label>表情</label><select id="act-expr" class="grow"></select><button class="btn mini" id="act-expr-go">▶</button></div>
+          <div class="row"><label>动作</label><select id="act-motion" class="grow"></select><button class="btn mini" id="act-motion-go">▶</button></div>
+          <button class="btn wide pink" id="act-rand">随机动作 + 随机表情</button>
+        </div>
+        <div class="hint">舞台上也能操作：拖模型 = 移动；点一下模型 = 随机动作。</div>
+      </section>
+
+      <section class="pane" data-pane="rider"></section>
+      <section class="pane" data-pane="mount"></section>
+
+      <section class="pane" data-pane="sea">
+        <div class="card">
+          <div class="row"><label>浪高</label><input type="range" id="wave" min="0" max="100" value="46"><output id="wave-o">46</output></div>
+          <div class="row"><label>浪速</label><input type="range" id="speed" min="0" max="100" value="50"><output id="speed-o">50</output></div>
+          <div class="row"><label>摇曳</label><input type="range" id="sway" min="0" max="100" value="30"><output id="sway-o">30</output></div>
+          <div class="row"><label>站位</label><input type="range" id="gap" min="-40" max="50" value="0"><output id="gap-o">0</output></div>
+        </div>
+        <div class="card">
+          <div class="row"><label>海况</label>
+            <select id="sea" class="grow">
+              <option value="dawn">晨光</option>
+              <option value="day">正午</option>
+              <option value="dusk">黄昏</option>
+              <option value="night">夜浪</option>
+              <option value="storm">风暴</option>
+            </select>
+          </div>
+          <div class="switches">
+            <label class="sw"><input type="checkbox" id="opt-scroll" checked><span>海面滚动</span></label>
+            <label class="sw"><input type="checkbox" id="opt-lines" checked><span>速度线</span></label>
+            <label class="sw"><input type="checkbox" id="opt-spray" checked><span>水花</span></label>
+            <label class="sw"><input type="checkbox" id="opt-trail" checked><span>板尾泡沫</span></label>
+            <label class="sw"><input type="checkbox" id="opt-reflect" checked><span>波光倒影</span></label>
+            <label class="sw"><input type="checkbox" id="opt-lowres"><span>省电模式</span></label>
+          </div>
+        </div>
+        <button class="btn wide ghost" id="btn-reset-scene">恢复默认海况</button>
+      </section>
+
+      <section class="pane" data-pane="bgm">
+        <div class="card">
+          <div class="label">上传音乐（可多选）</div>
+          <label class="btn wide accent">选择音频文件<input type="file" id="bgm-file" accept="audio/*" multiple hidden></label>
+          <div class="bgm-list" id="bgm-list"></div>
+        </div>
+        <div class="card">
+          <div class="row">
+            <button class="btn" id="bgm-play">▶ 播放</button>
+            <button class="btn" id="bgm-stop">■ 停止</button>
+            <button class="btn ghost" id="bgm-clear">清空</button>
+          </div>
+          <div class="row"><label>音量</label><input type="range" id="bgm-vol" min="0" max="100" value="70"><output id="bgm-vol-o">70</output></div>
+          <label class="sw"><input type="checkbox" id="bgm-loop" checked><span>循环播放</span></label>
+          <div class="hint">音乐只在本地播放，不会上传。浪和水花会跟着鼓点起伏。</div>
+        </div>
+      </section>
+    </div>
+    <footer class="foot">
+      模型来自 <a href="https://sakiko.app" target="_blank" rel="noreferrer">sakiko.app</a>（本地镜像）· 可上传自己的模型
+    </footer>
+  </aside>
+</div>
+<div id="toast" class="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
