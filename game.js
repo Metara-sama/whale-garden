@@ -3,9 +3,7 @@
    触发：连点首页吉祥物 10 次（见 app.js）
    游戏内无文字（只有一个退出键），结算页有文字 + 特效
 
-   节奏说明（实测数据）：
-   自动玩家 30 局的通关时间中位数 ≈ 4 分 25 秒，最短 3 分 22 秒，
-   最长 9 分 26 秒（真人会更慢），所以「能玩五分钟」是有把握的。
+   节奏：自动玩家 30 局通关时间中位数 ≈ 4 分钟（真人更慢）
    ============================================================ */
 (function () {
   "use strict";
@@ -35,9 +33,10 @@
   var TOKEN_LIFE = [4.5, 7.5];   /* token 在屏上停一会儿就自己散掉 */
   var TOKEN_MAX = 9;             /* 同时在场的上限 */
   var TOKEN_FADE = 0.8;          /* 渐显速度（越小越慢） */
-  var FISH_GAP = [9, 18];        /* 出鱼间隔（要熬得住） */
+  var FISH_GAP = [6, 12];        /* 出鱼间隔（多一点，至少看得见鱼） */
   var INVULN = 2.5;              /* 开局无敌秒数 */
   var STARVE = 8;                /* 太久没出现「能吃的鱼」就放行一条 */
+  var W_EAT = 0.45;              /* 场上已有能吃的鱼时，再派能吃鱼的概率权重 */
 
   var root = null, cvs = null, ctx = null;
   var W = 0, H = 0, DPR = 1;
@@ -50,7 +49,7 @@
   function $(s) { return root.querySelector(s); }
   function rnd(a, b) { return a + Math.random() * (b - a); }
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
-  function maxFish() { return W < 520 ? 2 : 3; }
+  function maxFish() { return W < 520 ? 3 : 4; }
   function playerSpeed() { return clamp(Math.min(W, H) * 0.54, 190, 420); }
 
   function loadImg(src) {
@@ -68,43 +67,53 @@
   }
 
   /* ============================================================
-     转场：密集「不透明气泡柱」（预渲染气泡贴图 + 泡沫前沿推进）
-     不用任何色块，全靠气泡自己叠满屏幕，没有缝隙才切画面
+     转场：三层泡沫柱
+     ① 预渲染一整张「泡沫纹理」（大泡保证无缝隙 / 中泡小泡做层次）
+     ② 转场时纹理整体向上流 → 上升感
+     ③ 泡沫前沿用波浪 + 一排露头的气泡，边界不是一刀切
+     游戏层在气泡完全盖住屏幕之前是隐藏的，所以不会提前变蓝。
      ============================================================ */
   var cur = null, curCvs = null, curCtx = null;
-  var curSprites = [], curBub = [];
+  var curSprites = [[], [], []];
+  var foamTex = null, foamH = 0, foamCell = 60;
+  var frontPop = [];
   var curMode = 0, curLevel = 1.2, curT = 0, curLast = 0, curRaf = 0;
-  var curCb = null, curOutCb = null, curFail = 0;
-  var curW = 0, curH = 0, curDPR = 1, CUR_R = 60;
-  var CUR_IN = 0.95, CUR_OUT = 0.72;   /* 涌上来 / 退下去 的时长 */
-  var CUR_FULL = -0.38;                /* 前沿推进到这（-0.38 × 屏高）＝完全盖住 */
-  var CUR_START = 1.2;
+  var curCb = null, curOutCb = null, curFail = 0, curTexT = 0;
+  var curW = 0, curH = 0, curDPR = 1, texDPR = 1;
+  var CUR_IN = 1.05, CUR_OUT = 0.80;   /* 涌上来 / 退下去 的时长 */
+  var CUR_FULL = -0.40, CUR_START = 1.2;
+  var CUR_RISE = 600;                  /* 泡沫整体上升速度 px/s */
 
-  /* 预渲染一颗气泡（不透明：白→浅蓝实心 + 泡壁 + 高光） */
-  function bubbleSprite(size) {
+  /* 预渲染一颗气泡（不透明实心 + 泡壁 + 冷色反光 + 高光），tone 决定色调 */
+  function bubbleSprite(size, tone) {
     var s = Math.max(10, Math.round(size));
     var c = document.createElement("canvas");
     c.width = s; c.height = s;
     var g = c.getContext("2d");
     if (!g || !g.createRadialGradient) return c;
     var R = s / 2 - 1;
+    var pal = tone === 1
+      ? ["#ffffff", "#f1fbff", "#c9e6fb", "#9dcff3"]
+      : tone === 2
+        ? ["#ffffff", "#f2feff", "#cdeffb", "#a8dff0"]
+        : ["#ffffff", "#f7fcff", "#d8ecfd", "#b2d8f4"];
 
     var rg = g.createRadialGradient(R * 1.26, R * 1.3, R * 0.1, R, R, R * 1.46);
-    rg.addColorStop(0, "#ffffff");
-    rg.addColorStop(0.40, "#f7fcff");
-    rg.addColorStop(0.74, "#d9edfd");
-    rg.addColorStop(1, "#b3d9f5");
+    rg.addColorStop(0, pal[0]);
+    rg.addColorStop(0.40, pal[1]);
+    rg.addColorStop(0.74, pal[2]);
+    rg.addColorStop(1, pal[3]);
     g.beginPath(); g.arc(R, R, R, 0, 6.2832); g.fillStyle = rg; g.fill();
 
     /* 泡壁 */
     g.beginPath(); g.arc(R, R, R * 0.90, 0, 6.2832);
     g.strokeStyle = "rgba(255,255,255,.92)";
-    g.lineWidth = Math.max(1, R * 0.11);
+    g.lineWidth = Math.max(1, R * 0.10);
     g.stroke();
 
     /* 冷色反光 */
     g.beginPath(); g.arc(R * 1.03, R * 1.06, R * 0.76, 0.32, 1.82);
-    g.strokeStyle = "rgba(122,170,222,.42)";
+    g.strokeStyle = "rgba(122,170,222,.40)";
     g.lineWidth = Math.max(1, R * 0.13);
     g.stroke();
 
@@ -119,6 +128,65 @@
     return c;
   }
 
+  function buildSprites() {
+    if (curSprites[0].length) return;
+    for (var t = 0; t < 3; t++) {
+      for (var i = 0; i < 15; i++) curSprites[t].push(bubbleSprite(24 + i * 18, t));
+    }
+  }
+  function pickSprite(dia, tone) {
+    var idx = clamp(Math.round((dia - 24) / 18), 0, curSprites[0].length - 1);
+    return curSprites[tone][idx];
+  }
+
+  /* 一层气泡铺满一块画布 */
+  function foamLayer(g, w, h, step, cell, kMin, kMax, aMin, aMax, tone, jit, keep) {
+    var cols = Math.ceil(w / step) + 2, rows = Math.ceil(h / step) + 2;
+    for (var gy = -1; gy < rows; gy++) {
+      for (var gx = -1; gx < cols; gx++) {
+        if (keep < 1 && Math.random() > keep) continue;
+        var dia = cell * rnd(kMin, kMax);
+        var r = dia / 2;
+        var x = gx * step + (Math.random() - 0.5) * step * jit + (gy % 2 ? step * 0.5 : 0);
+        var y = gy * step + (Math.random() - 0.5) * step * jit;
+        g.globalAlpha = rnd(aMin, aMax);
+        g.save();
+        g.translate(x, y);
+        g.rotate(rnd(0, 6.2832));
+        g.drawImage(pickSprite(dia, tone), -r, -r, r * 2, r * 2);
+        g.restore();
+      }
+    }
+    g.globalAlpha = 1;
+  }
+
+  function buildFoam() {
+    foamTex = null;
+    if (!curW || !curH) return;
+    try {
+      var cell = clamp(Math.min(curW, curH) * 0.10, 48, 96);
+      foamCell = cell;
+      CUR_RISE = clamp(curH * 0.80, 520, 900);
+      foamH = Math.round(curH + CUR_RISE * CUR_IN + Math.abs(CUR_FULL) * curH + 140);
+
+      var c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(curW * texDPR));
+      c.height = Math.max(1, Math.round(foamH * texDPR));
+      var g = c.getContext("2d");
+      if (!g) return;
+      g.setTransform(texDPR, 0, 0, texDPR, 0, 0);
+      g.clearRect(0, 0, curW, foamH);
+
+      /* 底层：大泡，不透明 —— 负责「一点缝都没有」 */
+      foamLayer(g, curW, foamH, cell, cell, 2.05, 3.10, 1, 1, 0, 0.30, 1);
+      /* 中层：中泡，半透明 —— 叠出前后纵深 */
+      foamLayer(g, curW, foamH, cell * 0.74, cell, 0.95, 1.80, 0.55, 0.92, 1, 0.62, 1);
+      /* 上层：小泡，更透 —— 打碎细节 */
+      foamLayer(g, curW, foamH, cell * 0.44, cell, 0.34, 0.82, 0.32, 0.78, 2, 0.90, 0.7);
+      foamTex = c;
+    } catch (e) { foamTex = null; }
+  }
+
   function buildCurtain() {
     if (cur) return true;
     try {
@@ -129,11 +197,10 @@
       cur.appendChild(curCvs);
       document.body.appendChild(cur);
       curCtx = curCvs.getContext("2d") || null;
-      curSprites = [];
-      for (var i = 0; i < 12; i++) curSprites.push(bubbleSprite(46 + i * 18));
+      buildSprites();
       return true;
     } catch (e) {
-      cur = null; curCvs = null; curCtx = null; curSprites = [];
+      cur = null; curCvs = null; curCtx = null;
       return false;
     }
   }
@@ -143,35 +210,35 @@
     curW = window.innerWidth || document.documentElement.clientWidth || 390;
     curH = window.innerHeight || document.documentElement.clientHeight || 780;
     curDPR = Math.min(window.devicePixelRatio || 1, 2);
+    texDPR = Math.min(curDPR, 1.5);
     curCvs.width = Math.round(curW * curDPR);
     curCvs.height = Math.round(curH * curDPR);
     curCvs.style.width = curW + "px";
     curCvs.style.height = curH + "px";
 
-    /* 网格铺满，气泡直径 = 1.7~2.4 倍格距 → 大幅重叠，叠满后一条缝都没有
-       （实测：7 种屏幕尺寸 × 25 次随机布局，覆盖率 100.0000%） */
     var cell = clamp(Math.min(curW, curH) * 0.10, 48, 96);
-    CUR_R = cell * 1.25;
-    var top = -CUR_R, span = curH + CUR_R * 2;
-    var cols = Math.ceil(curW / cell) + 1;
-    var rows = Math.ceil(span / cell) + 1;
+    foamCell = cell;
+    CUR_RISE = clamp(curH * 0.80, 520, 900);
+    foamH = Math.round(curH + CUR_RISE * CUR_IN + Math.abs(CUR_FULL) * curH + 140);
 
-    curBub = [];
-    for (var gy = 0; gy < rows; gy++) {
-      for (var gx = 0; gx < cols; gx++) {
-        var dia = cell * rnd(1.70, 2.40);
-        var idx = clamp(Math.round((dia - 46) / 18), 0, curSprites.length - 1);
-        curBub.push({
-          x0: gx * cell + rnd(-0.25, 0.25) * cell + (gy % 2 ? cell * 0.32 : 0),
-          y0: top + gy * cell + rnd(-0.25, 0.25) * cell,
-          r: dia / 2,
-          sp: curSprites[idx],
-          vy: rnd(24, 92),
-          bw: rnd(3, 10),
-          ph: rnd(0, 6.28)
-        });
-      }
+    /* 前沿露头的气泡（让泡沫顶不是一条直线） */
+    frontPop = [];
+    var n = Math.round(curW / (foamCell * 0.9)) + 2;
+    for (var i = 0; i < n; i++) {
+      var dia = foamCell * rnd(1.5, 2.8);
+      frontPop.push({
+        x: (i + 0.5) * curW / n + rnd(-16, 16),
+        r: dia / 2,
+        dy: rnd(-14, 34),
+        bw: rnd(6, 20),
+        ph: rnd(0, 6.28),
+        sp: pickSprite(dia, 0)
+      });
     }
+  }
+
+  function frontAt(x) {
+    return curLevel * curH + Math.sin(x * 0.013 + curT * 2.2) * 26;
   }
 
   function drawCurtain() {
@@ -181,22 +248,33 @@
     c.clearRect(0, 0, curCvs.width, curCvs.height);
     c.setTransform(curDPR, 0, 0, curDPR, 0, 0);
 
-    var top = -CUR_R, span = curH + CUR_R * 2;
-    var frontBase = curLevel * curH;
-    /* 越涌越高，气泡边升边微微胀大（顺带把残余缝隙彻底挤掉） */
-    var prog = clamp((CUR_START - curLevel) / (CUR_START - CUR_FULL), 0, 1.15);
-    var grow = 1 + 0.08 * prog;
+    /* 泡沫柱区域（前沿以下）→ 贴上预渲染泡沫，整层向上流 */
+    if (foamTex) {
+      c.save();
+      c.beginPath();
+      var seg = 8;
+      for (var i = 0; i <= seg; i++) {
+        var x = curW * i / seg;
+        if (i === 0) c.moveTo(x, frontAt(x));
+        else c.lineTo(x, frontAt(x));
+      }
+      c.lineTo(curW, curH + 4);
+      c.lineTo(0, curH + 4);
+      c.closePath();
+      c.clip();
 
-    for (var i = 0; i < curBub.length; i++) {
-      var b = curBub[i];
-      var y = b.y0 - curT * b.vy;
-      y = top + ((((y - top) % span) + span) % span);
-      var x = b.x0 + Math.sin(curT * 1.05 + b.ph) * b.bw;
-      /* 泡沫前沿带一点起伏，边缘才不像一条直线 */
-      var front = frontBase + Math.sin(x * 0.015 + curT * 2.3) * 24;
-      if (y + b.r * 0.8 < front) continue;   /* 还在泡沫柱上面，不画 */
-      var rr = b.r * grow;
-      c.drawImage(b.sp, x - rr, y - rr, rr * 2, rr * 2);
+      var rise = curT * CUR_RISE;
+      c.drawImage(foamTex, 0, curH + rise - foamH, curW, foamH);
+      c.restore();
+    }
+
+    /* 前沿露头的泡 */
+    for (var p = 0; p < frontPop.length; p++) {
+      var f = frontPop[p];
+      var fx = f.x + Math.sin(curT * 1.5 + f.ph) * f.bw;
+      var fy = frontAt(fx) + f.dy + Math.sin(curT * 2.1 + f.ph * 1.7) * 6;
+      if (fy < -curH * 0.3 || fy > curH + curH * 0.3) continue;
+      c.drawImage(f.sp, fx - f.r, fy - f.r, f.r * 2, f.r * 2);
     }
   }
 
@@ -227,7 +305,7 @@
     }
   }
 
-  /* 气泡遮满屏幕的那一刻才切换画面 */
+  /* 气泡把屏幕盖满的那一刻才切画面 */
   function curtainIn(cb) {
     var ok = buildCurtain();
     playSfx();                      /* 气泡声与气泡柱同拍响起 */
@@ -240,7 +318,12 @@
       layoutCurtain();
       drawCurtain();
       curRaf = requestAnimationFrame(curtainFrame);
-      curFail = setTimeout(finishIn, 1600);   /* 兜底：rAF 被节流也要能过场 */
+      /* 泡沫纹理内容不少，放到下一拍再烤：第一帧先让泡自己涌出来，不卡手 */
+      if (!foamTex) {
+        clearTimeout(curTexT);
+        curTexT = setTimeout(function () { if (cur) buildFoam(); }, 30);
+      }
+      curFail = setTimeout(finishIn, 1700);   /* 兜底：rAF 被节流也要能过场 */
     } else {
       curFail = setTimeout(finishIn, 900);    /* 没 canvas 就退化成延时切换 */
     }
@@ -263,8 +346,10 @@
   }
 
   function dropCurtain() {
+    clearTimeout(curTexT);
     if (cur && cur.parentNode) cur.parentNode.removeChild(cur);
-    cur = null; curCvs = null; curCtx = null; curBub = [];
+    cur = null; curCvs = null; curCtx = null;
+    foamTex = null; frontPop = [];
     if (curOutCb) { var f = curOutCb; curOutCb = null; f(); }
   }
 
@@ -337,6 +422,7 @@
       '</div>' +
 
       '<div class="wg-loading" id="wg-loading"><i></i><i></i><i></i></div>';
+    /* 注意：这里不显示，等气泡盖满屏幕后才 .on（否则原页面会先被染黑） */
     document.body.appendChild(root);
 
     cvs = $("#wg-canvas");
@@ -431,7 +517,7 @@
     var w = AIS.map(function (a) {
       var d = a.r - player.r;             /* >0 表示吃不了 */
       if (hungry) return d <= 0 ? 4 : 0.15;
-      if (anyEatable) return d <= 0 ? 0.45 : 1;
+      if (anyEatable) return d <= 0 ? W_EAT : 1;
       return d <= 0 ? 2.2 / (1 + Math.abs(d) * 0.05) : 0.3;
     });
     var total = 0, i;
@@ -450,7 +536,7 @@
     for (var i = 0; i < 3; i++) tokens.push(makeToken());
     eaten = 0; elapsed = 0;
     invuln = INVULN;
-    spawnT = 2.0;
+    spawnT = 1.5;
     tokT = 0.4;
     starve = 0;
   }
@@ -487,7 +573,7 @@
     }
     if (hasEatable) starve = 0; else starve += dt;
 
-    /* 随机出鱼（间隔长，得熬得住） */
+    /* 随机出鱼 */
     spawnT -= dt;
     if (spawnT <= 0) {
       if (fishes.length < maxFish()) {
@@ -501,7 +587,7 @@
           spawnT = 0.6;              /* 这次位置太贴脸，等下一拍 */
         }
       } else {
-        spawnT = 1.5;
+        spawnT = 1.2;
       }
     }
 
@@ -724,9 +810,10 @@
 
   function boot() {
     buildUI();
-    onResize();
-    root.classList.add("on");
+    /* 先让气泡涌上来盖满，盖满那一刻才露出游戏层 */
     curtainIn(function () {
+      root.classList.add("on");
+      onResize();
       loadAssets().then(function () {
         var ld = $("#wg-loading");
         if (ld) ld.classList.add("hide");
