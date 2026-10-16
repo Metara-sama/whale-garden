@@ -82,7 +82,7 @@
   var curMode = 0, curLevel = 1.2, curT = 0, curLast = 0, curRaf = 0;
   var curCb = null, curOutCb = null, curFail = 0, curTexT = 0;
   var curW = 0, curH = 0, curDPR = 1, texDPR = 1;
-  var CUR_IN = 1.05, CUR_OUT = 1.10;   /* 涌上来 / 退下去 的时长（都是往上走） */
+  var CUR_IN = 1.05, CUR_OUT = 1.35;   /* 涌上来 / 退下去 的时长（都是匀速往上走，两段速度一致） */
 
   /* 预渲染一颗气泡（不透明实心 + 泡壁 + 冷色反光 + 高光），tone 决定色调 */
   function bubbleSprite(size, tone) {
@@ -272,7 +272,7 @@
 
     var dur = curMode === 1 ? CUR_IN : CUR_OUT;
     var p = dur > 0 ? Math.min(1, curT / dur) : 1;
-    var e = curMode === 1 ? 1 - Math.pow(1 - p, 3) : p * p;
+    var e = p;   /* 匀速：匀速上升，不要起步快结尾慢（那样看着像停顿） */
     /* 幕顶位置：一直是往上走 —— 进场从屏底升到屏幕上方，退场继续往上升出屏幕 */
     var travelIn = curH + curOver;
     var travelOut = bubLayH + curOver;
