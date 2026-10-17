@@ -8,6 +8,13 @@ import { GLTFLoader } from './loaders/GLTFLoader.js';
 import { MeshoptDecoder } from './libs/meshopt_decoder.module.js';
 
 /* ---------------- 常量 ---------------- */
+/* 线上把大文件交给 jsDelivr（GitHub Pages 在国内太慢） */
+const GH = /github\.io$/.test(location.hostname);
+const CDN = 'https://cdn.jsdelivr.net/gh/Metara-sama/whale-garden@main/projects/q-doll/';
+const ASSET = GH ? CDN : './';
+const GLB_DIR = GH ? CDN + 'glb/' : './glb/';
+const BGM_URL = GH ? CDN + 'assets/bgm.mp3' : './assets/bgm.mp3';
+
 
 const CAST = [
   { k: 'arisa',      n: '市谷有咲' },
@@ -25,7 +32,7 @@ const CAST = [
   { k: 'Timoris',    n: 'Timoris' },
   { k: 'Mortis',     n: 'Mortis' },
   { k: 'Oblivionis', n: 'Oblivionis' },
-].map((c, i) => ({ ...c, idx: i, file: `./glb/${c.k}.glb` }));
+].map((c, i) => ({ ...c, idx: i, file: `${GLB_DIR}${c.k}.glb` }));
 
 const HORIZON = [0.5556,0.5521,0.5521,0.5486,0.5451,0.5417,0.5382,0.5347,0.5347,0.5312,0.5312,0.5312,0.5312,0.5278,0.5278,0.5278,0.5278,0.5278,0.5278,0.5278,0.5278,0.5312,0.5312,0.5347,0.5347,0.5347,0.5382,0.5382,0.5417,0.5417,0.5451,0.5486,0.5521,0.5521,0.5556,0.559,0.559,0.5625,0.5625,0.566,0.5694,0.5694,0.5729,0.5764,0.5799,0.5799,0.5833,0.5868,0.5903,0.5938,0.5938,0.5972,0.6007,0.6007,0.6042,0.6042,0.6076,0.6111,0.6146,0.6181,0.6215,0.625,0.625,0.6285,0.6302,0.6319];
 const IMG_W = 2048, IMG_H = 1152;
@@ -35,6 +42,7 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
 const hash = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 const DEG = Math.PI / 180;
+
 const wrapDeg = (v) => ((((v + 180) % 360) + 360) % 360) - 180;
 
 /* ---------------- 状态 ---------------- */
@@ -283,7 +291,7 @@ loader.setMeshoptDecoder(MeshoptDecoder);
 
 const loadedMap = new Map();
 let loadDone = 0;
-const totalToLoad = 8;
+let totalToLoad = 6;
 
 function setProgress(pct) {
   $('#ld-num').textContent = Math.round(pct);
@@ -330,20 +338,13 @@ function mountDolls(list) {
 
 /** 首屏先加载 8 只，其余待首帧之后再静默预载 */
 async function loadAll() {
-  const first = CAST.slice(0, 8);
+  // 首屏只拉当前名单里的角色，其余等用户点选时再加载
+  const first = CAST.filter((c) => S.roster.includes(c.k));
+  totalToLoad = first.length || 1;
   await loadBatch(first);
   setProgress(100);
   mountDolls(first);
   syncActive();
-
-  const rest = CAST.slice(8);
-  if (rest.length) {
-    setTimeout(async () => {
-      await loadBatch(rest);
-      mountDolls(rest);
-      syncActive();
-    }, 1200);
-  }
 }
 
 /** 简单深克隆（模型无骨骼动画，直接 clone 并克隆材质即可） */
@@ -465,7 +466,7 @@ function updateSquash(dt) {
 /* ---------------- 音频 ---------------- */
 
 const audio = new Audio();
-audio.src = './assets/bgm.mp3';
+audio.src = BGM_URL;
 audio.loop = true;
 audio.preload = 'auto';
 audio.crossOrigin = 'anonymous';
