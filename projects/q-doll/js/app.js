@@ -298,6 +298,27 @@ function setProgress(pct) {
   $('#ld-num').textContent = Math.round(pct);
 }
 
+/** 多源竞速：同时拉 CDN 和站点，谁先回来用谁 */
+async function raceFetch(urls) {
+  const ctrls = urls.map(() => new AbortController());
+  const tasks = urls.map((u, i) => fetch(u, { signal: ctrls[i].signal })
+    .then((r) => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.arrayBuffer();
+    })
+    .then((buf) => {
+      ctrls.forEach((c, j) => { if (j !== i) { try { c.abort(); } catch (e) {} } });
+      return buf;
+    }));
+  return Promise.any(tasks);
+}
+
+function sourcesFor(def) {
+  const local = './glb/' + def.k + '.glb';
+  // 线上：jsDelivr 与站点同源同时拉
+  return GH ? [CDN + 'glb/' + def.k + '.glb', local] : [local];
+}
+
 function loadOne(def) {
   return new Promise((resolve) => {
     const localUrl = './glb/' + def.k + '.glb';
@@ -309,44 +330,21 @@ function loadOne(def) {
       syncActive();
       resolve(gltf);
     };
-    const fail = (isRetry) => {
-      // CDN 挂了就回退到站点自身的路径
-      if (!isRetry && def.file !== localUrl) {
-        loader.load(localUrl, done, undefined, () => fail(true));
-      } else {
-        loadDone++;
-        setProgress((loadDone / totalToLoad) * 100);
-        resolve(null);
-      }
+    const giveUp = () => {
+      loadDone++;
+      setProgress((loadDone / totalToLoad) * 100);
+      resolve(null);
     };
-    loader.load(def.file, done, undefined, () => fail(false));
+
+    raceFetch(sourcesFor(def)).then((buf) => {
+      loader.parse(buf, '', done, () => {
+        // 解析失败，退回普通加载
+        loader.load(localUrl, done, undefined, giveUp);
+      });
+    }).catch(giveUp);
   });
 }
 
-async function loadBatch(list) {
-  const queue = list.slice();
-  const workers = new Array(6).fill(0).map(async () => {
-    while (queue.length) {
-      const d = queue.shift();
-      await loadOne(d);
-    }
-  });
-  await Promise.all(workers);
-}
-
-function mountDolls(list) {
-  for (const def of list) {
-    if (dolls.some((d) => d.def.k === def.k)) continue;
-    const gltf = loadedMap.get(def.k);
-    if (!gltf) continue;
-    const inst = makeDoll({ scene: cloneSkeleton(gltf.scene) }, def);
-    dolls.push(inst);
-    world.add(inst.root);
-  }
-  dolls.sort((a, b) => a.def.idx - b.def.idx);
-}
-
-/** 首屏先加载 8 只，其余待首帧之后再静默预载 */
 async function loadAll() {
   // 首屏只拉当前名单里的角色，其余等用户点选时再加载
   const first = CAST.filter((c) => S.roster.includes(c.k));
