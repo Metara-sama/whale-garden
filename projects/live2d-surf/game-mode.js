@@ -110,13 +110,19 @@
     });
   }
 
-  /* 障碍定义（h/w 相对屏幕，yOff 相对水面基准线） */
+  /* 障碍定义（参照 Chrome 小恐龙 Obstacle.types 的身高/间距比例）
+     · 玩家视觉身高 ≈ 0.156H
+     · 地面类高度 = 0.74~1.06 倍身高（小仙人掌 / 大仙人掌）
+     · 空中类悬在水面上方，必须下潜
+     碰撞盒顶/底（站水面上沿 = 0.74H）：
+       站立 top 0.603H  bottom 0.767H
+       下潜 top 0.688H  bottom 0.767H（只变矮，不下移 → 石头照样撞） */
   const DEF = {
-    rock: { w: 0.10, h: 0.115, yOff: -0.010, need: 'jump' },
-    log: { w: 0.14, h: 0.055, yOff: -0.005, need: 'jump' },
-    buoy: { w: 0.055, h: 0.140, yOff: -0.030, need: 'jump' },
-    gull: { w: 0.10, h: 0.066, yOff: -0.075, need: 'dive' },
-    jelly: { w: 0.075, h: 0.100, yOff: -0.088, need: 'dive' }
+    rock: { w: 0.145, h: 0.115, yOff: -0.010, need: 'jump' },
+    log: { w: 0.200, h: 0.075, yOff: -0.005, need: 'jump' },
+    buoy: { w: 0.070, h: 0.165, yOff: -0.025, need: 'jump' },
+    gull: { w: 0.170, h: 0.130, yOff: -0.075, need: 'dive' },
+    jelly: { w: 0.110, h: 0.150, yOff: -0.085, need: 'dive' }
   };
   const JUMP_KINDS = ['rock', 'log', 'buoy'];
   const DIVE_KINDS = ['gull', 'jelly'];
@@ -136,20 +142,25 @@
     return { W, H };
   }
 
-  /* 玩家（人+板整体）的几何：x 固定，y 由跳跃/下潜驱动 */
+  /* 玩家（人+板整体）的几何：x 固定，y 由跳跃/下潜驱动
+     dive 视觉下沉 0.09H（碰撞盒只下移 0.085H 的"顶部"，见 playerBox） */
   function playerGeom() {
     const { W, H } = viewSize();
     const px = W * 0.235;
-    const baseY = H * 0.74 + GM.jumpY + GM.dive * H * 0.13;
+    const baseY = H * 0.74 + GM.jumpY + GM.dive * H * 0.09;
     return { px, baseY, W, H };
   }
 
   function playerBox() {
-    const { px, baseY, H, W } = playerGeom();
-    const cy = baseY - H * 0.055;
-    const hw = Math.max(15, W * 0.042);
+    const { px, H, W } = viewSize();
+    const px0 = W * 0.235;
+    const baseY0 = H * 0.74 + GM.jumpY;      // 不含下潜
+    const cy = baseY0 - H * 0.055;
     const hh = H * 0.082;
-    return { l: px - hw, r: px + hw, t: cy - hh, b: cy + hh };
+    const hw = Math.max(15, W * 0.042);
+    // 下潜：只把顶部往下压（身高变矮），底部不动
+    const diveTop = GM.dive * H * 0.085;
+    return { l: px0 - hw, r: px0 + hw, t: cy - hh + diveTop, b: cy + hh };
   }
 
   /* ================= 障碍物 ================= */
@@ -209,9 +220,17 @@
   }
 
   /* ================= 跳跃 / 下潜 ================= */
+  /* 跳跃：照搬 Chrome 小恐龙的比例
+     · 滞空 0.556s（那边 33 帧 @60fps，重力 0.6/frame²、初速 -10/frame）
+     · 跳高 ≈ 1.77 倍玩家身高 ≈ 0.276H
+     · v0 = 4h/T，g = 2v0/T */
   function jumpV() {
     const { H } = viewSize();
-    return -Math.sqrt(2 * (H * 3.6) * (H * 0.285));
+    return -4 * (H * 0.276) / 0.556;
+  }
+  function jumpGrav() {
+    const { H } = viewSize();
+    return 2 * (4 * (H * 0.276) / 0.556) / 0.556;
   }
 
   function doJump() {
@@ -317,7 +336,7 @@
 
     // 跳跃物理
     if (!GM.onGround) {
-      GM.vy += H * 3.6 * dt;
+      GM.vy += jumpGrav() * dt;
       GM.jumpY += GM.vy * dt;
       if (GM.jumpY >= 0) {
         GM.jumpY = 0; GM.vy = 0; GM.onGround = true;
@@ -332,12 +351,15 @@
     const tiltT = GM.onGround ? (GM.diving ? 0.5 : 0) : clamp(GM.vy / (H * -1.6), -0.3, 0.6);
     GM.tilt += (tiltT - GM.tilt) * Math.min(1, dt * 10);
 
-    // 生成
+    // 生成（间距照 Chrome 小恐龙 getGap：
+    //   minGap = 障碍宽 × speed + minGap(≈0.2W) × GAP_COEFFICIENT(0.6)
+    //   实际取值 [minGap, 1.5 × minGap]，换算成时间）
     GM.spawnT -= dt;
     if (GM.spawnT <= 0) {
       spawnObstacle();
-      const base = clamp(1.5 - (GM.speed - 1) * 0.25, 1.05, 1.5);
-      GM.spawnT = base * rnd(1.0, 1.25);
+      const vpx = GM.speed * Math.min(W, H) * 0.55;
+      const gapPx = (W * 0.15 * GM.speed + W * 0.20 * 0.6) * rnd(1, 1.5);
+      GM.spawnT = Math.max(0.34, gapPx / vpx);
     }
     updateObstacles(dt);
 
@@ -387,7 +409,7 @@
     GM.jumpY = 0; GM.vy = 0; GM.onGround = true;
     GM.dive = 0; GM.diving = false; GM.tilt = 0;
     GM.shake = 0;
-    GM.spawnT = 2.0;
+    GM.spawnT = 2.4;
     GM.weatherT = rnd(18, 28);
     GM.baseSeaSpeed = R.scene ? R.scene.speed : 50;
     clearObstacles();
@@ -476,7 +498,7 @@
       GM.dead = false; GM.score = 0; GM.dist = 0; GM.speed = 1;
       GM.jumpY = 0; GM.vy = 0; GM.onGround = true;
       GM.dive = 0; GM.diving = false; GM.tilt = 0;
-      GM.spawnT = 2.0;
+      GM.spawnT = 2.4;
       clearObstacles();
       restoreModels();
       const sc = $('#hud-score'); if (sc) sc.textContent = '0';

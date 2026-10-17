@@ -132,6 +132,48 @@ python3 tools/build_single.py --models 001_adv_tomori_001_casual_spring_01,022_a
 > 踩过的坑：`stage` 上的监听器和 app.js 是**同一个节点**，`stopPropagation` 拦不住同节点其他监听器，
 > 必须把拦截提到 `document` 的捕获阶段，否则游戏中点屏幕会同时拖动模型。
 
+### 手感参数（照 Chrome 小恐龙调的）
+
+从 [wayou/t-rex-runner](https://github.com/wayou/t-rex-runner) 扒的原版配置：
+
+```js
+Runner.config = {
+  GRAVITY: 0.6,              // px/frame²
+  INITIAL_JUMP_VELOCITY: 12,
+  SPEED: 6, MAX_SPEED: 13,   // px/frame
+  GAP_COEFFICIENT: 0.6,
+  MAX_OBSTACLE_LENGTH: 3,
+};
+Trex.config = {
+  GRAVITY: 0.6, INIITAL_JUMP_VELOCITY: -10,
+  HEIGHT: 47, HEIGHT_DUCK: 25,
+};
+// 障碍间距
+minGap = Math.round(width * speed + typeConfig.minGap * 0.6)
+gap    = random(minGap, minGap * 1.5)
+```
+
+换算到 60fps：
+
+- 跳跃高度 `600²/(2×2160) = 83px` ≈ **1.77 倍恐龙身高**
+- 滞空 `2×600/2160` = **0.556 秒**
+- 速度 360 → 780 px/s
+- 障碍间距 → **0.38 ~ 0.73 秒**
+- 蹲下 = 碰撞盒高度 47→25（**变矮**，不是整体下沉）
+
+本站照搬的比例：
+
+| 项 | 小恐龙 | 本站实测 |
+| --- | --- | --- |
+| 滞空 | 0.556s | **0.551s** |
+| 跳高 | 1.77× 身高 | **1.67× 身高**（0.26H） |
+| 障碍间距 | 0.38~0.73s | **0.51~0.70s** |
+| 下潜 / 蹲 | 碰撞盒变矮 | **碰撞盒顶部下压 0.085H，底部不动** |
+
+**下潜为什么不能再躲石头**：以前是「整组下沉 0.13H」，碰撞盒直接沉到石头下面去了；
+现在改成「只把碰撞盒顶部往下压」，底部仍在水面下 → 礁石/浮木/浮标照样撞，只有悬空的
+海鸥/水母能躲过。反过来，对海鸥**起跳**也会撞（跳起来正好顶到它），必须下潜。
+
 ## 交换逻辑：大小/角度属于"位置"，不属于模型
 
 ```
