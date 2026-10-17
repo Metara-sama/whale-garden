@@ -179,3 +179,103 @@ select,input[type=text]{appearance:none;-webkit-appearance:none}
 .bgm-item .btn{padding:3px 8px}
 .bgm-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dimtxt{color:var(--dim);font-size:11px}
+
+/* ==========================================================
+   跑酷模式（body.playing）
+   ========================================================== */
+
+/* 顶栏 / 面板 无缝收起 */
+.topbar{transition:transform .52s cubic-bezier(.34,1.15,.64,1), opacity .3s ease}
+#panel{transition:max-height .55s cubic-bezier(.4,0,.2,1), opacity .32s ease}
+body.playing .topbar{transform:translateY(-140%);opacity:0;pointer-events:none}
+body.playing #panel{
+  max-height:0!important;
+  opacity:0;pointer-events:none;overflow:hidden;
+  padding-top:0;padding-bottom:0;border-top:0;box-shadow:none;
+}
+body.playing #tip{opacity:0!important}
+
+/* 开始按钮 */
+#btn-play{
+  background:linear-gradient(135deg,#8ce6ff,#3aa9ff);
+  color:#062033 !important;font-weight:800;font-size:13px;
+  border-color:transparent !important;
+  box-shadow:0 0 18px rgba(90,216,255,.45);
+}
+
+/* HUD */
+.hud{
+  position:absolute;left:0;right:0;top:0;z-index:6;
+  padding:calc(env(safe-area-inset-top,0px) + 12px) calc(env(safe-area-inset-right,0px) + 16px)
+          0 calc(env(safe-area-inset-left,0px) + 16px);
+  display:flex;align-items:flex-start;justify-content:space-between;
+  pointer-events:none;
+  opacity:0;transform:translateY(-10px);
+  transition:opacity .45s .18s ease, transform .45s .18s cubic-bezier(.34,1.2,.64,1);
+}
+body.playing .hud{opacity:1;transform:none}
+.hud-score{display:flex;align-items:baseline;gap:3px;font-variant-numeric:tabular-nums}
+.hud-score b{
+  font-size:clamp(26px,7.2vw,44px);font-weight:800;letter-spacing:.02em;
+  text-shadow:0 2px 14px rgba(0,20,40,.55);
+}
+.hud-score i{font-size:clamp(11px,3vw,15px);font-style:normal;color:rgba(190,214,240,.75)}
+.hud-right{display:flex;align-items:center;gap:10px}
+.hud-best{font-size:clamp(10px,2.8vw,12px);color:rgba(190,214,240,.7)}
+.hud-best b{color:#cfe9ff;font-variant-numeric:tabular-nums}
+.hud-sea{
+  font-size:clamp(15px,4.2vw,20px);
+  width:1.85em;height:1.85em;display:grid;place-items:center;
+  border-radius:50%;
+  background:rgba(10,22,38,.42);
+  border:1px solid rgba(140,170,210,.16);
+  transition:transform .4s cubic-bezier(.34,1.4,.64,1);
+}
+.hud-sea.pop{transform:scale(1.3)}
+
+/* 结算 */
+.over{
+  position:absolute;inset:0;z-index:8;
+  display:grid;place-items:center;
+  padding:20px;
+  background:radial-gradient(120% 80% at 50% 40%, rgba(8,18,32,.35), rgba(5,12,22,.84) 75%);
+  backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+  opacity:0;pointer-events:none;
+  transition:opacity .42s ease;
+}
+.over.on{opacity:1;pointer-events:auto}
+.over-inner{
+  text-align:center;
+  transform:translateY(20px) scale(.94);
+  transition:transform .5s cubic-bezier(.34,1.3,.64,1);
+}
+.over.on .over-inner{transform:none}
+.over-inner h2{
+  margin:0 0 4px;font-size:clamp(16px,4.6vw,22px);font-weight:700;
+  color:#cfe9ff;letter-spacing:.04em;
+}
+.over-score{display:flex;align-items:baseline;justify-content:center;gap:4px}
+.over-score b{
+  font-size:clamp(46px,15vw,82px);font-weight:800;line-height:1.05;
+  background:linear-gradient(180deg,#fff,#7fd8ff);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  font-variant-numeric:tabular-nums;
+  filter:drop-shadow(0 4px 22px rgba(90,216,255,.4));
+}
+.over-score i{font-size:clamp(13px,3.6vw,17px);font-style:normal;color:rgba(190,214,240,.7)}
+.over-row{
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  margin-top:2px;font-size:clamp(11px,3vw,13px);color:rgba(190,214,240,.7);
+}
+.new-best{color:#ffd76a;font-weight:700;opacity:0;transition:opacity .3s}
+.new-best.on{opacity:1;animation:pop .5s cubic-bezier(.34,1.6,.64,1)}
+@keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+.over-btns{
+  display:flex;gap:10px;justify-content:center;
+  margin-top:clamp(14px,3.4vh,26px);
+}
+.over-btns .btn{padding:12px 22px;border-radius:999px;font-size:clamp(13px,3.5vw,15px)}
+.over-btns .btn.accent{
+  background:linear-gradient(135deg,#8ce6ff,#3aa9ff);color:#062033;border-color:transparent;
+  box-shadow:0 8px 24px rgba(90,216,255,.38);font-weight:700;
+}

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0d1220" />
 <title>谁在冲浪 · Live2D 冲浪测试器</title>
 <meta name="description" content="冲浪版的鹈鹕骑自行车：冲浪者和冲浪板都是可替换的 Live2D 模型。" />
-<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="style.css?v=7" />
 <script src="vendor/live2dcubismcore.min.js"></script>
 <script src="vendor/pixi.min.js"></script>
 <script src="vendor/cubism4.min.js"></script>
@@ -18,13 +18,38 @@
     <div class="topbar">
       <div class="brand"><b>谁在冲浪</b></div>
       <div class="tools">
-        <button id="btn-dash" title="冲浪跑酷小游戏" onclick="location.href='dash.html'">🏄</button>
+        <button id="btn-play" title="开始跑酷">▶</button>
         <button id="btn-random" title="随机换一片海">🎲</button>
         <button id="btn-shot" title="保存截图">📷</button>
         <button id="btn-share" title="复制分享链接">🔗</button>
       </div>
     </div>
     <div id="status" class="status"></div>
+
+    <!-- 跑酷 HUD（游戏时显示） -->
+    <div id="hud" class="hud">
+      <div class="hud-score"><b id="hud-score">0</b><i>m</i></div>
+      <div class="hud-right">
+        <span class="hud-best">最佳 <b id="hud-best">0</b></span>
+        <span class="hud-sea" id="hud-sea">☀</span>
+      </div>
+    </div>
+
+    <!-- 跑酷结算 -->
+    <div id="over" class="over">
+      <div class="over-inner">
+        <h2 id="over-title">被浪拍中了</h2>
+        <div class="over-score"><b id="over-score">0</b><i>m</i></div>
+        <div class="over-row">
+          <span>最佳 <b id="over-best">0</b> m</span>
+          <span id="over-new" class="new-best">新纪录！</span>
+        </div>
+        <div class="over-btns">
+          <button id="btn-again" class="btn accent">▶ 再来一次</button>
+          <button id="btn-exit" class="btn ghost">继续摆弄</button>
+        </div>
+      </div>
+    </div>
   </main>
 
   <aside id="panel">
@@ -123,6 +148,7 @@
   </aside>
 </div>
 <div id="toast" class="toast"></div>
-<script src="app.js"></script>
+<script src="app.js?v=7"></script>
+<script src="game-mode.js?v=7"></script>
 </body>
 </html>
