@@ -56,6 +56,7 @@ const S = {
   depth: 0.55,      // 压缩量
   audioGain: 0.55,
   roster: ['kasumi', 'tomori', 'saya'],
+  custom: [],
   yaw: 0,           // 手动全局朝向（度）
   rotYaw: 0,        // 自动旋转累积角（度）
   autoRot: false,   // 自动旋转开关
@@ -74,6 +75,7 @@ try {
     depth: saved.depth ?? S.depth,
     audioGain: saved.audioGain ?? S.audioGain,
     roster: Array.isArray(saved.roster) && saved.roster.length ? saved.roster : S.roster,
+    custom: Array.isArray(saved.custom) ? saved.custom : [],
     yaw: saved.yaw ?? 0,
     autoRot: !!saved.autoRot,
     rotSpeed: saved.rotSpeed ?? 30,
@@ -83,7 +85,7 @@ try {
 const save = () => {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify({
-      bpm: S.bpm, elastic: S.elastic, depth: S.depth, audioGain: S.audioGain, roster: S.roster,
+      bpm: S.bpm, elastic: S.elastic, depth: S.depth, audioGain: S.audioGain, roster: S.roster, custom: S.custom,
       yaw: S.yaw, autoRot: S.autoRot, rotSpeed: S.rotSpeed, rotDir: S.rotDir,
     }));
   } catch (e) {}
@@ -293,8 +295,6 @@ const loader = new GLTFLoader();
 loader.setMeshoptDecoder(MeshoptDecoder);
 
 const loadedMap = new Map();
-let loadDone = 0;
-let totalToLoad = 6;
 
 let totalBytes = 1, gotBytes = 0, loadedCount = 0, wantCount = 1;
 const perDollGot = new Map();
@@ -434,6 +434,8 @@ async function loadAll() {
   // 模型到位后再开始拉音频
   setTimeout(() => { try { audio.preload = 'auto'; audio.load(); } catch (e) {} }, 600);
 
+  await restoreCustom();
+
   if (active.length === 0) {
     document.body.classList.add('load-fail');
     const sub = $('#ld-sub');
@@ -462,7 +464,9 @@ function buildRosterUI() {
   const box = $('#roster');
   if (!box) return;
   box.innerHTML = '';
-  for (const c of CAST) {
+  const items = CAST.map((c) => ({ k: c.k, n: c.n }))
+    .concat(S.custom.map((c) => ({ k: c.id, n: c.name })));
+  for (const c of items) {
     const el = document.createElement('div');
     el.className = 'chip';
     el.dataset.k = c.k;
@@ -503,6 +507,94 @@ function toggleMember(k, el) {
       });
       return;
     }
+  }
+  syncActive();
+}
+
+/* ---------- 2D 玩偶（上传图片） ---------- */
+function makeImageDoll(tex, w, h, def) {
+  const root = new THREE.Group();
+  const jumpNode = new THREE.Group();
+  const squashNode = new THREE.Group();
+  const modelWrap = new THREE.Group();
+
+  const aspect = w / h;
+  const geo = new THREE.PlaneGeometry(aspect, 1);
+  geo.translate(0, 0.5, 0);          // 底边对齐 y=0，与 3D 玩偶同一套坐标系
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+  });
+  modelWrap.add(new THREE.Mesh(geo, mat));
+  squashNode.add(modelWrap);
+  jumpNode.add(squashNode);
+  root.add(jumpNode);
+
+  const shadow = new THREE.Mesh(SHADOW_GEO, new THREE.MeshBasicMaterial({
+    map: SHADOW_TEX, transparent: true, depthWrite: false, opacity: 0.3,
+  }));
+  shadow.renderOrder = -1;
+  root.add(shadow);
+
+  return {
+    def, root, jumpNode, squashNode, modelWrap, shadow,
+    user: { s: 1, dx: 0, dy: 0 }, tilt: 0, yaw: 0, jitter: 0,
+    baseScale: 1, anchor: { x: 0, y: 0 }, jump: 0,
+    is2D: true, imgW: w, imgH: h,
+  };
+}
+
+function loadTex(url) {
+  return new Promise((res) => {
+    new THREE.TextureLoader().load(url, (t) => {
+      t.colorSpace = THREE.SRGBColorSpace;
+      res(t);
+    }, undefined, () => res(null));
+  });
+}
+
+function fileToDataURL(file, maxH = 768) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const sc = Math.min(1, maxH / img.naturalHeight);
+      const w = Math.max(1, Math.round(img.naturalWidth * sc));
+      const h = Math.max(1, Math.round(img.naturalHeight * sc));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      let url = c.toDataURL('image/webp', 0.85);
+      if (!url.startsWith('data:image/webp')) url = c.toDataURL('image/png');
+      resolve({ url, w, h });
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function addCustomImage(file) {
+  if (S.custom.length >= 8) return;
+  const { url, w, h } = await fileToDataURL(file);
+  const id = 'c' + Math.random().toString(36).slice(2, 7);
+  const nm = (file.name || '').replace(/\.[^.]+$/, '').slice(0, 6) || ('图片' + (S.custom.length + 1));
+  S.custom.push({ id, name: nm, url, w, h });
+  const tex = await loadTex(url);
+  const def = { k: id, n: nm, idx: 200 + S.custom.length, sz: 0 };
+  const d = makeImageDoll(tex, w, h, def);
+  dolls.push(d);
+  world.add(d.root);
+  S.roster.push(id);
+  buildRosterUI();
+  syncActive();
+}
+
+async function restoreCustom() {
+  for (const rec of S.custom) {
+    if (dolls.some((d) => d.def.k === rec.id)) continue;
+    const tex = await loadTex(rec.url);
+    const def = { k: rec.id, n: rec.name, idx: 200, sz: 0 };
+    const d = makeImageDoll(tex, rec.w, rec.h, def);
+    dolls.push(d);
+    world.add(d.root);
   }
   syncActive();
 }
@@ -653,8 +745,9 @@ function hitDoll(cx, cy) {
   for (let i = 0; i < active.length; i++) {
     const d = active[i];
     const h = d.baseScale * d.user.s;
+    const hw = d.is2D ? Math.max(h * 0.4, h * (d.imgW / d.imgH) * 0.5) : h * 0.62;
     const x = d.root.position.x, y = d.root.position.y;
-    if (p.x > x - h * 0.62 && p.x < x + h * 0.62 && p.y > y - h * 0.10 && p.y < y + h * 1.05) {
+    if (p.x > x - hw && p.x < x + hw && p.y > y - h * 0.10 && p.y < y + h * 1.05) {
       if (d.root.position.z > bestZ) { bestZ = d.root.position.z; best = d; }
     }
   }
@@ -959,6 +1052,18 @@ $('#scale').addEventListener('input', (e) => {
   setViewScale(e.target.value / 100);
 });
 
+/* ---- 上传图片当玩偶 ---- */
+$('#add-img').addEventListener('click', () => $('#file-img').click());
+$('#file-img').addEventListener('change', async (e) => {
+  const files = [...(e.target.files || [])];
+  for (const f of files) {
+    try { await addCustomImage(f); } catch (err) { console.warn('img fail', err); }
+  }
+  e.target.value = '';
+  buildRosterUI();
+  syncActive();
+});
+
 $('#reset-view').addEventListener('click', () => {
   S.view = { s: 1, x: 0, y: 0 };
   applyView(); syncScaleUI();
@@ -1053,8 +1158,10 @@ function frame(now) {
     d.jumpNode.position.y = 0;
 
     // 旋转：全局朝向 + 个体微差 + 呼吸摆
-    d.modelWrap.rotation.y = yawBase + d.tilt + d.yaw * 0.9 + Math.sin((now / 1000) * 0.9 + d.def.idx * 1.3) * 0.028;
-    d.modelWrap.rotation.z = sq * 0.055;
+    if (!d.is2D) {
+      d.modelWrap.rotation.y = yawBase + d.tilt + d.yaw * 0.9 + Math.sin((now / 1000) * 0.9 + d.def.idx * 1.3) * 0.028;
+      d.modelWrap.rotation.z = sq * 0.055;
+    }
 
     // 影子：跟着摊开 / 变淡
     const flat = clamp(sq, -0.2, 0.6);
@@ -1132,4 +1239,4 @@ async function boot() {
 boot();
 
 /* 调试挂钩 */
-window.__doll = { S, dolls, active, syncActive, toggleMember, buildRosterUI, play, pause, setViewScale, setYaw, camera, renderer, scene };
+window.__doll = { S, dolls, active, syncActive, toggleMember, buildRosterUI, addCustomImage, makeImageDoll, play, pause, setViewScale, setYaw, camera, renderer, scene };
