@@ -315,7 +315,7 @@ function loadOne(def) {
 
 async function loadBatch(list) {
   const queue = list.slice();
-  const workers = new Array(4).fill(0).map(async () => {
+  const workers = new Array(6).fill(0).map(async () => {
     while (queue.length) {
       const d = queue.shift();
       await loadOne(d);
