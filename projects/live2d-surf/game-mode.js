@@ -124,6 +124,12 @@
     gull: { w: 0.170, h: 0.130, yOff: -0.075, need: 'dive' },
     jelly: { w: 0.110, h: 0.150, yOff: -0.085, need: 'dive' }
   };
+  /* 加速曲线：照 Chrome 小恐龙 SPEED 6 → MAX_SPEED 13 的线性增长
+     （ACCELERATION 0.001/帧 @60fps = 每秒 +0.06，约 117 秒到顶）
+     这里把 1 → 2.4 映射到同样的 117 秒，是纯线性，不是 dist 映射的指数曲线 */
+  const SPD_MAX = 2.4;
+  const SPD_PER_SEC = (SPD_MAX - 1) / 117;   // ≈ 0.01197 / 秒
+
   const JUMP_KINDS = ['rock', 'log', 'buoy'];
   const DIVE_KINDS = ['gull', 'jelly'];
 
@@ -331,8 +337,11 @@
     }
     const { W, H } = viewSize();
 
-    // 难度
-    GM.speed = clamp(1 + GM.dist / 7000, 1, 2.4);
+    // 难度：照 Chrome 小恐龙 —— 线性加速，不是指数
+    //   小恐龙 SPEED 6 → MAX_SPEED 13，ACCELERATION 0.001/帧 @60fps
+    //   = 每秒 +0.06（相对基准 6 就是每秒 +1%），约 117 秒到顶
+    //   这里映射成 1 → 2.4，同样用 117 秒跑完，前 30 秒只 +30%，不会一上来就难
+    if (GM.speed < SPD_MAX) GM.speed = Math.min(SPD_MAX, GM.speed + SPD_PER_SEC * dt);
     GM.dist += GM.speed * Math.min(W, H) * 0.62 * dt;
     GM.score = Math.floor(GM.dist / 14) + (GM.passBonus || 0);
     const sc = $('#hud-score');
