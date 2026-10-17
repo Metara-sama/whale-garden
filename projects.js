@@ -33,10 +33,11 @@ const PROJECTS = [
   },
   {
     name: "Millsage 剧情演示",
-    desc: "带语音的剧情演示页：立绘 + 对白逐句推进。有声版和静音版各一个入口，素材全部内嵌在单文件里，点开就能看。",
+    desc: "带语音的剧情演示页：立绘 + 对白逐句推进。有声版和静音版是素材全内嵌的单文件；Live2D 版则是六套模型（汐见萤 / 伊泽枣 / 琴平凪 / 滨崎茉幌 / 和泉朋花 / 泽海奏多）跟着对白实时切换，动作和表情照搬游戏本体演出脚本。",
     status: "live",
     year: "2025",
     links: [
+      { label: "Live2D 版", url: "projects/millsage-live2d/" },
       { label: "有声版", url: "projects/millsage/" },
       { label: "静音版", url: "projects/millsage/silent.html" }
     ]

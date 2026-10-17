@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>millsage · Live2D 剧情</title>
+<style>
+:root{--ink:#3c3c46;--sub:#a8a8b6;--accent:#b892e8;--line:rgba(24,24,48,.075)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{height:100%}
+body{margin:0;height:100vh;overflow:hidden;background:#fff;color:var(--ink);
+  display:flex;flex-direction:column;
+  font-family:"Noto Sans CJK SC","Source Han Sans SC","PingFang SC",system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased}
+@supports (height:100dvh){body{height:100dvh}}
+#glow{position:fixed;inset:0;z-index:0;pointer-events:none;background:
+  radial-gradient(60vw 60vw at 50% 12%,rgba(184,146,232,.075),transparent 68%),
+  radial-gradient(50vw 50vw at 86% 92%,rgba(143,182,234,.06),transparent 70%),#fff}
+#motes{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+#motes i{position:absolute;bottom:-8vh;border-radius:50%;background:rgba(184,146,232,.18);
+  animation:rise linear infinite;will-change:transform,opacity}
+@keyframes rise{0%{transform:translate3d(0,0,0);opacity:0}
+  6%{opacity:.85}90%{opacity:.8}100%{transform:translate3d(0,-122vh,0);opacity:0}}
+#cv{position:fixed;inset:0;z-index:2;display:block;transition:opacity .18s ease}
+#stage{position:fixed;inset:0;z-index:3}
+/* 无 Live2D 的角色用静态立绘（奏多已有 Live2D，这里留作兜底） */
+#chara2d{position:fixed;left:50%;bottom:0;z-index:2;transform:translateX(-50%);
+  height:min(64vh,88vw);display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;transition:opacity .18s ease;pointer-events:none}
+#chara2d.on{opacity:1}
+#chara2d img{height:100%;width:auto;display:block;mix-blend-mode:multiply;
+  animation:breathe2d 6.5s ease-in-out infinite alternate}
+@keyframes breathe2d{from{transform:translateY(0)}to{transform:translateY(-9px)}}
+@media (max-aspect-ratio:3/4){#chara2d{height:min(58vh,84vw)}}
+@media (min-aspect-ratio:1/1){#chara2d{height:min(72vh,70vw)}}
+
+/* 顶栏 */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:8;display:flex;align-items:center;gap:10px;
+  padding:calc(9px + env(safe-area-inset-top,0px)) 14px 7px;pointer-events:none}
+.topbar > *{pointer-events:auto}
+.pbtn{border:1px solid var(--line);background:rgba(255,255,255,.88);color:#6f6f80;
+  font-family:inherit;font-size:12px;letter-spacing:.06em;padding:7px 14px;border-radius:999px;
+  cursor:pointer;backdrop-filter:blur(6px);transition:border-color .3s,color .3s}
+.pbtn:hover{border-color:var(--accent);color:var(--accent)}
+.pbtn i{font-style:normal;margin-left:7px;font-size:9px;color:var(--sub)}
+.topbar .tt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:11.5px;letter-spacing:.14em;color:#7a7a8c}
+.topbar .counter{font-size:11px;letter-spacing:.14em;color:var(--sub);font-variant-numeric:tabular-nums}
+
+/* 台词 */
+.dialogue{position:fixed;left:0;right:0;bottom:0;z-index:6;padding:0 6vw 10.5vh;
+  text-align:center;pointer-events:none;
+  background:linear-gradient(to top,#fff 30%,rgba(255,255,255,.95) 55%,
+    rgba(255,255,255,.75) 80%,rgba(255,255,255,0) 100%)}
+.spk{position:relative;font-size:12.5px;letter-spacing:.4em;color:var(--accent);
+  font-weight:500;margin-bottom:9px}
+.spk::before{content:"";position:absolute;left:50%;top:-12px;width:38px;height:1px;
+  transform:translateX(-50%) scaleX(0);transform-origin:center;
+  background:linear-gradient(90deg,rgba(184,146,232,0),rgba(184,146,232,.6),rgba(184,146,232,0))}
+.spk.lit::before{animation:lineGrow .95s cubic-bezier(.22,.61,.36,1) both}
+@keyframes lineGrow{from{transform:translateX(-50%) scaleX(0);opacity:0}
+  30%{opacity:1}to{transform:translateX(-50%) scaleX(1);opacity:1}}
+.txt{font-size:clamp(15px,2.4vh,20.5px);line-height:1.95;font-weight:350;color:#3c3c46;
+  max-width:40em;margin:0 auto;white-space:pre-wrap;will-change:transform,opacity}
+.txt.telop{color:#bdbdcc;letter-spacing:.24em;font-size:clamp(16px,2.8vh,23px);font-weight:300}
+/* 过场影像字幕：像视频字幕条，整段合并显示，字号与台词一致 */
+.txt.sub{color:#4a4657;text-align:center;letter-spacing:.02em;
+  font-size:clamp(14px,2.2vh,19px);line-height:1.9;opacity:.94;
+  padding:12px 18px;border-radius:14px;background:rgba(255,255,255,.72);
+  box-shadow:0 6px 20px rgba(184,146,232,.10);max-width:34em;
+  max-height:38vh;overflow-y:auto;pointer-events:auto}
+.txt.sub::before{content:"▶ 影像";display:block;font-size:10px;letter-spacing:.34em;
+  color:#b3a8c8;margin-bottom:8px;font-style:normal}
+
+/* 控制条 */
+.controls{position:fixed;left:0;right:0;bottom:0;z-index:8;display:flex;align-items:center;gap:9px;
+  padding:6px 13px calc(9px + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(to top,rgba(255,255,255,.99) 46%,rgba(255,255,255,0))}
+.controls button{display:inline-flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:999px;
+  color:#8c8c9c;font-size:11.5px;letter-spacing:.12em;padding:9px 14px;cursor:pointer;
+  font-family:inherit;white-space:nowrap;transition:color .3s,border-color .3s,box-shadow .3s,transform .18s}
+.controls button:hover{border-color:var(--accent);color:var(--accent);
+  box-shadow:0 4px 18px rgba(184,146,232,.16);transform:translateY(-1px)}
+.controls button:active{transform:translateY(0) scale(.94)}
+.controls button.act{color:var(--accent);border-color:rgba(184,146,232,.5);background:rgba(184,146,232,.07)}
+.controls .ico{font-size:12px;line-height:1}
+.bar{flex:1 1 auto;height:16px;display:flex;align-items:center;cursor:pointer;min-width:44px}
+.bar .track{position:relative;width:100%;height:2px;background:rgba(24,24,48,.07);border-radius:2px}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:2px;
+  background:linear-gradient(90deg,rgba(184,146,232,.35),var(--accent));transition:width .4s ease}
+.count{flex:0 0 auto;font-size:11px;letter-spacing:.14em;color:var(--sub);min-width:60px;
+  text-align:right;font-variant-numeric:tabular-nums}
+
+/* 章节选择 */
+.picker{position:fixed;inset:0;z-index:15;background:#fff;display:flex;flex-direction:column;
+  opacity:0;pointer-events:none;transition:opacity .5s ease}
+.picker.show{opacity:1;pointer-events:auto}
+.p-head{flex:0 0 auto;text-align:center;padding:calc(16px + env(safe-area-inset-top,0px)) 18px 6px}
+.p-head b{display:block;font-size:12px;letter-spacing:.34em;padding-left:.34em;color:var(--accent);font-weight:500}
+.p-head s{display:block;margin-top:7px;font-size:10px;letter-spacing:.2em;color:#c6c6d3;text-decoration:none}
+.p-list{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:0 16px calc(22px + env(safe-area-inset-bottom,0px));
+  transform:translateY(12px);transition:transform .55s cubic-bezier(.22,.61,.36,1)}
+.picker.show .p-list{transform:translateY(0)}
+.p-group{position:sticky;top:0;z-index:1;background:#fff;padding:14px 4px 8px;
+  font-size:11px;letter-spacing:.24em;color:#b2b2c2}
+.p-item{display:flex;align-items:baseline;gap:10px;width:100%;text-align:left;background:none;border:0;
+  border-bottom:1px solid var(--line);padding:12px 4px;font-family:inherit;font-size:13.5px;
+  color:#5c5c6c;cursor:pointer;transition:color .22s,background .22s}
+.p-item:hover{color:var(--accent);background:rgba(184,146,232,.05)}
+.p-item .n{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.p-item .m{flex:0 0 auto;font-size:10.5px;letter-spacing:.08em;color:#bfbfcc}
+.p-item.cur .n{color:var(--accent)}
+
+/* 开场 */
+#splash{position:fixed;inset:0;z-index:20;background:#fff;overflow:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:17px;cursor:pointer}
+#splash.gone{display:none}
+#splash .sdots{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+#splash .sdots i{position:absolute;border-radius:50%;opacity:0;animation:rise 16s linear infinite}
+.sp-glow{position:absolute;width:78vw;height:78vw;max-width:620px;max-height:620px;border-radius:50%;
+  background:radial-gradient(circle,rgba(184,146,232,.17),rgba(143,182,234,.09) 44%,rgba(255,255,255,0) 72%);opacity:0}
+.sp-rainbow{position:relative;width:min(60vw,300px);height:2px;border-radius:2px;opacity:0;
+  transform:scaleX(0);transform-origin:center;
+  background:linear-gradient(90deg,#ffb3b8,#ffd6a5,#fbf3a6,#b7e4c7,#a8c8ff,#cfb6ea)}
+.sp-burst{position:relative;width:min(60vw,300px);height:2px;margin-top:-19px;opacity:0;
+  background:linear-gradient(90deg,rgba(255,255,255,0),rgba(184,146,232,.55),rgba(255,255,255,0))}
+.sp-title{position:relative;font-size:clamp(26px,7.2vw,44px);font-weight:300;letter-spacing:.34em;
+  padding-left:.34em;color:#5c5c6c;opacity:0}
+.sp-sub{position:relative;font-size:clamp(10.5px,3vw,13px);letter-spacing:.32em;padding-left:.32em;
+  color:#c4c4d2;opacity:0}
+.sp-mark{position:absolute;bottom:calc(26px + env(safe-area-inset-bottom,0px));
+  font-size:9.5px;letter-spacing:.24em;color:#d7d7e2;opacity:0;text-align:center}
+
+/* 切人闪白 */
+#flash{position:fixed;inset:0;z-index:7;pointer-events:none;opacity:0;
+  background:radial-gradient(circle at 50% 46%,rgba(255,255,255,.98),rgba(236,228,252,.86) 40%,rgba(255,255,255,.5) 70%,rgba(255,255,255,0))}
+#loading{position:fixed;left:50%;top:46%;transform:translate(-50%,-50%);z-index:9;
+  font-size:11.5px;letter-spacing:.3em;color:var(--accent);opacity:0;transition:opacity .3s;pointer-events:none}
+#loading.on{opacity:1}
+/* 语音相关错误提示（正常时不显示） */
+#dbg{position:fixed;left:10px;right:10px;bottom:calc(46px + env(safe-area-inset-bottom,0px));z-index:9;
+  font-size:10.5px;line-height:1.5;color:#c98a8a;opacity:.9;pointer-events:none;text-align:center}
+#mute{color:#8c8c9c}
+@media (max-aspect-ratio:3/4){
+  .txt{font-size:clamp(15.5px,4.1vw,19.5px);line-height:1.92}
+  .dialogue{padding:0 6vw 11vh}
+}
+@media (min-aspect-ratio:1/1){
+  .dialogue{padding:0 8vw 9vh}
+  .txt{font-size:clamp(15px,2.9vh,20px)}
+  .p-list{columns:2;column-gap:26px}
+  .p-item{break-inside:avoid}
+}
+@media (max-width:520px){
+  .controls{gap:7px;padding-left:9px;padding-right:9px}
+  .controls button{padding:9px 12px}
+  .controls .lb{display:none}
+  .count{min-width:50px}
+}
+</style>
+</head>
+<body>
+<div id="glow"></div>
+<div id="motes"></div>
+<canvas id="cv"></canvas>
+<div id="chara2d"><img id="chara2d-img" alt="" src="chara2d/kanade.jpg"></div>
+<div id="stage"></div>
+<div id="flash"></div>
+  <div id="loading">载入角色…</div>
+  <div id="dbg"></div>
+
+<div class="topbar">
+  <button id="pickerBtn" class="pbtn">章节<i>▾</i></button>
+  <div class="tt" id="chapterTitle">—</div>
+  <div class="counter" id="headCounter"></div>
+</div>
+
+<div class="dialogue">
+  <div class="spk" id="spk"></div>
+  <div class="txt" id="txt"></div>
+</div>
+
+<div class="controls">
+  <button id="prevBtn" title="上一句"><span class="ico">‹</span><span class="lb">上一句</span></button>
+  <button id="autoBtn" title="自动播放/暂停"><span class="ico" id="autoIco">▶</span><span class="lb" id="autoLb">自动</span></button>
+  <button id="nextBtn" title="下一句"><span class="lb">下一句</span><span class="ico">›</span></button>
+  <div class="bar" id="bar"><div class="track"><div class="fill" id="fill"></div></div></div>
+  <button id="muteBtn" title="语音开关"><span class="ico" id="muteIco">🔊</span></button>
+  <button id="rateBtn" title="语速">1.0×</button>
+  <div class="count" id="count">0 / 0</div>
+</div>
+
+<div class="picker" id="picker">
+  <div class="p-head"><b>选择章节</b><s id="pMeta"></s></div>
+  <div class="p-list" id="pList"></div>
+</div>
+
+<div id="splash">
+  <div class="sdots" id="sDots"></div>
+  <div class="sp-glow"></div>
+  <div class="sp-rainbow"></div>
+  <div class="sp-burst"></div>
+  <div class="sp-title">millsage</div>
+  <div class="sp-sub">献给花饰的繁华点缀</div>
+  <div class="sp-mark">Live2D · 模型素材 it.sakiko.app<br>BANGCREAM! OUR NOTES 非官方同人演示</div>
+</div>
+
+<script src="vendor/pixi.min.js"></script>
+<script src="vendor/live2dcubismcore.min.js"></script>
+<script src="vendor/cubism4.min.js"></script>
+<script>
+const VOICE_PREFIX = "https://assets.bdon.moe/zh-Hans/Cri/Sound/";   // 和立绘版一致：直连 CDN
+const BLOCK = ["母亲","老师","观众","同学","店员","店长","广播","路人","小孩子","朋友","学妹",
+               "评委","演出者","少女","先生","旁白","朋友","姐姐","学弟"];
+const $ = id => document.getElementById(id);
+
+let STORY = [], META = null, MOTION = {};
+let chIdx = 0, li = -1, auto = true, rate = 1.0, muted = false;
+let timer = null, lineTimer = null, animSeq = 0, curAnims = [];
+let audio = new Audio();
+audio.preload = "auto";
+let talking = false, pendingVoice = null, ignoreLip = false, mouthV = 0, speakRetry = 0, mouthPeak = 20;
+
+/* ---------- 口型：合成式（不做频谱分析，和立绘版的播放链路保持简单一致） ---------- */
+let analyserOk = false, zeroRun = 0, analyser = null, actx = null, freqArr = null;
+function resumeAudio() {
+  // 已改为直连 <audio> 播放，不再需要 AudioContext；保留空实现避免旧调用报错
+}
+
+/* 模型不可用时的静态立绘兜底 */
+const STAND = { kanata: { img: "chara2d/kanade.jpg" } };
+let standOn = false;
+function setStand(on) {
+  standOn = !!on;
+  $("chara2d").classList.toggle("on", !!on);
+  $("cv").style.opacity = on ? "0" : "1";
+}
+
+/* ---------- PIXI / Live2D ---------- */
+let app = null, curModel = null, curKey = null, flashTimer = null;
+const cache = new Map();          // key -> Live2DModel
+let loadingEl = $("loading");
+
+function initPixi() {
+  app = new PIXI.Application({
+    view: $("cv"),
+    backgroundAlpha: 0,
+    antialias: true,
+    autoDensity: true,
+    resolution: Math.min(window.devicePixelRatio || 1, 2),
+    resizeTo: window
+  });
+  app.stage.eventMode = "static";
+  app.stage.hitArea = app.screen;
+  app.stage.on("pointermove", e => { if (curModel) curModel.focus(e.global.x, e.global.y); });
+  app.stage.on("pointerdown", e => { if (curModel) curModel.focus(e.global.x, e.global.y); });
+  window.addEventListener("resize", () => setTimeout(fitModel, 60));
+  app.renderer.on("resize", () => fitModel());
+}
+
+function fitModel() {
+  if (!curModel || !app) return;
+  // 视口变化时自愈（移动端地址栏伸缩、横竖屏切换）
+  const vw = window.innerWidth, vh = window.innerHeight;
+  if (vw && vh && (app.screen.width !== vw || app.screen.height !== vh)) {
+    try { app.renderer.resize(vw, vh); } catch (e) {}
+  }
+  const W = app.screen.width, H = app.screen.height;
+  const portrait = W / H < 0.8;
+  const im = curModel.internalModel;
+  const iw = im.width || 6000, ih = im.height || 9000;
+  // 这套游戏模型：人物只占画布的 ~82.5% 高、~33% 宽，底部还留 ~3% 空白
+  const VIS_H = 0.825, VIS_W = 0.33, VIS_BOT = 0.03;
+  const targetVisible = H * (portrait ? 0.66 : 0.75);      // 希望人物在屏幕上的高度
+  const maxW = W * 0.96;
+  const s = Math.min(targetVisible / (ih * VIS_H), maxW / (iw * VIS_W));
+  curModel.scale.set(s);
+  curModel.anchor.set(0.5, 1);
+  const baseY = H * (portrait ? 0.77 : 0.85);              // 人物脚下落点
+  curModel.position.set(W / 2, baseY + ih * VIS_BOT * s);
+}
+
+function setLoading(on, text) {
+  if (text) loadingEl.textContent = text;
+  loadingEl.classList.toggle("on", !!on);
+}
+
+/* 取一张模型（缓存 + 并发去重 + 只留最近 3 个） */
+const pending = new Map();
+function getModel(key) {
+  if (cache.has(key)) return Promise.resolve(cache.get(key));
+  if (pending.has(key)) return pending.get(key);
+  const info = META.models[key];
+  if (!info || !info.ready) return Promise.resolve(null);
+  const p = (async () => {
+    setLoading(true, "载入 " + info.name + "…");
+    try {
+      const m = await PIXI.live2d.Live2DModel.from(info.url, { autoInteract: false, autoUpdate: true });
+      // 待机动作组（此模型是 mtn_idle01_C 这类命名）
+      const groups = m.internalModel.settings.motions ? Object.keys(m.internalModel.settings.motions) : [];
+      const idle = groups.find(g => /idle/i.test(g));
+      if (idle) m.internalModel.motionManager.groups.idle = idle;
+      hookMouth(m);
+      // 预热：先在屏幕外渲染一帧，把 WebGL 纹理/顶点缓冲建好，避免首次切换时卡一下
+      try {
+        m.position.set(-100000, -100000);
+        app.stage.addChild(m);
+        app.renderer.render(app.stage);
+        app.stage.removeChild(m);
+      } catch (e) {}
+      cache.set(key, m);
+      trimCache(key);
+      return m;
+    } catch (e) {
+      console.warn("模型加载失败", key, e);
+      return null;
+    } finally {
+      pending.delete(key);
+      if (pending.size === 0) setLoading(false);
+    }
+  })();
+  pending.set(key, p);
+  return p;
+}
+
+/* 模型很占内存：只保留当前 + 最近两个 */
+function trimCache(keep) {
+  if (cache.size <= 3) return;
+  for (const [k, m] of Array.from(cache)) {
+    if (cache.size <= 3) break;
+    if (k === keep || k === curKey) continue;
+    try {
+      if (m.parent) m.parent.removeChild(m);
+      m.destroy({ children: true });
+    } catch (e) {}
+    cache.delete(k);
+  }
+}
+
+/* 可用表情清单（去扩展名） */
+function exprNames(model) {
+  const ex = (model.internalModel.settings.expressions) || [];
+  return ex.map(e => (e.Name || e.File || "").replace(/\.exp3$/, ""));
+}
+
+function pickExpr(model, keys) {
+  const list = exprNames(model);
+  for (const k of keys) {
+    const hit = list.find(n => n === k) || list.find(n => n.indexOf(k) === 0);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+const EMOTIONS = [
+  { re: /(！{2,}|别开玩笑了|开什么玩笑|绝对|不行|住手|生气|烦人|讨厌)/, keys: ["exp_angry01", "exp_angry02"] },
+  { re: /(呜|哭|对不起|抱歉|难过|悲伤|孤零零|好怕|害怕|不安)/, keys: ["exp_cry01", "exp_sad01", "exp_anxiety01"] },
+  { re: /(诶|咦|竟然|居然|真的吗|骗人|！？|！\?)/, keys: ["exp_surprised01", "exp_surprised02"] },
+  { re: /(呵呵|哈哈|笑|太好了|开心|高兴|谢谢|♪|最喜欢)/, keys: ["exp_smile01", "exp_smile02", "exp_bsmile01"] },
+  { re: /(为什么|怎么办|想|应该|也许|大概)/, keys: ["exp_thinking01", "exp_serious01"] }
+];
+
+/* ---------- 原版演出配布（来自游戏 Adv 脚本） ---------- */
+function tgtKey(t) {
+  if (!t) return null;
+  const s = String(t).toLowerCase();
+  if (s.indexOf("hotaru") >= 0) return "hotaru";
+  if (s.indexOf("natsume") >= 0) return "natsume";
+  if (s.indexOf("nagi") >= 0) return "nagi";
+  if (s.indexOf("mahoro") >= 0) return "mahoro";
+  if (s.indexOf("houka") >= 0) return "houka";
+  return null;
+}
+/* 动作名解析：居中展示优先 _C；模型缺该动作时逐级回退 */
+function pickMotionName(name) {
+  const g = (curModel && curModel.internalModel.settings.motions) || {};
+  if (!name) return null;
+  const has = n => !!g[n];
+  // 1) 居中优先：原版 _L/_R（角色站画面两侧用的）优先换成正中的 _C
+  const m1 = /^(.*)_([LR])$/.exec(name);
+  if (m1 && has(m1[1] + "_C")) return m1[1] + "_C";
+  if (has(name)) return name;
+  // 2) idle02~06 → idle01
+  const m2 = /^(mtn_)idle0\d(_.*)$/.exec(name);
+  if (m2 && has(m2[1] + "idle01" + m2[2])) return m2[1] + "idle01" + m2[2];
+  // 3) 去掉编号：mtn_xxx02_C → mtn_xxx01_C
+  const m3 = /^(mtn_[a-z]+)0\d(_[CLR])$/.exec(name);
+  if (m3 && has(m3[1] + "01" + m3[2])) return m3[1] + "01" + m3[2];
+  return null;                                  // 模型确实没有 → 不播，保留当前
+}
+/* 用游戏原本的 Motion/Expression 配布驱动角色 */
+function applyMotion(line) {
+  const tid = line && line[4];
+  const rec = (tid && MOTION[tid]) || null;
+  ignoreLip = !!(rec && rec.l);
+  if (!rec || !rec.a || !rec.a.length || !curModel) return false;
+  let pick = null;
+  for (const a of rec.a) if (tgtKey(a.t) === curKey) pick = a;   // 同一句里取最后一个匹配
+  if (!pick) return false;
+  if (pick.e) {
+    const n = pickExpr(curModel, [pick.e]);
+    if (n) { try { curModel.expression(n); } catch (e) {} }
+  }
+  if (pick.m) {
+    const name = pickMotionName(pick.m);
+    if (name) {
+      try {
+        const g = (curModel.internalModel.settings.motions || {})[name];
+        if (g && g[0] && pick.f > 0) g[0].FadeInTime = pick.f;   // 用原版的淡入时长
+        curModel.motion(name);
+      } catch (e) {}
+    }
+  }
+  return true;
+}
+
+/* 切换到某角色的模型 */
+async function showChara(key, opts) {
+  opts = opts || {};
+  if (!key) return;                                  // 无对应模型：保持现状
+  if (key === curKey && (curModel || standOn)) return;
+  const m = await getModel(key);
+  if (m) {
+    if (standOn) setStand(false);                    // 从立绘切回 Live2D
+    // 瞬时切换：同一帧内移旧加新，绝不出现两个模型同屏（也不再缩放回弹）
+    if (curModel && curModel !== m) { try { app.stage.removeChild(curModel); } catch (e) {} }
+    app.stage.addChild(m);
+    curModel = m; curKey = key;
+    fitModel();
+    // 出场表情：回到该角色的默认表情（后续由原版配布接管）
+    const idleLike = pickExpr(m, ["exp_idle01", "exp_idle02", "exp_smile01"]);
+    if (idleLike) { try { m.expression(idleLike); } catch (e) {} }
+    ignoreLip = false;
+    if (!opts.silent) flash();
+    return;
+  }
+  // 模型不可用 → 立绘兜底
+  if (STAND[key]) {
+    setStand(true);
+    curKey = key; curModel = null;
+    if (!opts.silent) flash();
+  }
+}
+
+function flash() {
+  const f = $("flash");
+  f.style.transition = "none"; f.style.opacity = "0.55";
+  requestAnimationFrame(() => {
+    f.style.transition = "opacity .3s ease";
+    f.style.opacity = "0";
+  });
+}
+
+function resolve(s) {
+  if (!s) return null;
+  for (const b of BLOCK) if (s.indexOf(b) >= 0) return null;
+  if (s.indexOf("萤") >= 0) return "hotaru";
+  if (s.indexOf("枣") >= 0) return "natsume";
+  if (s.indexOf("凪") >= 0) return "nagi";
+  if (s.indexOf("茉幌") >= 0) return "mahoro";
+  if (s.indexOf("朋花") >= 0) return "houka";
+  if (s.indexOf("奏多") >= 0) return "kanata";     // 罗马音 Kanata（sub_kanata 模型）
+  return null;
+}
+
+/* ---------- 口型（伪同步） ---------- */
+function hookMouth(model) {
+  const im = model.internalModel;
+  if (im.__mouthHooked) return;
+  im.__mouthHooked = true;
+  const orig = im.update.bind(im);
+  const cm = im.coreModel;
+  im.update = function (dt, now) {
+    let tgt = 0;
+    if (talking && !ignoreLip) {
+      let v = -1;
+      if (analyserOk && analyser && freqArr) {
+        analyser.getByteFrequencyData(freqArr);
+        const sr = actx.sampleRate, n = freqArr.length;
+        const binHz = (sr / 2) / n;
+        const lo = Math.max(1, Math.floor(250 / binHz));
+        const hi = Math.min(n - 1, Math.ceil(3200 / binHz));
+        let sum = 0, mx = 0;
+        for (let i = lo; i <= hi; i++) { sum += freqArr[i]; if (freqArr[i] > mx) mx = freqArr[i]; }
+        const avg = sum / Math.max(1, hi - lo + 1);
+        if (avg < 0.5 && mx < 4) zeroRun++; else zeroRun = 0;
+        if (zeroRun > 120) analyserOk = false;      // 一直是 0 → 放弃，退回合成口型
+        else {
+          // 自适应归一化：跟随当前音量峰值，大音量/小音量都按比例张嘴
+          mouthPeak = Math.max(mouthPeak * 0.995, avg, 20);
+          v = Math.pow(Math.min(1, avg / (mouthPeak * 1.05)), 1.6);
+        }
+      } else {
+        const t = performance.now() / 1000;         // 无频谱时的合成口型
+        v = 0.10 + 0.72 * Math.abs(Math.sin(t * 9.1)) * (0.65 + 0.35 * Math.abs(Math.sin(t * 21.7)));
+        if (Math.sin(t * 2.7) > 0.94) v *= 0.12;    // 换气停顿
+      }
+      tgt = Math.max(0, Math.min(0.9, v));       // 留一点余量，别张到极限
+    }
+    // 张嘴快、闭合缓，更像人说话
+    mouthV += (tgt - mouthV) * (tgt > mouthV ? 0.6 : 0.2);
+    try { cm.setParameterValueById("ParamMouthOpenY", mouthV); } catch (e) {}
+    return orig(dt, now);
+  };
+}
+
+/* ---------- 台词动画 ---------- */
+function killAnims() { curAnims.forEach(a => { try { a.cancel(); } catch (e) {} }); curAnims = []; }
+function runAnim(el, frames, dur) {
+  const a = el.animate(frames, { duration: dur, easing: "cubic-bezier(.22,.61,.36,1)", fill: "both" });
+  curAnims.push(a); return a;
+}
+function inFrames(dir) {
+  const y = dir < 0 ? -26 : 26;
+  return [{ opacity: 0, transform: "translate3d(0," + y + "px,0)" },
+          { opacity: 1, transform: "translate3d(0,0,0)" }];
+}
+function outFrames(dir) {
+  const y = dir < 0 ? 12 : -12;
+  return [{ opacity: 1, transform: "translate3d(0,0,0)" },
+          { opacity: 0, transform: "translate3d(0," + y + "px,0)" }];
+}
+const lineText = e => (e[0] === 1 ? e[2] : e[1]);
+const lineVoice = e => (e[0] === 1 && e.length > 3 ? e[3] : "");
+/* 连续影像字幕视为一段，合并显示、一次跳过 */
+function subSpan(idx) {
+  const st = STORY[chIdx];
+  if (!st || !st.l[idx] || st.l[idx][0] !== 2) return null;
+  let a = idx, b = idx;
+  while (a > 0 && st.l[a - 1][0] === 2) a--;
+  while (b < st.l.length - 1 && st.l[b + 1][0] === 2) b++;
+  return [a, b];
+}
+
+function applyEntry(e, dir) {
+  const txtBox = $("txt"), spkBox = $("spk");
+  const telop = e[0] === 0;          // 场景标题
+  const sub = e[0] === 2;            // 过场视频字幕（无说话人无语音，原版是播片）
+  const quiet = telop || sub;
+  const seq = ++animSeq;
+  clearTimeout(lineTimer);
+  spkBox.classList.remove("lit");
+  killAnims();
+  const wantKey = quiet ? null : resolve(e[1]);
+  // 不换角色时，动作先起 —— 贴合原版「Motion 指令在 Talk 之前」的顺序
+  const sameChara = quiet || !wantKey || wantKey === curKey;
+  if (!quiet && sameChara) applyMotion(e);
+  const show = () => {
+    if (seq !== animSeq) return;
+    txtBox.classList.toggle("telop", telop);
+    txtBox.classList.toggle("sub", sub);
+    if (quiet) {
+      if (sub) {                            // 连续影像字幕合并成一段
+        const sp = subSpan(li);
+        const seg = sp ? STORY[chIdx].l.slice(sp[0], sp[1] + 1).map(x => String(x[1]).trim()) : [String(e[1])];
+        txtBox.textContent = seg.join("\n");
+        txtBox.scrollTop = 0;
+        spkBox.textContent = "";
+      } else {
+        txtBox.textContent = e[1]; spkBox.textContent = "";
+      }
+      showChara(null);
+    } else {
+      txtBox.textContent = e[2]; spkBox.textContent = e[1] || "";
+      Promise.resolve(showChara(wantKey)).then(() => {
+        if (seq !== animSeq) return;
+        if (!sameChara && !applyMotion(e)) applyEmotionFallback(e[2]);   // 换人后补上动作
+        scheduleIdle();
+      });
+    }
+    if (!txtBox.animate) return;
+    runAnim(txtBox, inFrames(dir), 680);
+    if (!quiet && spkBox.textContent) runAnim(spkBox, inFrames(dir), 540);
+    lineTimer = setTimeout(() => { if (!quiet) spkBox.classList.add("lit"); }, 360);
+  };
+  if (!txtBox.animate || !(txtBox.textContent || spkBox.textContent)) { show(); return; }
+  // 旧句退场只做视觉；推进用固定延时，不依赖 animation.finished
+  //（页面在后台/渲染未激活时 finished 会一直挂住，会导致文字卡死、也不切角色）
+  runAnim(txtBox, outFrames(dir), 165);
+  if (spkBox.textContent) runAnim(spkBox, outFrames(dir), 135);
+  setTimeout(show, document.hidden ? 0 : 175);
+}
+
+/* 待机轮换：原版有 mtn_idle01/02/03 三套待机，长时间不动时交替播放 */
+let idleTimer = null;
+function scheduleIdle() {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    if (curModel) {
+      const g = curModel.internalModel.settings.motions || {};
+      const pool = ["mtn_look01_C", "mtn_smile02_C", "mtn_check01_C", "mtn_nod01_C"].filter(k => g[k]);
+      if (pool.length) {
+        try { curModel.motion(pool[Math.floor(Math.random() * pool.length)]); } catch (e) {}
+      }
+    }
+    scheduleIdle();
+  }, 11000 + Math.random() * 6000);
+}
+
+/* 情绪兜底：仅在没有原版配布时，按台词关键词给个表情（不播随机动作） */
+function applyEmotionFallback(text) {
+  if (!curModel) return;
+  const keys = [];
+  for (const em of EMOTIONS) if (em.re.test(text)) keys.push.apply(keys, em.keys);
+  if (!keys.length) return;
+  const n = pickExpr(curModel, keys);
+  if (n) { try { curModel.expression(n); } catch (e) {} }
+}
+/* ---------- 语音 ---------- */
+
+
+/* ---------- 播放（与立绘版同一套：<audio> 直连 CDN，静默重试） ---------- */
+let unlocked = false, preTimer = null, pre = null;
+function unlock() {
+  if (unlocked) return;
+  unlocked = true;
+  try {
+    const a = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
+    a.volume = 0;
+    a.play().catch(() => {});
+  } catch (e) {}
+}
+/* 播放失败时给足阅读时间，别一句话飘过去 */
+function readTime(e) {
+  const t = lineText(e) || "";
+  return (Math.max(2400, t.length * 125) + 420) / rate;
+}
+function preloadNext() {
+  const st = STORY[chIdx];
+  if (!st) return;
+  const e = st.l[li + 1];
+  if (!e) return;
+  const v = lineVoice(e);
+  if (v) { pre = new Audio(VOICE_PREFIX + v); pre.preload = "auto"; }
+}
+
+function speak(e) {
+  const v = lineVoice(e);
+  stopVoice();
+  clearTimeout(timer);
+  if (!v || muted) {                          // 无语音行（场景标题 / 影像字幕）
+    talking = false;
+    let rt = readTime(e);
+    if (e[0] === 2) {                        // 影像字幕按整段长度给时间，最多 14s
+      const sp = subSpan(li);
+      const len = sp ? STORY[chIdx].l.slice(sp[0], sp[1] + 1).reduce((a, x) => a + String(x[1]).length, 0) : String(e[1]).length;
+      rt = Math.min(14000, len * 110 + 900) / rate;
+    }
+    if (auto) timer = setTimeout(() => next(), rt);
+    return;
+  }
+  audio.onended = null;
+  audio.src = VOICE_PREFIX + v;
+  audio.playbackRate = rate;
+  audio.onended = () => { talking = false; if (auto) next(); };
+  talking = true;
+  pendingVoice = null;
+  audio.play().then(() => {                // 播起来了就把提示收掉
+    if ($("dbg")) $("dbg").textContent = "";
+  }).catch(() => {                          // 静默重试（第一次点击时多半会被拦）
+    talking = false;
+    pendingVoice = e;
+    if ($("dbg")) $("dbg").textContent = "🔊 轻触屏幕以播放语音";
+    if (auto) timer = setTimeout(() => next(), readTime(e));
+  });
+  clearTimeout(preTimer); preTimer = setTimeout(preloadNext, 700);
+}
+function stopVoice() {
+  clearTimeout(timer);
+  audio.onended = null; audio.onerror = null; audio.pause(); talking = false;
+}
+
+function next(fromEnd) {
+  const st = STORY[chIdx];
+  if (!st) return;
+  clearTimeout(timer);                      // 手动 / 自动都先清掉排队的推进，避免一次点两跳
+  if (!Number.isFinite(li)) li = -1;
+  const cur = st.l[li];
+  if (cur && cur[0] === 2) {                // 影像字幕整段一次跳过
+    const sp = subSpan(li);
+    if (sp && sp[1] > li) li = sp[1];
+  }
+  if (li + 1 >= st.l.length) {
+    if (fromEnd && auto) { auto = false; }
+    updateUI();
+    return;
+  }
+  li++; applyEntry(st.l[li], 1); updateUI();
+  if (auto || VOICE_ALWAYS) speak(st.l[li]);
+}
+function prev() {
+  const st = STORY[chIdx];
+  if (!st) return;
+  clearTimeout(timer);
+  if (!Number.isFinite(li)) li = 1;
+  if (li <= 0) { li = 0; applyEntry(st.l[0], -1); updateUI(); return; }
+  li--;
+  const sp = (st.l[li] && st.l[li][0] === 2) ? subSpan(li) : null;
+  if (sp) li = sp[0];                       // 回到影像字幕段开头
+  applyEntry(st.l[li], -1); updateUI();
+  if (auto) speak(st.l[li]);
+}
+function goto(n) {
+  const st = STORY[chIdx];
+  clearTimeout(timer);
+  n = Number(n);
+  if (!Number.isFinite(n)) n = 0;          // 防御：进度条/外部调用传了非法值时不要污染 li
+  n = Math.max(0, Math.min(st.l.length - 1, n));
+  const dir = n >= li ? 1 : -1;
+  li = n; applyEntry(st.l[li], dir); updateUI();
+  if (auto) speak(st.l[li]);
+  // 拖动跳转后，若当前句没有配布，回溯同步一次表情，避免停在上一场景
+  setTimeout(() => { if (li === n) backfillState(n); }, 140);
+}
+/* 跳转回填：往前找最近一条带表情的配布，只同步表情（动作不重播，避免抽动） */
+function backfillState(idx) {
+  if (!curModel) return;
+  const st = STORY[chIdx];
+  for (let k = idx; k >= Math.max(0, idx - 60); k--) {
+    const line = st.l[k];
+    if (!line) continue;
+    const rec = MOTION[line[4]];
+    if (!rec || !rec.a || !rec.a.length) continue;
+    let pick = null;
+    for (const a of rec.a) if (tgtKey(a.t) === curKey) pick = a;
+    if (!pick || !pick.e) continue;
+    const nm = pickExpr(curModel, [pick.e]);
+    if (nm) { try { curModel.expression(nm); } catch (e) {} }
+    return;
+  }
+}
+const VOICE_ALWAYS = false;   // 手动翻页时也播语音的话改 true
+
+/* ---------- 章节 ---------- */
+function buildPicker() {
+  const box = $("pList");
+  let last = null;
+  STORY.forEach((it, i) => {
+    if (it.cat !== last) {
+      last = it.cat;
+      const h = document.createElement("div");
+      h.className = "p-group"; h.textContent = (META.cats[it.cat] || it.cat);
+      box.appendChild(h);
+    }
+    const b = document.createElement("button");
+    b.className = "p-item"; b.dataset.i = i;
+    b.innerHTML = '<span class="n"></span><span class="m"></span>';
+    b.querySelector(".n").textContent = it.n;
+    b.querySelector(".m").textContent = (it.d ? it.d + " · " : "") + it.l.length + " 句";
+    b.onclick = () => startChapter(i);
+    box.appendChild(b);
+  });
+  const total = STORY.reduce((a, b) => a + b.l.length, 0);
+  $("pMeta").textContent = "共 " + STORY.length + " 话 · " + total + " 句";
+}
+function showPicker() { $("picker").classList.add("show"); const c = $("pList").querySelector(".p-item.cur"); if (c) c.scrollIntoView({ block: "center" }); }
+function hidePicker() { $("picker").classList.remove("show"); }
+function markPicker() { $("pList").querySelectorAll(".p-item").forEach(el => el.classList.toggle("cur", +el.dataset.i === chIdx)); }
+
+function startChapter(i) {
+  unlock();                            // 用户手势里解锁一次播放权限（与立绘版一致）
+  stopVoice(); killAnims();
+  chIdx = i; li = -1; curKey = null;
+  const cur = STORY[chIdx];
+  $("chapterTitle").textContent = (META.cats[cur.cat] || "") + "　" + cur.n + (cur.d ? "　·　" + cur.d : "");
+  $("txt").textContent = ""; $("spk").textContent = "";
+  markPicker(); hidePicker(); updateUI();
+  // 先摆出默认角色（主角萤），第一句若换人再切
+  showChara("hotaru", { silent: true }).then(() => next(true));
+}
+
+function updateUI() {
+  const st = STORY[chIdx];
+  if (!st) return;
+  $("count").textContent = (li + 1) + " / " + st.l.length;
+  $("headCounter").textContent = st.id + "　" + (li + 1) + "/" + st.l.length;
+  $("fill").style.width = (st.l.length ? ((li + 1) / st.l.length * 100) : 0) + "%";
+  $("autoBtn").classList.toggle("act", auto);
+  $("autoIco").textContent = auto ? "❚❚" : "▶";
+  $("autoLb").textContent = auto ? "暂停" : "自动";
+  $("muteIco").textContent = muted ? "🔇" : "🔊";
+  $("muteBtn").classList.toggle("act", !muted);
+}
+
+/* ---------- 事件 ---------- */
+$("stage").addEventListener("click", () => {
+  if (pendingVoice && speakRetry < 2) {         // 播放被拦时先重试一两次，之后正常前进
+    speakRetry++;
+    pendingVoice = null;
+    speak(STORY[chIdx].l[li]);
+    return;
+  }
+  pendingVoice = null; speakRetry = 0;
+  next();
+});
+$("nextBtn").onclick = e => { e.stopPropagation(); next(); };
+$("prevBtn").onclick = e => { e.stopPropagation(); prev(); };
+$("pickerBtn").onclick = e => { e.stopPropagation(); stopVoice(); showPicker(); };
+$("autoBtn").onclick = e => {
+  e.stopPropagation();
+  auto = !auto; updateUI();
+  if (auto) { if (li < 0) next(true); else speak(STORY[chIdx].l[li]); }
+  else stopVoice();
+};
+$("muteBtn").onclick = e => {
+  e.stopPropagation();
+  muted = !muted; updateUI();
+  if (muted) stopVoice();
+  else if (li >= 0) speak(STORY[chIdx].l[li]);
+};
+const RATES = [0.8, 1.0, 1.2, 1.5, 2.0];
+$("rateBtn").onclick = e => {
+  e.stopPropagation();
+  let i = RATES.indexOf(rate); i = (i + 1) % RATES.length; rate = RATES[i];
+  $("rateBtn").textContent = rate.toFixed(1) + "×";
+  audio.playbackRate = rate;
+};
+$("bar").onclick = e => {
+  e.stopPropagation();
+  const r = e.currentTarget.querySelector(".track").getBoundingClientRect();
+  goto(Math.round((e.clientX - r.left) / r.width * (STORY[chIdx].l.length - 1)));
+};
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { showPicker(); return; }
+  if (e.key === "ArrowRight" || e.key === " " || e.key === "Enter") { e.preventDefault(); next(); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
+});
+
+/* ---------- 背景微粒 ---------- */
+(function motes() {
+  const box = $("motes");
+  for (let i = 0; i < 12; i++) {
+    const s = document.createElement("i");
+    const sz = 3 + Math.random() * 6;
+    const dur = 13 + Math.random() * 9;
+    s.style.width = s.style.height = sz.toFixed(1) + "px";
+    s.style.left = (Math.random() * 100).toFixed(1) + "%";
+    s.style.animationDuration = dur.toFixed(1) + "s";
+    s.style.animationDelay = (-Math.random() * dur).toFixed(1) + "s";
+    box.appendChild(s);
+  }
+})();
+
+/* ---------- 开场动画 ---------- */
+let splashEnded = false, splashStart = 0;
+const RAINBOW = ["#ffb3b8", "#ffd6a5", "#fbf3a6", "#b7e4c7", "#a8c8ff", "#cfb6ea"];
+function splashPlay() {
+  const sp = $("splash");
+  splashStart = performance.now();
+  const dots = $("sDots");
+  for (let i = 0; i < 10; i++) {
+    const d = document.createElement("i");
+    const sz = 3 + Math.random() * 5;
+    const dur = 7 + Math.random() * 6;
+    d.style.width = d.style.height = sz.toFixed(1) + "px";
+    d.style.left = (6 + Math.random() * 88).toFixed(1) + "%";
+    d.style.background = RAINBOW[i % RAINBOW.length];
+    d.style.opacity = ".55";
+    d.style.animationDuration = dur.toFixed(1) + "s";
+    d.style.animationDelay = (-Math.random() * dur).toFixed(1) + "s";
+    dots.appendChild(d);
+  }
+  const seq = [
+    [".sp-rainbow", [{ opacity: 0, transform: "scaleX(0)" }, { opacity: 1, transform: "scaleX(1)" }], 1100, 0],
+    [".sp-glow", [{ opacity: 0, transform: "scale(.62)" }, { opacity: 1, transform: "scale(1)" }], 1500, 120],
+    [".sp-burst", [{ opacity: 0, transform: "scaleX(.2)" }, { opacity: 1, transform: "scaleX(1)" }], 900, 200],
+    [".sp-title", [{ opacity: 0, transform: "translate3d(0,15px,0)" }, { opacity: 1, transform: "translate3d(0,0,0)" }], 950, 320],
+    [".sp-sub", [{ opacity: 0, transform: "translate3d(0,10px,0)" }, { opacity: 1, transform: "translate3d(0,0,0)" }], 850, 780],
+    [".sp-mark", [{ opacity: 0 }, { opacity: 1 }], 700, 1050]
+  ];
+  seq.forEach(([sel, fr, dur, delay]) => {
+    const el = sp.querySelector(sel);
+    if (el && el.animate) el.animate(fr, { duration: dur, delay: delay, easing: "cubic-bezier(.22,.61,.36,1)", fill: "both" });
+  });
+  setTimeout(endSplash, 2500);
+  sp.addEventListener("click", () => { if (performance.now() - splashStart > 400) endSplash(); }, { once: true });
+}
+function endSplash() {
+  if (splashEnded) return;
+  splashEnded = true;
+  const sp = $("splash");
+  const a = sp.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 760, easing: "ease", fill: "forwards" });
+  const done = () => { sp.classList.add("gone"); showPicker(); };
+  a.finished.then(done).catch(done);
+  setTimeout(done, 900);   // 兜底：动画 finished 挂住时也能收起开场
+}
+
+/* ---------- 启动 ---------- */
+(async function boot() {
+  initPixi();
+  splashPlay();                       // 开场立即播，不等模型
+  try {
+    const [s, m, mo] = await Promise.all([
+      fetch("data/story.json").then(r => r.json()),
+      fetch("data/models.json").then(r => r.json()),
+      fetch("data/motion.json").then(r => r.json()).catch(() => ({}))
+    ]);
+    STORY = s; META = m; MOTION = mo || {};
+  } catch (e) {
+    document.body.innerHTML = '<p style="padding:40px;font:14px/1.8 sans-serif;color:#666">' +
+      "剧情数据加载失败 —— 请刷新重试。<br>" +
+      "（本地使用时需先起服务：<code style=\"background:#f4f2f8;padding:2px 6px;border-radius:4px\">sh serve.command</code>）</p>";
+    return;
+  }
+  buildPicker();
+  updateUI();
+  // 后台预热主角模型（不阻塞界面）
+  getModel("hotaru");
+  window.__ready = true;
+})();
+</script>
+</body>
+</html>
