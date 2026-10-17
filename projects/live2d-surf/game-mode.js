@@ -22,7 +22,7 @@
     phase: 'idle',          // idle | run | over
     score: 0, dist: 0, speed: 1,
     jumpY: 0, vy: 0, onGround: true,
-    dive: 0, diving: false, tilt: 0,
+    dive: 0, diveHold: 0, diving: false, tilt: 0,
     dead: false, deadT: 0,
     obstacles: [],
     spawnT: 2,
@@ -239,16 +239,23 @@
     GM.vy = jumpV();
     GM.onGround = false;
     GM.diving = false;
+    GM.diveHold = 0;          // 起跳立即结束下潜，否则碰撞盒顶部还被压着
     splashAt(3, 0.6);
   }
 
+  /* 下潜：一次手势 = 一整次下潜（0.55s → 前后插值后完全潜下约 0.4s），
+     松手只提前收尾，不立刻浮起 */
+  const DIVE_HOLD = 0.55;
   function diveStart() {
     if (GM.phase !== 'run' || GM.dead) return;
+    if (GM.jumpY < -viewSize().H * 0.02) return;      // 空中不下潜
+    GM.diveHold = DIVE_HOLD;
     GM.diving = true;
     if (GM.onGround) splashAt(2, 0.4);
   }
   function diveEnd() {
-    GM.diving = false;
+    // 松手：把剩余时间压到 0.12s，自然浮起（不瞬浮）
+    if (GM.diveHold > 0.12) GM.diveHold = 0.12;
   }
 
   function splashAt(n, power) {
@@ -345,21 +352,22 @@
       }
     }
     // 下潜
-    const dT = GM.diving ? 1 : 0;
-    GM.dive += (dT - GM.dive) * Math.min(1, dt * 12);
+    // 下潜：由 diveHold 计时驱动，归零后自动浮起
+    if (GM.diveHold > 0) GM.diveHold = Math.max(0, GM.diveHold - dt);
+    if (GM.diveHold === 0) GM.diving = false;
+    const dT = GM.diveHold > 0 ? 1 : 0;
+    GM.dive += (dT - GM.dive) * Math.min(1, dt * 14);
     // 姿态倾斜
     const tiltT = GM.onGround ? (GM.diving ? 0.5 : 0) : clamp(GM.vy / (H * -1.6), -0.3, 0.6);
     GM.tilt += (tiltT - GM.tilt) * Math.min(1, dt * 10);
 
-    // 生成（间距照 Chrome 小恐龙 getGap：
-    //   minGap = 障碍宽 × speed + minGap(≈0.2W) × GAP_COEFFICIENT(0.6)
-    //   实际取值 [minGap, 1.5 × minGap]，换算成时间）
+    // 生成（间隔必须容得下「一次完整跳跃 + 落地反应」：
+    //   滞空 0.55s + 最宽浮木通过 0.36s + 落地反应 0.34s → 最小间隔 1.25s）
     GM.spawnT -= dt;
     if (GM.spawnT <= 0) {
       spawnObstacle();
-      const vpx = GM.speed * Math.min(W, H) * 0.55;
-      const gapPx = (W * 0.15 * GM.speed + W * 0.20 * 0.6) * rnd(1, 1.5);
-      GM.spawnT = Math.max(0.34, gapPx / vpx);
+      const gapTime = clamp(1.55 - (GM.speed - 1) * 0.20, 1.25, 1.55) * rnd(1.0, 1.20);
+      GM.spawnT = gapTime;
     }
     updateObstacles(dt);
 
@@ -407,7 +415,7 @@
     GM.dead = false; GM.deadT = 0;
     GM.score = 0; GM.dist = 0; GM.speed = 1;
     GM.jumpY = 0; GM.vy = 0; GM.onGround = true;
-    GM.dive = 0; GM.diving = false; GM.tilt = 0;
+    GM.dive = 0; GM.diveHold = 0; GM.diving = false; GM.tilt = 0;
     GM.shake = 0;
     GM.spawnT = 2.4;
     GM.weatherT = rnd(18, 28);
@@ -497,7 +505,7 @@
       GM.phase = 'run';
       GM.dead = false; GM.score = 0; GM.dist = 0; GM.speed = 1;
       GM.jumpY = 0; GM.vy = 0; GM.onGround = true;
-      GM.dive = 0; GM.diving = false; GM.tilt = 0;
+      GM.dive = 0; GM.diveHold = 0; GM.diving = false; GM.tilt = 0;
       GM.spawnT = 2.4;
       clearObstacles();
       restoreModels();
