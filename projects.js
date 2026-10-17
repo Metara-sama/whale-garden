@@ -23,6 +23,15 @@ const SITE = {
    links: 一个或多个链接（在线玩、源码、文章……）            */
 const PROJECTS = [
   {
+    name: "阈限 · Liminal",
+    desc: "梦核 / 池核风格的第一人称阈限空间：瓷砖泳池、黄色后室、黄昏草甸。没有任务、没有分数、几乎没有文字——按住屏幕往前走，走到光里就换一个场景，停下时世界会凝固、画面自己慢慢显影。画面是手写 raymarching 现算的，材质是 Canvas 现画的，声音是 WebAudio 现场合成的，整个作品不到 100KB，没有一个外部资源文件。",
+    status: "live",
+    year: "2026",
+    links: [
+      { label: "走进去", url: "projects/liminal/" }
+    ]
+  },
+  {
     name: "邦友的酒模拟器",
     desc: "所有人保持Q弹！",
     status: "live",
