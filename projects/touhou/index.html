@@ -3,212 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>EAGLER TOUHOU · 东方原作 Web 化 — Whale's Garden</title>
-<meta name="description" content="EAGLER TOUHOU：把东方 Project 原作 STG 搬进浏览器的 Web 移植系统。高刷新率、触控直触、thprac、thcrap 汉化、预测回滚联机。Whale's Garden 转载移植分类站内入口。">
-<meta name="theme-color" content="#070a12">
+<title>EAGLER TOUHOU · 东方原作 Web 化</title>
+<meta name="theme-color" content="#0d0d0c">
 <meta name="color-scheme" content="dark">
 <link rel="icon" href="../../assets/favicon.png">
-<link rel="preload" as="image" href="img/launcher.webp">
-<link rel="stylesheet" href="../../fonts.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="bg-grid" aria-hidden="true"></div>
-<div class="bg-glow" aria-hidden="true"></div>
-<div class="cursor-glow" id="cursorGlow" aria-hidden="true"></div>
+<div class="bar">
+  <a class="back" href="../../index.html">← 花园</a>
+  <span class="src">转载自 YomotsuHisami/eagler-touhou（GPL-3.0-or-later）</span>
+</div>
 
-<nav class="topbar">
-  <a class="back" href="../../index.html"><span class="arrow"></span>Whale's Garden</a>
-  <span class="crumb">转载移植 <i>/</i> eagler-touhou</span>
-</nav>
+<div class="boot" id="boot">
+  <span class="spin" aria-hidden="true"></span>
+  <span class="boot-text">正在接入…</span>
+</div>
 
-<header class="hero">
-  <p class="eyebrow"><span class="dot"></span>REPOST · WEB PORT · 转载移植</p>
-  <h1>EAGLER<span class="tb">TOUHOU</span></h1>
-  <p class="lede">
-    东方 Project 原作 STG 的<strong>浏览器移植系统</strong>。红魔乡、妖妖梦、永夜抄、风神录、绀珠传——
-    点开就跑，高刷新率、触控直触、thprac 练习菜单、多语言包、预测回滚联机，一个都不少。
-  </p>
-  <ul class="meta">
-    <li><span>上游</span>YomotsuHisami/eagler-touhou</li>
-    <li><span>许可</span>GPL-3.0-or-later</li>
-    <li><span>同步</span>2026-10-17</li>
-    <li class="warn"><span>形态</span>站内嵌入 · 不托管原作数据</li>
-  </ul>
-  <div class="cta">
-    <button class="btn-launch" id="launch" type="button">
-      <span class="ring"></span>
-      <span class="label">启动系统</span>
-    </button>
-    <a class="btn-ghost" href="https://touhou.vip/" target="_blank" rel="noopener">新窗口打开 <span class="out"></span></a>
-  </div>
-</header>
-
-<main>
-
-<section class="stage-wrap" id="stageWrap">
-  <div class="stage" id="stage">
-    <div class="stage-top">
-      <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
-      <span class="stage-title">eagler-touhou — embedded session</span>
-      <span class="stage-state" id="stageState">待机</span>
-    </div>
-
-    <div class="slot" id="slot">
-      <div class="slot-idle" id="slotIdle">
-        <div class="slot-mark" aria-hidden="true">
-          <svg viewBox="0 0 64 64" role="img" aria-label="启动标记">
-            <circle cx="32" cy="32" r="27" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 5" opacity=".55"/>
-            <circle cx="32" cy="32" r="18" fill="none" stroke="currentColor" stroke-width="1" opacity=".25"/>
-            <path d="M27 21.5 44 32 27 42.5Z" fill="currentColor"/>
-          </svg>
-        </div>
-        <p class="slot-hint">系统还没接进这一屏。按上面那颗<strong>启动系统</strong>，它就在这儿开。</p>
-        <p class="slot-sub">首次进入要从官方站拉运行组件，慢一点是正常的。</p>
-      </div>
-
-      <div class="boot" id="boot" hidden>
-        <div class="boot-line">
-          <span id="bootText">连接官方节点…</span>
-          <span id="bootPct">0%</span>
-        </div>
-        <div class="boot-track"><i id="bootBar"></i></div>
-      </div>
-    </div>
-
-    <div class="stage-bar">
-      <button type="button" data-act="full" title="全屏">全屏</button>
-      <button type="button" data-act="big" title="放大舞台">放大</button>
-      <button type="button" data-act="reload" title="重载">重载</button>
-      <button type="button" data-act="close" title="关闭">关闭</button>
-      <span class="stage-note" id="stageNote">嵌入 touhou.vip</span>
-    </div>
-  </div>
-  <p class="under-hint">手机建议横屏 + 关掉浏览器手势缩放；键盘党把输入法切掉，Z 射击 / X 放 Bomb / Shift 低速。</p>
-</section>
-
-<section class="block">
-  <h2><span class="idx">01</span>它到底做了什么</h2>
-  <div class="feats">
-    <article class="feat">
-      <h3>高刷新率</h3>
-      <p>不锁 60 帧，跟着屏幕刷新走。原 portable 分支里的弹幕抖动、运动不流畅、闪烁一并修掉。</p>
-    </article>
-    <article class="feat">
-      <h3>触控直触</h3>
-      <p>触摸轨迹就是自机移动轨迹，还提供轮盘与无限速模式。按键可拖可缩（60%–300%），横竖屏分别存。</p>
-    </article>
-    <article class="feat">
-      <h3>thprac 练习菜单</h3>
-      <p>th06 / th07 / th08 / th10 内置社区练习工具，触屏也能点菜单，Tab Tracker 与作弊菜单各给一个模拟键。</p>
-    </article>
-    <article class="feat">
-      <h3>thcrap 语言包</h3>
-      <p>按作品下发语言包，玩家只下载自己选中的那一个。想塞奇怪语种也随你。</p>
-    </article>
-    <article class="feat">
-      <h3>预测回滚联机</h3>
-      <p>th06MP / th07MP / th08MP / th09MP / th10MP。优先 WebRTC，也能走 WebSocket 中继；有旁观位。</p>
-    </article>
-    <article class="feat">
-      <h3>存档 · Replay</h3>
-      <p>原版格式能记的输入与原作互通，记不下的适配输入塞扩展数据。导入导出都在启动器里。</p>
-    </article>
-    <article class="feat">
-      <h3>装好就能离线</h3>
-      <p>游戏包存在浏览器本地，断网、官方站宕机，刷新页面照样开。</p>
-    </article>
-    <article class="feat">
-      <h3>连 Bug 一起还原</h3>
-      <p>目标是“近乎分毫不差”，原作手感优先，不拿“优化”当借口改判定。</p>
-    </article>
-  </div>
-</section>
-
-<section class="block">
-  <h2><span class="idx">02</span>跑起来了的样子</h2>
-  <div class="shots">
-    <figure>
-      <img src="img/launcher.webp" alt="Eagler Touhou 启动器与游戏管理界面" loading="lazy">
-      <figcaption><b>启动器</b>统一入口，管游戏包、存档、OGG、字体与语言包。</figcaption>
-    </figure>
-    <figure>
-      <img src="img/touch.webp" alt="可调整位置、大小、灵敏度和低速操作方式的触控布局" loading="lazy">
-      <figcaption><b>触控布局</b>随便拖随便缩，还带放大镜看弹幕。</figcaption>
-    </figure>
-    <figure>
-      <img src="img/thprac.webp" alt="在浏览器中使用 thprac 练习菜单" loading="lazy">
-      <figcaption><b>thprac</b>练习菜单直接长在浏览器里。</figcaption>
-    </figure>
-    <figure>
-      <img src="img/lobby.webp" alt="支持玩家与旁观者的多人联机大厅" loading="lazy">
-      <figcaption><b>联机大厅</b>建房、房间号、选角色难度、准备、旁观。</figcaption>
-    </figure>
-  </div>
-  <p class="shot-note">截图出自上游仓库 <code>docs/assets/readme/</code>（GPL-3.0-or-later）。</p>
-</section>
-
-<section class="block">
-  <h2><span class="idx">03</span>收录进度</h2>
-  <div class="games">
-    <div class="games-col">
-      <h3 class="on">Web 适配已完成</h3>
-      <ul class="chips">
-        <li><b>th06</b>红魔乡 v1.02h</li>
-        <li><b>th07</b>妖妖梦 v1.00b</li>
-        <li><b>th08</b>永夜抄 v1.00d</li>
-        <li><b>th10</b>风神录 v1.00a</li>
-        <li><b>th15</b>绀珠传 v1.00b</li>
-      </ul>
-    </div>
-    <div class="games-col">
-      <h3 class="doing">还在做</h3>
-      <ul class="chips dim">
-        <li><b>th09</b>花映塚 · Web 适配中</li>
-        <li><b>th11</b>地灵殿 · Web 适配 / 联机中</li>
-        <li><b>th14</b>辉针城 · 移植中</li>
-        <li><b>th075</b>萃梦想 · 移植中</li>
-      </ul>
-    </div>
-  </div>
-  <p class="shot-note">进度照上游 <code>docs/TOUHOU_PROGRESS.md</code> 抄的，以官方站为准。</p>
-</section>
-
-<section class="block block-src">
-  <h2><span class="idx">04</span>来源与许可</h2>
-  <div class="src-table">
-    <div class="src-row"><span>上游仓库</span><a href="https://github.com/YomotsuHisami/eagler-touhou" target="_blank" rel="noopener">github.com/YomotsuHisami/eagler-touhou <i class="out"></i></a></div>
-    <div class="src-row"><span>官方在线站</span><a href="https://touhou.vip/" target="_blank" rel="noopener">touhou.vip <i class="out"></i></a></div>
-    <div class="src-row"><span>代码许可</span><span class="mono">GNU GPL v3.0 or later · <a href="UPSTREAM-LICENSE.txt" target="_blank" rel="noopener">许可证原文</a></span></div>
-    <div class="src-row"><span>本站角色</span><span>转载 · 站内嵌入入口。未修改上游代码，未复制、未托管任何原作游戏数据。</span></div>
-    <div class="src-row"><span>版权</span><span>东方 Project 及其角色归 <b>上海爱丽丝幻乐团 / ZUN</b> 所有；各平台移植由对应作者维护，版权归各自作者。</span></div>
-    <div class="src-row"><span>同步日期</span><span class="mono">2026-10-17</span></div>
-  </div>
-
-  <details class="why">
-    <summary>为什么这一页是“嵌入”，不是把整站镜像到 GitHub Pages？</summary>
-    <div class="why-body">
-      <ol>
-        <li><b>代码能转，游戏数据不能转。</b>仓库是 GPL-3.0-or-later，转载授权没问题；但它<em>不包含</em>原作游戏资源——那是上海爱丽丝幻乐团的作品，不随仓库授权。镜像等于二次分发游戏本体，站这里就不做。</li>
-        <li><b>运行环境有硬要求。</b>运行组件依赖安全上下文、特定响应头与官方站提供的语言包 / 联机中继，静态托管（GitHub Pages）改不了响应头，也没有中继服务。</li>
-        <li><b>官方站本来就是最优解。</b>它实时更新、有中继、有语言包。这一页把入口按时接进花园，剩下的留给上游，版权也留在它该在的地方。</li>
-      </ol>
-      <p>想做完整自托管？上游给了 Hosted / External / Import 三套方案，见
-        <a href="https://github.com/YomotsuHisami/eagler-touhou/blob/main/docs/SELF_HOSTING.md" target="_blank" rel="noopener">docs/SELF_HOSTING.md <i class="out"></i></a>。
-        Import 模式只发启动器与运行组件，玩家自行导入合法持有的游戏包。</p>
-    </div>
-  </details>
-</section>
-
-</main>
-
-<footer class="foot">
-  <a href="../../index.html">← 回 Whale's Garden</a>
-  <span>东方 Project © 上海爱丽丝幻乐团 · 移植系统 © YomotsuHisami 与各贡献者 · GPL-3.0-or-later</span>
-</footer>
-
-<div class="lightbox" id="lightbox" hidden><img alt="" id="lightboxImg"><span class="lb-hint">点击任意处关闭</span></div>
+<iframe id="game" src="https://touhou.vip/" title="EAGLER TOUHOU" allow="fullscreen; gamepad; autoplay; clipboard-write" referrerpolicy="no-referrer-when-downgrade"></iframe>
 
 <script src="app.js"></script>
 </body>

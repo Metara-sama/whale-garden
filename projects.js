@@ -24,13 +24,12 @@ const SITE = {
 const PROJECTS = [
   {
     name: "EAGLER TOUHOU · 东方原作 Web 化",
-    desc: "把东方 Project 原作 STG 搬进浏览器的移植系统：红魔乡、妖妖梦、永夜抄、风神录、绀珠传直接开跑，带高刷新率、触控直触、thprac 练习菜单、多语言包与预测回滚联机。上游 GPL-3.0-or-later，站内嵌官方线上系统，不托管原作数据。",
+    desc: "东方 Project 原作 STG 的浏览器移植：红魔乡、妖妖梦、永夜抄、风神录、绀珠传，进去就跑。转载自 YomotsuHisami/eagler-touhou（GPL-3.0-or-later）。",
     status: "live",
     category: "port",
     year: "2026",
     links: [
-      { label: "进入项目页", url: "projects/touhou/" },
-      { label: "官方站", url: "https://touhou.vip/" }
+      { label: "进去玩", url: "projects/touhou/" }
     ]
   },
   {
