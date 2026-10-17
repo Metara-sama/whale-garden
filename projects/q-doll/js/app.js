@@ -11,8 +11,9 @@ import { MeshoptDecoder } from './libs/meshopt_decoder.module.js';
 /* 线上把大文件交给 jsDelivr（GitHub Pages 在国内太慢） */
 const GH = /github\.io$/.test(location.hostname);
 const CDN = 'https://cdn.jsdelivr.net/gh/Metara-sama/whale-garden@main/projects/q-doll/';
-const ASSET = GH ? CDN : './';
-const GLB_DIR = GH ? CDN + 'glb/' : './glb/';
+// 模型体量大，走站点同源路径（CDN 在 WebView 里会挂住）
+const GLB_DIR = './glb/';
+// 音频单文件，优先 CDN 加速，失败自动回退
 const BGM_URL = GH ? CDN + 'assets/bgm.mp3' : './assets/bgm.mp3';
 
 
@@ -304,6 +305,8 @@ function loadOne(def) {
       loadedMap.set(def.k, gltf);
       loadDone++;
       setProgress((loadDone / totalToLoad) * 100);
+      mountDolls([def]);
+      syncActive();
       resolve(gltf);
     };
     const fail = (isRetry) => {
@@ -350,7 +353,6 @@ async function loadAll() {
   totalToLoad = first.length || 1;
   await loadBatch(first);
   setProgress(100);
-  mountDolls(first);
   syncActive();
 }
 
@@ -474,6 +476,11 @@ function updateSquash(dt) {
 
 const audio = new Audio();
 audio.src = BGM_URL;
+audio.addEventListener('error', () => {
+  if (!audio.src.endsWith('/assets/bgm.mp3') || audio.src.startsWith('https')) {
+    audio.src = './assets/bgm.mp3';
+  }
+}, { once: true });
 audio.loop = true;
 audio.preload = 'auto';
 audio.crossOrigin = 'anonymous';
