@@ -372,6 +372,7 @@ function tgtKey(t) {
   if (s.indexOf("nagi") >= 0) return "nagi";
   if (s.indexOf("mahoro") >= 0) return "mahoro";
   if (s.indexOf("houka") >= 0) return "houka";
+  if (s.indexOf("kanata") >= 0) return "kanata";     // 泽海奏多（含 kanata_child / kanata2…）
   return null;
 }
 /* 动作名解析：居中展示优先 _C；模型缺该动作时逐级回退 */
@@ -901,8 +902,9 @@ function endSplash() {
     STORY = s; META = m; MOTION = mo || {};
   } catch (e) {
     document.body.innerHTML = '<p style="padding:40px;font:14px/1.8 sans-serif;color:#666">' +
-      "剧情数据加载失败 —— 请刷新重试。<br>" +
-      "（本地使用时需先起服务：<code style=\"background:#f4f2f8;padding:2px 6px;border-radius:4px\">sh serve.command</code>）</p>";
+      "剧情数据加载失败。<br>说明本地服务没在跑 —— 在 Operit 终端执行：<br>" +
+      '<code style="background:#f4f2f8;padding:2px 6px;border-radius:4px">sh /sdcard/Download/Operit/millsage_live2d/serve.command</code><br>' +
+      "然后再打开 http://127.0.0.1:8123/story_live2d.html（不要直接双击 html 文件）。</p>";
     return;
   }
   buildPicker();
