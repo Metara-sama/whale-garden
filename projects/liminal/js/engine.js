@@ -16,7 +16,7 @@ window.LIMINAL = window.LIMINAL || {};
   var SH = NS.Shaders;
 
   var SCENES = [
-    { key: "pool", steps: 72, fov: 0.95, exposure: 0.84, pos: [0.0, 1.62, 14.2], yaw: 0.0, pitch: -0.105 },
+    { key: "pool", steps: 66, fov: 0.95, exposure: 0.78, pos: [0.0, 1.62, 26.9], yaw: 0.0, pitch: -0.115 },
     { key: "rooms", steps: 64, fov: 1.00, exposure: 1.02, pos: [3.2, 1.62, 3.2], yaw: 0.16, pitch: -0.02 },
     { key: "meadow", steps: 60, fov: 0.92, exposure: 0.72, pos: [0.6, 1.62, 4.0], yaw: 0.10, pitch: -0.06 }
   ];
@@ -201,7 +201,7 @@ window.LIMINAL = window.LIMINAL || {};
         var running = true;
         var paused = false;
         var tr = { active: false, t: 0, dir: 1, next: 0 };
-        var input = { forward: 0 };
+        var input = { mx: 0, my: 0 };
         var keys = { fwd: false, back: false, left: false, right: false };
 
         function resize() {
@@ -274,11 +274,52 @@ window.LIMINAL = window.LIMINAL || {};
 
         function groundY() {
           if (sceneIdx === 0) {
-            var inPool = Math.abs(pos.x) <= 9.0 && Math.abs(pos.z) <= 12.0;
-            return inPool ? -2.2 : 0.0;
+            if (Math.abs(pos.x) <= 9.0 && Math.abs(pos.z - 19.0) <= 7.0) return -1.15;
+            if (Math.abs(pos.x) <= 15.0 && Math.abs(pos.z + 14.0) <= 12.0) return -0.35;
+            return 0.0;
           }
           if (sceneIdx === 1) return 0.0;
           return meadowH(pos.x, pos.z);
+        }
+
+        /* 池核多房间：把玩家夹在房间并集里（穿门洞靠房间重叠实现） */
+        var ROOMS = [
+          { x0: -16, x1: 16, z0: 8, z1: 30 },
+          { x0: -3.2, x1: 3.2, z0: -2.5, z1: 10.5 },
+          { x0: -15, x1: 15, z0: -26, z1: 2 },
+          { x0: 16, x1: 26, z0: -16, z1: -6 },
+          { x0: 13.5, x1: 17.5, z0: -13.2, z1: -8.8 }
+        ];
+
+        function containInRooms() {
+          var m = 0.34;
+          var best = 1e9;
+          var bx = pos.x;
+          var bz = pos.z;
+          for (var i = 0; i < ROOMS.length; i++) {
+            var r = ROOMS[i];
+            var cx = clamp(pos.x, r.x0 + m, r.x1 - m);
+            var cz = clamp(pos.z, r.z0 + m, r.z1 - m);
+            var d = Math.hypot(pos.x - cx, pos.z - cz);
+            if (d < best) { best = d; bx = cx; bz = cz; }
+            if (d === 0) return;
+          }
+          if (best > 0.0001) {
+            pos.x = bx;
+            pos.z = bz;
+            dirty = true;
+          }
+        }
+
+        /* 各场景/各水深的移动速度 */
+        function speedHere() {
+          if (sceneIdx === 0) {
+            if (Math.abs(pos.x) <= 9.0 && Math.abs(pos.z - 19.0) <= 7.0) return 1.05;
+            if (Math.abs(pos.x) <= 15.0 && Math.abs(pos.z + 14.0) <= 12.0) return 0.82;
+            return 1.85;
+          }
+          if (sceneIdx === 1) return 1.75;
+          return 1.95;
         }
 
         function inWater() {
@@ -313,7 +354,7 @@ window.LIMINAL = window.LIMINAL || {};
           if (tr.active) return;
           var nx = null;
           if (sceneIdx === 0) {
-            if (Math.hypot(pos.x, pos.z + 21.4) < 2.6) nx = 1;
+            if (Math.hypot(pos.x - 25.0, pos.z + 11.0) < 2.4) nx = 1;
           } else if (sceneIdx === 1) {
             if (Math.hypot(pos.x, pos.z) > 24) nx = 2;
           } else {
@@ -324,24 +365,74 @@ window.LIMINAL = window.LIMINAL || {};
         }
 
         /* ---------------- 输入 ---------------- */
-        var ptr = { active: false, id: -1, x: 0, y: 0 };
+        var stickEl = document.getElementById("stick");
+        var knobEl = document.getElementById("stickKnob");
+        var stick = { active: false, id: -1, cx: 0, cy: 0, R: 46 };
+        var look = { active: false, id: -1, x: 0, y: 0 };
 
+        function stickDown(e) {
+          var r = stickEl.getBoundingClientRect();
+          stick.active = true;
+          stick.id = e.pointerId;
+          stick.cx = r.left + r.width / 2;
+          stick.cy = r.top + r.height / 2;
+          try { stickEl.setPointerCapture(e.pointerId); } catch (err) {}
+          stickMove(e);
+          if (e.cancelable) e.preventDefault();
+        }
+
+        function stickMove(e) {
+          if (!stick.active || e.pointerId !== stick.id) return;
+          var dx = e.clientX - stick.cx;
+          var dy = e.clientY - stick.cy;
+          var len = Math.hypot(dx, dy);
+          if (len > stick.R) {
+            dx = dx / len * stick.R;
+            dy = dy / len * stick.R;
+          }
+          if (len < 9) { dx = 0; dy = 0; }
+          input.mx = dx / stick.R;
+          input.my = -dy / stick.R;
+          if (knobEl) {
+            knobEl.style.transform = "translate(" + dx.toFixed(1) + "px," + dy.toFixed(1) + "px)";
+          }
+          dirty = true;
+          if (e.cancelable) e.preventDefault();
+        }
+
+        function stickUp(e) {
+          if (e && e.pointerId !== undefined && e.pointerId !== stick.id) return;
+          stick.active = false;
+          stick.id = -1;
+          input.mx = 0;
+          input.my = 0;
+          if (knobEl) knobEl.style.transform = "translate(0px,0px)";
+          dirty = true;
+        }
+
+        if (stickEl) {
+          stickEl.addEventListener("pointerdown", stickDown, { passive: false });
+          stickEl.addEventListener("pointermove", stickMove, { passive: false });
+          stickEl.addEventListener("pointerup", stickUp, { passive: true });
+          stickEl.addEventListener("pointercancel", stickUp, { passive: true });
+        }
+
+        /* 空白处拖动 = 转头 */
         function onDown(e) {
-          ptr.active = true;
-          ptr.id = e.pointerId;
-          ptr.x = e.clientX;
-          ptr.y = e.clientY;
-          input.forward = 1;
+          look.active = true;
+          look.id = e.pointerId;
+          look.x = e.clientX;
+          look.y = e.clientY;
           try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
           if (e.cancelable) e.preventDefault();
         }
 
         function onMove(e) {
-          if (!ptr.active || e.pointerId !== ptr.id) return;
-          var dx = e.clientX - ptr.x;
-          var dy = e.clientY - ptr.y;
-          ptr.x = e.clientX;
-          ptr.y = e.clientY;
+          if (!look.active || e.pointerId !== look.id) return;
+          var dx = e.clientX - look.x;
+          var dy = e.clientY - look.y;
+          look.x = e.clientX;
+          look.y = e.clientY;
           if (dx === 0 && dy === 0) return;
           yaw += dx * 0.0042;
           pitch = clamp(pitch - dy * 0.0032, -0.62, 0.62);
@@ -350,17 +441,16 @@ window.LIMINAL = window.LIMINAL || {};
         }
 
         function onUp(e) {
-          if (e && e.pointerId !== undefined && e.pointerId !== ptr.id) return;
-          ptr.active = false;
-          ptr.id = -1;
-          input.forward = 0;
+          if (e && e.pointerId !== undefined && e.pointerId !== look.id) return;
+          look.active = false;
+          look.id = -1;
         }
 
         canvas.addEventListener("pointerdown", onDown, { passive: false });
         canvas.addEventListener("pointermove", onMove, { passive: false });
         canvas.addEventListener("pointerup", onUp, { passive: true });
         canvas.addEventListener("pointercancel", onUp, { passive: true });
-        canvas.addEventListener("pointerleave", onUp, { passive: true });
+
 
         /* 老浏览器没有 PointerEvent 时退回 touch/mouse */
         if (!window.PointerEvent) {
@@ -435,30 +525,25 @@ window.LIMINAL = window.LIMINAL || {};
           var fz = -Math.cos(yaw);
           var rx = Math.cos(yaw);
           var rz = Math.sin(yaw);
-          var mx = 0;
-          var mz = 0;
-          if (input.forward || keys.fwd) { mx += fx; mz += fz; }
-          if (keys.back) { mx -= fx; mz -= fz; }
-          if (keys.left) { mx -= rx; mz -= rz; }
-          if (keys.right) { mx += rx; mz += rz; }
+          var inX = input.mx + (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+          var inY = input.my + (keys.fwd ? 1 : 0) - (keys.back ? 1 : 0);
+          var ilen = Math.hypot(inX, inY);
+          if (ilen > 1) { inX /= ilen; inY /= ilen; }
 
-          var len = Math.hypot(mx, mz);
-          var targetSpeed = 0;
-          if (len > 0.001) {
-            mx /= len;
-            mz /= len;
-            targetSpeed = inWater() ? 1.15 : (sceneIdx === 1 ? 1.75 : 1.95);
-          }
-          speed += (targetSpeed - speed) * Math.min(1, dt * 7.0);
-          if (speed > 0.002) {
-            pos.x += mx * speed * dt;
-            pos.z += mz * speed * dt;
+          var mx = fx * inY + rx * inX;
+          var mz = fz * inY + rz * inX;
+          var mlen = Math.hypot(mx, mz);
+
+          var targetSpeed = mlen > 0.02 ? speedHere() * Math.min(1, mlen) : 0;
+          speed += (targetSpeed - speed) * Math.min(1, dt * 8.0);
+          if (speed > 0.002 && mlen > 0.001) {
+            pos.x += (mx / mlen) * speed * dt;
+            pos.z += (mz / mlen) * speed * dt;
             dirty = true;
           }
 
           if (sceneIdx === 0) {
-            pos.x = clamp(pos.x, -14.3, 14.3);
-            pos.z = clamp(pos.z, -21.3, 21.3);
+            containInRooms();
           } else if (sceneIdx === 1) {
             /* 柱子推开（格心 6.4m，柱半宽 0.42 + 身体 0.34） */
             var gx = Math.round(pos.x / 6.4) * 6.4;
@@ -658,6 +743,20 @@ window.LIMINAL = window.LIMINAL || {};
               return 'scene=' + i;
             },
             render: function () { still = 0; dirty = true; render(); return 'ok'; },
+            walk: function (n, fwd, side) {
+              keys.fwd = !!fwd;
+              keys.right = !!side;
+              for (var i = 0; i < (n || 60); i++) update(0.016, 0.016);
+              keys.fwd = false;
+              keys.right = false;
+              still = 0;
+              dirty = true;
+              render();
+              return JSON.stringify({
+                x: +pos.x.toFixed(2), z: +pos.z.toFixed(2),
+                y: +camY.toFixed(2), scene: sceneIdx, flash: +flash.toFixed(2)
+              });
+            },
             scan: function (cols, rows) {
               cols = cols || 20;
               rows = rows || 10;
@@ -689,7 +788,10 @@ window.LIMINAL = window.LIMINAL || {};
                 ac: ac,
                 loss: gl.isContextLost(),
                 err: gl.getError(),
-                flash: flash
+                flash: flash,
+                x: +pos.x.toFixed(2),
+                z: +pos.z.toFixed(2),
+                y: +camY.toFixed(2)
               });
             }
           };

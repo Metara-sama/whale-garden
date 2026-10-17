@@ -117,79 +117,111 @@ float smin(float a, float b, float k) {
 }
 
 /* ==========================================================
-   场景 0 · 泳池（池核）
-   房间 x∈[-15,15] z∈[-28,28] y∈[-2.6,6]
-   池   x∈[-9,9]   z∈[-18,18] y∈[-2.2,0]
+   场景 0 · 池核（多房间连通）
+   A 泳池大厅  x[-16,16] z[8,30] y[0,7]      中间是 18×14 的池(z12~26)
+   B 连接走廊  x[-3.2,3.2] z[-2.5,10.5] y[0,3.4]
+   C 浅水房    x[-15,15] z[-26,2] y[0,7]     地面 -0.35，水漫过地(z<-2)
+   D 侧厅      x[16,26] z[-16,-6] y[0,4]（经 E 与 C 打通）
+   水深刻意做成 1.15m：眼睛始终高于水面，绝不会被困在池底。
    ========================================================== */
-float sdPoolRoom(vec3 p) {
-  return -sdBox(p - vec3(0.0, 1.7, 0.0), vec3(15.0, 4.3, 22.0));
+#define POOL_DEPTH 1.15
+#define SHALLOW_DEPTH 0.35
+
+float sdRoomA(vec3 p) { return sdBox(p - vec3(0.0, 2.5, 19.0), vec3(16.0, 4.5, 11.0)); }
+float sdRoomB(vec3 p) { return sdBox(p - vec3(0.0, 1.7, 4.0), vec3(3.2, 1.7, 6.5)); }
+float sdRoomC(vec3 p) { return sdBox(p - vec3(0.0, 2.5, -12.0), vec3(15.0, 4.5, 14.0)); }
+float sdRoomD(vec3 p) { return sdBox(p - vec3(21.0, 2.0, -11.0), vec3(5.0, 2.0, 5.0)); }
+float sdRoomE(vec3 p) { return sdBox(p - vec3(15.5, 1.45, -11.0), vec3(2.0, 1.95, 2.2)); }
+
+/* 房间并集的空气距离（内部为正，等于到最近出口的距离） */
+float indoorAir(vec3 p) {
+  float d = min(min(sdRoomA(p), sdRoomB(p)), min(sdRoomC(p), sdRoomD(p)));
+  d = min(d, sdRoomE(p));
+  return -d;
 }
 
-/* 池内空气距离：到池壁 / 池底的最近距离（不含"池口"这个假面）。
-   这一步很关键：若把池子当成有顶的盒子，水面附近距离会趋近于 0，
-   sphere tracing 会在水面附近原地蹭到步数耗尽。 */
+/* 池洞空气（水深 1.15） */
 float poolAir(vec3 p) {
   float dx = 9.0 - abs(p.x);
-  float dz = 12.0 - abs(p.z);
-  float dy = p.y + 2.2;
+  float dz = 7.0 - abs(p.z - 19.0);
+  float dy = p.y + POOL_DEPTH;
   return min(min(dx, dz), dy);
 }
 
-/* 地面：y<0 的实体，池子从里面挖掉 */
-float sdPoolFloor(vec3 p) {
-  return max(p.y, poolAir(p));
+/* 浅水房洞空气（地面 -0.35，水漫到 -0.05） */
+float shallowAir(vec3 p) {
+  float dx = 15.0 - abs(p.x);
+  float dz = 12.0 - abs(p.z + 14.0);
+  float dy = p.y + SHALLOW_DEPTH;
+  return min(min(dx, dz), dy);
 }
 
-/* 两端护栏（z=±18.3），中间留 3.8m 开口下水 */
+/* 地板：y<0 的实体，挖掉池洞与浅水洞 */
+float poolFloor(vec3 p) {
+  return max(max(p.y, poolAir(p)), shallowAir(p));
+}
+
+/* 池两侧长边的栏杆 */
 float sdPoolRail(vec3 p) {
-  float ax = abs(p.x);
-  float az = abs(p.z) - 18.3;
-  float sx = mod(ax - 2.0, 1.85) - 0.925;
-  float post = sdCyl(vec3(sx, p.y - 0.55, az), 0.03, 0.55);
-  float bx = max(ax - 9.4, 1.9 - ax);
-  float barHi = max(sdBox(vec3(0.0, p.y - 1.06, az), vec3(9.4, 0.026, 0.026)), bx);
-  float barLo = max(sdBox(vec3(0.0, p.y - 0.55, az), vec3(9.4, 0.021, 0.021)), bx);
-  return min(min(post, barHi), barLo);
+  float ax = abs(p.x) - 9.4;
+  float zc = mod(p.z - 14.0, 1.8) - 0.9;
+  float post = sdCyl(vec3(ax, p.y - 0.55, zc), 0.028, 0.55);
+  float bar = sdBox(vec3(ax, p.y - 1.02, p.z - 19.0), vec3(0.024, 0.024, 7.1));
+  float bar2 = sdBox(vec3(ax, p.y - 0.55, p.z - 19.0), vec3(0.020, 0.020, 7.1));
+  return min(post, min(bar, bar2));
 }
 
-/* 跳台：从 z=18 池边伸向池内，高 3.2m */
-float sdPoolBoard(vec3 p) {
-  float board = sdBox(p - vec3(0.0, 3.15, 16.1), vec3(0.85, 0.08, 2.3));
-  float legL = sdBox(p - vec3(-0.7, 1.55, 18.3), vec3(0.08, 1.55, 0.08));
-  float legR = sdBox(p - vec3(0.7, 1.55, 18.3), vec3(0.08, 1.55, 0.08));
-  return min(board, min(legL, legR));
+/* 墙面竖向灯带（A / C 两个大厅的侧墙） */
+float sdPoolLamps(vec3 p) {
+  float ax = 15.88 - abs(p.x);
+  float zc = mod(p.z - 10.4, 2.2) - 1.1;
+  float a = sdBox(vec3(ax, p.y - 4.95, zc), vec3(0.12, 0.85, 0.13));
+
+  float bx = 14.88 - abs(p.x);
+  float zc2 = mod(p.z + 14.0, 2.2) - 1.1;
+  float b = sdBox(vec3(bx, p.y - 5.15, zc2), vec3(0.12, 0.85, 0.13));
+
+  return min(a, b);
 }
 
-/* 天花板灯槽（发光） */
-float sdPoolLamp(vec3 p) {
-  float zc = mod(p.z + 4.0, 8.0) - 4.0;
-  return sdBox(vec3(p.x, p.y - 5.93, zc), vec3(2.3, 0.06, 0.5));
+/* 池中央的红色浮圈 —— 池核的招牌道具 */
+float sdPoolRing(vec3 p) {
+  vec3 q = p - vec3(4.6, -0.12, 19.0);
+  vec2 d = vec2(length(q.xz) - 1.5, q.y);
+  return length(d) - 0.42;
 }
 
-/* 远端的白色门（发光，出口） */
-float sdPoolDoor(vec3 p) {
-  return sdBox(p - vec3(0.0, 1.35, -27.82), vec3(1.15, 1.35, 0.07));
+/* 浅水房尽头墙上两扇发光门洞（纯视觉纵深） */
+float sdPoolArch(vec3 p) {
+  float a = sdBox(p - vec3(-6.0, 1.5, -25.85), vec3(0.9, 1.5, 0.07));
+  float b = sdBox(p - vec3(4.0, 1.5, -25.85), vec3(0.9, 1.5, 0.07));
+  return min(a, b);
+}
+
+/* 真出口：D 房尽头的白门 */
+float sdPoolExit(vec3 p) {
+  return sdBox(p - vec3(25.7, 1.35, -11.0), vec3(0.07, 1.35, 0.95));
 }
 
 vec2 mapPool(vec3 p) {
-  float dRoom = sdPoolRoom(p);
-  float dFloor = sdPoolFloor(p);
-  float d = min(dRoom, dFloor);
-  float m = 1.0;
+  float dAir = indoorAir(p);
+  float dFloor = poolFloor(p);
+  float d = min(dAir, dFloor);
+  float mi = 1.0;
 
   float a = sdPoolRail(p);
-  if (a < d) { d = a; m = 2.0; }
+  if (a < d) { d = a; mi = 2.0; }
 
-  a = sdPoolBoard(p);
-  if (a < d) { d = a; m = 4.0; }
+  a = sdPoolLamps(p);
+  if (a < d) { d = a; mi = 5.0; }
 
-  a = sdPoolDoor(p);
-  if (a < d) { d = a; m = 3.0; }
+  a = sdPoolRing(p);
+  if (a < d) { d = a; mi = 6.0; }
 
-  a = sdPoolLamp(p);
-  if (a < d) { d = a; m = 5.0; }
+  a = min(sdPoolArch(p), sdPoolExit(p));
+  if (a < d) { d = a; mi = 3.0; }
 
-  return vec2(d, m);
+  return vec2(d, mi);
 }
 
 /* ==========================================================
@@ -431,10 +463,8 @@ vec3 applyFog(vec3 col, vec3 p, vec3 ro) {
 /* 体积光（沿射线累积的辉光密度） */
 vec3 glowAt(vec3 p) {
   if (uScene == 0) {
-    float band = smoothstep(2.6, 6.0, p.y);
-    float zc = mod(p.z + 4.0, 8.0) - 4.0;
-    float lane = exp(-zc * zc * 0.35);
-    return vec3(0.95, 1.08, 1.12) * band * lane * 0.55;
+    float band = exp(-abs(p.y - 5.05) * 1.15);
+    return vec3(0.95, 1.05, 1.10) * (0.16 + band * 0.85);
   }
   if (uScene == 1) {
     vec2 g = vec2(CELL, 3.2);
@@ -494,7 +524,7 @@ vec3 shadePool(vec3 p, vec3 n, float mi, vec3 rd, float t) {
     specK = 0.55;
     if (p.y < -0.02) {
       float depth = -p.y;
-      vec3 absorb = exp(-depth * vec3(0.58, 0.22, 0.15));
+      vec3 absorb = exp(-depth * vec3(1.55, 0.62, 0.46));
       float caus = caustics(p.xz * 1.15, uTime);
       albedo *= absorb * (0.55 + 2.35 * caus * exp(-depth * 0.22));
       albedo += vec3(0.10, 0.26, 0.30) * caus * 0.5;
@@ -505,16 +535,17 @@ vec3 shadePool(vec3 p, vec3 n, float mi, vec3 rd, float t) {
     albedo = vec3(0.60, 0.64, 0.67);
     specK = 2.6;
   } else if (mi < 3.5) {
+    /* 发光门洞 / 出口白门 */
     emit = vec3(2.35, 2.55, 2.70);
     albedo = vec3(1.0);
-  } else if (mi < 4.5) {
-    /* 跳台混凝土 */
-    albedo = vec3(0.72, 0.74, 0.72) * (0.86 + 0.14 * vnoise(p.xz * 6.0));
-    specK = 0.12;
-  } else {
-    /* 灯槽 */
-    emit = vec3(2.6, 2.9, 3.0);
+  } else if (mi < 5.5) {
+    /* 墙面灯带 */
+    emit = vec3(2.15, 2.45, 2.55);
     albedo = vec3(1.0);
+  } else {
+    /* 红色浮圈（橡胶） */
+    albedo = vec3(0.78, 0.065, 0.05);
+    specK = 0.85;
   }
 
   float ao = contactAO(p, n);
@@ -524,7 +555,7 @@ vec3 shadePool(vec3 p, vec3 n, float mi, vec3 rd, float t) {
   vec3 col = albedo * (vec3(0.13, 0.18, 0.21) + vec3(0.92, 1.02, 1.08) * ndl * mix(0.40, 1.0, sh)) * ao;
 
   /* 高处墙面泛白（天窗环境光） */
-  col += albedo * vec3(0.22, 0.32, 0.36) * smoothstep(2.4, 6.0, p.y) * 0.40 * ao;
+  col += albedo * vec3(0.22, 0.32, 0.36) * smoothstep(3.0, 7.0, p.y) * 0.38 * ao;
 
   /* 釉面高光 */
   vec3 hv = normalize(L - rd);
@@ -633,21 +664,34 @@ vec3 shadeMeadow(vec3 p, vec3 n, float mi, vec3 rd, float t) {
    水面（池核的灵魂）
    ========================================================== */
 vec3 waterLayer(vec3 col, vec3 ro, vec3 rd, float tHit) {
-  if (abs(rd.y) < 1e-4) return col;
-  float tw = (0.0 - ro.y) / rd.y;
-  if (tw <= 0.0 || tw > tHit) return col;
+  if (rd.y > -1e-4) return col;
 
-  vec3 pw = ro + rd * tw;
-  if (abs(pw.x) > 9.0 || abs(pw.z) > 18.0) return col;
+  /* 两个水面：泳池 y=0（18×14）／浅水房 y=-0.05（30×24） */
+  float tW = 1e9;
+  float wy = 0.0;
+  float reg = 0.0;
 
+  float t1 = (0.0 - ro.y) / rd.y;
+  if (t1 > 0.0) {
+    vec3 p1 = ro + rd * t1;
+    if (abs(p1.x) < 9.0 && abs(p1.z - 19.0) < 7.0) { tW = t1; wy = 0.0; reg = 1.0; }
+  }
+  float t2 = (-0.05 - ro.y) / rd.y;
+  if (t2 > 0.0 && t2 < tW) {
+    vec3 p2 = ro + rd * t2;
+    if (abs(p2.x) < 15.0 && abs(p2.z + 14.0) < 12.0) { tW = t2; wy = -0.05; reg = 2.0; }
+  }
+  if (reg < 0.5 || tW > tHit) return col;
+
+  vec3 pw = ro + rd * tW;
   vec3 nrm = waterNormal(pw.xz, uTime);
-  if (ro.y < 0.0) nrm = -nrm;
+  if (ro.y < wy) nrm = -nrm;
 
   vec3 rrd = reflect(rd, nrm);
   float tr;
   float mr;
   vec3 gr;
-  marchScene(pw + nrm * 0.012, rrd, 40.0, 26, tr, mr, gr);
+  marchScene(pw + nrm * 0.012, rrd, 40.0, 24, tr, mr, gr);
 
   vec3 refl;
   if (tr > 40.0) {
@@ -658,21 +702,24 @@ vec3 waterLayer(vec3 col, vec3 ro, vec3 rd, float tHit) {
     refl = shadePool(pr, nr, mr, rrd, tr);
     refl = applyFog(refl, pr, pw);
   }
+  refl *= 0.72;
   refl += min(gr, vec3(6.0)) * 0.55;
 
   float f = 0.02 + 0.98 * pow(1.0 - clamp(dot(-rd, nrm), 0.0, 1.0), 5.0);
-  if (ro.y < 0.0) f = clamp(f + 0.65, 0.0, 1.0);
+  if (ro.y < wy) f = clamp(f + 0.65, 0.0, 1.0);
+  f = min(f, 0.65);
 
   vec3 c = mix(col, refl, f);
-  c = mix(c, vec3(0.30, 0.63, 0.73), 0.24);
+  c = mix(c, vec3(0.035, 0.135, 0.130), 0.75); /* 池核那份墨绿：参考图里的水就是这个色 */
 
-  /* 灯槽在水面上的镜面反光（柔化，避免高频抖动成噪点） */
   vec3 hh = normalize(normalize(vec3(0.10, 1.0, 0.04)) - rd);
-  c += vec3(1.0, 1.05, 1.12) * pow(max(dot(nrm, hh), 0.0), 72.0) * 0.38;
+  c += vec3(1.0, 1.04, 1.06) * pow(max(dot(nrm, hh), 0.0), 72.0) * 0.38;
 
-  /* 池边一圈很淡的浪花亮线 */
-  float edge = max(abs(pw.x) / 9.0, abs(pw.z) / 18.0);
-  c += vec3(0.85, 0.95, 1.0) * smoothstep(0.93, 1.0, edge) * 0.10;
+  /* 水边一圈很淡的亮线 */
+  float edge = reg > 1.5
+    ? max(abs(pw.x) / 15.0, abs(pw.z + 14.0) / 12.0)
+    : max(abs(pw.x) / 9.0, abs(pw.z - 19.0) / 7.0);
+  c += vec3(0.75, 0.88, 0.92) * smoothstep(0.94, 1.0, edge) * 0.06;
 
   return c;
 }

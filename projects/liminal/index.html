@@ -158,11 +158,44 @@
     opacity: .8;
   }
 
+  /* ---------- 摇杆（左下，避开站点全屏按钮） ---------- */
+  .stick {
+    position: fixed;
+    left: max(18px, env(safe-area-inset-left, 0px));
+    bottom: max(102px, calc(env(safe-area-inset-bottom, 0px) + 88px));
+    width: 118px;
+    height: 118px;
+    z-index: 25;
+    touch-action: none;
+  }
+  .stick-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(210, 240, 245, .14);
+    background: radial-gradient(circle at 50% 50%, rgba(14, 34, 38, .26), rgba(8, 18, 22, .10) 70%, rgba(8, 18, 22, 0));
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
+  .stick-knob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 46px;
+    height: 46px;
+    margin: -23px 0 0 -23px;
+    border-radius: 50%;
+    border: 1px solid rgba(220, 246, 250, .34);
+    background: radial-gradient(circle at 38% 32%, rgba(232, 252, 254, .55), rgba(150, 200, 210, .20));
+    box-shadow: 0 0 18px rgba(150, 215, 225, .22), inset 0 1px 0 rgba(255, 255, 255, .25);
+    will-change: transform;
+  }
+
   /* ---------- 进入后的呼吸提示（三个扩散环，无文字） ---------- */
   .hint {
     position: fixed;
     left: 50%;
-    bottom: 13vh;
+    bottom: 38vh;
     transform: translateX(-50%);
     z-index: 20;
     width: 80px;
@@ -212,16 +245,21 @@
 
 <div class="hint" id="hint" aria-hidden="true"><i></i><i></i><i></i></div>
 
+<div class="stick" id="stick" aria-hidden="true">
+  <span class="stick-ring"></span>
+  <span class="stick-knob" id="stickKnob"></span>
+</div>
+
 <div class="veil" id="veil" style="position:fixed;left:0;top:0;right:0;bottom:0;background:#0a1416;display:flex;align-items:center;justify-content:center;z-index:40">
   <div class="veil-core"><span class="ring"></span><span class="orb"></span></div>
   <div class="track"><i id="prog"></i></div>
   <div id="err" hidden></div>
 </div>
 
-<script src="js/textures.js"></script>
-<script src="js/shaders.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/engine.js"></script>
+<script src="js/textures.js?v=5"></script>
+<script src="js/shaders.js?v=5"></script>
+<script src="js/audio.js?v=5"></script>
+<script src="js/engine.js?v=5"></script>
 <script>
 (function () {
   "use strict";
