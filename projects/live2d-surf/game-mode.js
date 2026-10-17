@@ -231,13 +231,18 @@
      · 滞空 0.556s（那边 33 帧 @60fps，重力 0.6/frame²、初速 -10/frame）
      · 跳高 ≈ 1.77 倍玩家身高 ≈ 0.276H
      · v0 = 4h/T，g = 2v0/T */
+  /* 跳跃曲线参数：滞空不变（0.68s），只把高度抬到 0.34H（原 0.30H）
+     → 跳得更高、落得略快，越过浮标（0.165H）的余量从 0.06H 提到 0.11H */
+  const JUMP_H = 0.34;
+  const JUMP_T = 0.68;
+
   function jumpV() {
     const { H } = viewSize();
-    return -4 * (H * 0.300) / 0.68;
+    return -4 * (H * JUMP_H) / JUMP_T;
   }
   function jumpGrav() {
     const { H } = viewSize();
-    return 2 * (4 * (H * 0.300) / 0.68) / 0.68;
+    return 2 * (4 * (H * JUMP_H) / JUMP_T) / JUMP_T;
   }
 
   function doJump() {
