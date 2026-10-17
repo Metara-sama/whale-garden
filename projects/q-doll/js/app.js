@@ -436,6 +436,9 @@ async function loadAll() {
 
   await restoreCustom();
 
+  // 启动后静默分析一次当前 BGM
+  setTimeout(() => { analyzeBGM(true); }, 3500);
+
   if (active.length === 0) {
     document.body.classList.add('load-fail');
     const sub = $('#ld-sub');
@@ -1052,6 +1055,9 @@ $('#scale').addEventListener('input', (e) => {
   setViewScale(e.target.value / 100);
 });
 
+/* ---- BPM 自动识别 ---- */
+$('#detect-bpm').addEventListener('click', () => analyzeBGM(false));
+
 /* ---- 上传图片当玩偶 ---- */
 $('#add-img').addEventListener('click', () => $('#file-img').click());
 $('#file-img').addEventListener('change', async (e) => {
@@ -1080,7 +1086,12 @@ $('#file-audio').addEventListener('change', (e) => {
   const name = f.name.replace(/\.[^.]+$/, '');
   $('#track-name').textContent = f.name;
   $('#np-name').textContent = name;
+  const tag = $('#bpm-tag');
+  if (tag) { tag.textContent = '等分析'; tag.className = 'bpm-tag'; }
+  const box = $('#bpm-cands');
+  if (box) box.innerHTML = '';
   if (wasPlaying) play();
+  setTimeout(() => analyzeBGM(true), 400);
 });
 
 document.addEventListener('keydown', (e) => {
@@ -1091,6 +1102,168 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
   if (e.key === 'Escape') closePanel();
 });
+
+/* ---------------- BPM 自动识别 ---------------- */
+
+function analyzeBPM(buf) {
+  const sr = buf.sampleRate;
+  const dur = Math.min(45, buf.duration);
+  const n = Math.floor(dur * sr);
+  const chN = buf.numberOfChannels;
+  const c0 = buf.getChannelData(0);
+  const c1 = chN > 1 ? buf.getChannelData(1) : null;
+
+  // 降采样到 ~11025Hz 单声道
+  const step = Math.max(1, Math.round(sr / 11025));
+  const dsLen = Math.floor(n / step);
+  const ds = new Float32Array(dsLen);
+  const gain = 1 / (step * (c1 ? 2 : 1));
+  for (let i = 0; i < dsLen; i++) {
+    let acc = 0;
+    const base = i * step;
+    for (let k = 0; k < step; k++) acc += c0[base + k] + (c1 ? c1[base + k] : 0);
+    ds[i] = acc * gain;
+  }
+  const fs = sr / step;
+
+  // 帧能量（一阶差分强调瞬态 / 鼓点）
+  const FRAME = 512, HOP = 128;
+  const env = [];
+  let prevE = 0;
+  for (let i = 0; i + FRAME < dsLen; i += HOP) {
+    let e = 0;
+    for (let j = 1; j < FRAME; j++) { const d = ds[i + j] - ds[i + j - 1]; e += d * d; }
+    e = Math.sqrt(e / FRAME);
+    env.push(Math.max(0, e - prevE));
+    prevE = e;
+  }
+
+  // 去趋势（减局部中值）
+  const W = 20;
+  const env2 = new Float32Array(env.length);
+  for (let i = 0; i < env.length; i++) {
+    const a = Math.max(0, i - W), b = Math.min(env.length, i + W + 1);
+    const seg = env.slice(a, b).sort((x, y) => x - y);
+    env2[i] = Math.max(0, env[i] - seg[seg.length >> 1]);
+  }
+  let any = false;
+  for (let i = 0; i < env2.length; i++) if (env2[i] > 0) { any = true; break; }
+  if (!any) throw new Error('no onset');
+
+  const fps = fs / HOP;                                  // 帧率
+  const minLag = Math.max(2, Math.floor((fps * 60) / 200));
+  const maxLag = Math.ceil((fps * 60) / 50);
+
+  // 自相关
+  const ac = {};
+  let sum = 0, cnt = 0;
+  for (let lag = minLag; lag <= maxLag; lag++) {
+    let s = 0;
+    const m = env2.length - lag;
+    for (let i = 0; i < m; i++) s += env2[i] * env2[i + lag];
+    s /= (m || 1);
+    ac[lag] = s; sum += s; cnt++;
+  }
+  const avg = sum / (cnt || 1);
+
+  // 局部峰 = 候选拍长
+  const cand = [];
+  for (let lag = minLag + 1; lag < maxLag; lag++) {
+    if (ac[lag] > ac[lag - 1] && ac[lag] > ac[lag + 1]) {
+      const bpm = (60 * fps) / lag;
+      if (bpm >= 50 && bpm <= 210) cand.push({ bpm, lag, score: ac[lag] });
+    }
+  }
+  if (!cand.length) throw new Error('no peak');
+
+  // 梳状滤波消歧（解决半速/倍速）
+  const comb = (lag) => {
+    const L = Math.max(2, Math.round(lag));
+    const acc = new Float32Array(L);
+    for (let i = 0; i < env2.length; i++) acc[i % L] += env2[i];
+    let mx = 0, tot = 0;
+    for (let i = 0; i < L; i++) { if (acc[i] > mx) mx = acc[i]; tot += acc[i]; }
+    return mx / ((tot / L) || 1);
+  };
+  for (const c of cand) {
+    c.comb = comb(c.lag);
+    c.rank = c.score * Math.pow(c.comb, 1.5);
+  }
+  cand.sort((a, b) => b.rank - a.rank);
+
+  const top = cand[0];
+  const cands = [];
+  for (const k of [1, 2, 0.5]) {
+    const b = top.bpm * k;
+    if (b >= 45 && b <= 220) cands.push(Math.round(b));
+  }
+  const ratio = top.score / (avg || 1);
+  const conf = Math.max(0, Math.min(1, (ratio - 1) / 3.5));   // 更有区分度
+  return { bpm: top.bpm, conf, cands: [...new Set(cands)] };
+}
+
+function detectBPM(arrayBuffer) {
+  return new Promise((resolve, reject) => {
+    const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!Ctx) return reject(new Error('no OfflineAudioContext'));
+    let settled = false;
+    const ok = (buf) => {
+      if (settled) return;
+      settled = true;
+      try { resolve(analyzeBPM(buf)); } catch (e) { reject(e); }
+    };
+    const bad = (e) => { if (!settled) { settled = true; reject(e); } };
+    try {
+      const oac = new Ctx(1, 1, 44100);
+      const p = oac.decodeAudioData(arrayBuffer.slice(0), ok, bad);
+      if (p && p.then) p.then(ok, bad);
+    } catch (e) { bad(e); }
+  });
+}
+
+function renderBpmCands(list, cur) {
+  const box = $('#bpm-cands');
+  if (!box) return;
+  box.innerHTML = '';
+  for (const b of list) {
+    const el = document.createElement('div');
+    el.className = 'cand' + (Math.abs(b - cur) < 1 ? ' on' : '');
+    el.textContent = b;
+    el.addEventListener('click', () => {
+      setBpm(b);
+      [...box.children].forEach((c) => c.classList.remove('on'));
+      el.classList.add('on');
+    });
+    box.appendChild(el);
+  }
+}
+
+async function analyzeBGM(auto) {
+  const btn = $('#detect-bpm');
+  const tag = $('#bpm-tag');
+  if (btn) { btn.disabled = true; btn.textContent = '分析中…'; }
+  try {
+    const res = await fetch(audio.src);
+    if (!res.ok) throw new Error('fetch ' + res.status);
+    const ab = await res.arrayBuffer();
+    const r = await detectBPM(ab);
+    const bpm = Math.round(r.bpm);
+    if (!auto || Math.abs(bpm - S.bpm) >= 2) setBpm(bpm);
+    S.detected = bpm;
+    if (tag) {
+      tag.textContent = bpm + ' · 置信度 ' + Math.round(r.conf * 100) + '%';
+      tag.className = 'bpm-tag ' + (r.conf > 0.5 ? 'ok' : 'warn');
+    }
+    renderBpmCands(r.cands, bpm);
+    return r;
+  } catch (e) {
+    console.warn('bpm fail', e);
+    if (tag) { tag.textContent = '识别失败，手动调'; tag.className = 'bpm-tag warn'; }
+    return null;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '识别 BPM'; }
+  }
+}
 
 /* ---------------- 尺寸 ---------------- */
 
@@ -1239,4 +1412,4 @@ async function boot() {
 boot();
 
 /* 调试挂钩 */
-window.__doll = { S, dolls, active, syncActive, toggleMember, buildRosterUI, addCustomImage, makeImageDoll, play, pause, setViewScale, setYaw, camera, renderer, scene };
+window.__doll = { S, dolls, active, syncActive, toggleMember, buildRosterUI, addCustomImage, makeImageDoll, analyzeBGM, detectBPM, play, pause, setViewScale, setYaw, camera, renderer, scene };

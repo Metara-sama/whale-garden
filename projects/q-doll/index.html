@@ -93,6 +93,12 @@
         <span class="num-in"><input type="number" id="bpm-num" min="40" max="240" step="1" value="100"/><i>BPM</i></span>
       </div>
       <div class="row">
+        <label class="lbl">自动</label>
+        <button id="detect-bpm" class="mini wide">识别 BPM</button>
+        <span class="bpm-tag" id="bpm-tag">—</span>
+      </div>
+      <div class="cands" id="bpm-cands"></div>
+      <div class="row">
         <label class="lbl">Q弹度</label>
         <input type="range" id="elastic" min="0" max="100" value="62"/>
         <output id="elastic-o">62</output>
