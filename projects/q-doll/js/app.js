@@ -299,17 +299,24 @@ function setProgress(pct) {
 
 function loadOne(def) {
   return new Promise((resolve) => {
-    loader.load(def.file, (gltf) => {
+    const localUrl = './glb/' + def.k + '.glb';
+    const done = (gltf) => {
       loadedMap.set(def.k, gltf);
       loadDone++;
       setProgress((loadDone / totalToLoad) * 100);
       resolve(gltf);
-    }, undefined, (err) => {
-      console.warn('load fail', def.k, err);
-      loadDone++;
-      setProgress((loadDone / totalToLoad) * 100);
-      resolve(null);
-    });
+    };
+    const fail = (isRetry) => {
+      // CDN 挂了就回退到站点自身的路径
+      if (!isRetry && def.file !== localUrl) {
+        loader.load(localUrl, done, undefined, () => fail(true));
+      } else {
+        loadDone++;
+        setProgress((loadDone / totalToLoad) * 100);
+        resolve(null);
+      }
+    };
+    loader.load(def.file, done, undefined, () => fail(false));
   });
 }
 
