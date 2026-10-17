@@ -29,9 +29,11 @@
 
 <!-- 载入 -->
 <div id="loader">
-  <div class="ld-ring"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16"/></svg></div>
   <div class="ld-txt"><span id="ld-num">0</span><i>%</i></div>
-  <div class="ld-sub">首次加载约 30 秒 · 玩偶会一只只跳出来</div>
+  <div class="ld-bar"><i id="ld-fill"></i></div>
+  <div class="ld-sub" id="ld-sub">正在唤醒玩偶 0 / 3</div>
+  <div class="ld-retry" id="ld-retry">点击重试</div>
+</div>
 </div>
 
 <!-- 极细进度线 -->

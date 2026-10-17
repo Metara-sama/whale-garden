@@ -17,6 +17,8 @@ const GLB_DIR = './glb/';
 const BGM_URL = GH ? CDN + 'assets/bgm.mp3' : './assets/bgm.mp3';
 
 
+const SIZES = { arisa: 492224, rimi: 499612, kasumi: 511760, otae: 486488, saya: 490016, tomori: 419124, anon: 478480, soyo: 438672, taki: 458264, rana: 410816, Amoris: 426396, Doloris: 491496, Timoris: 428460, Mortis: 514896, Oblivionis: 510404 };
+
 const CAST = [
   { k: 'arisa',      n: '市谷有咲' },
   { k: 'rimi',       n: '牛込里美' },
@@ -33,7 +35,7 @@ const CAST = [
   { k: 'Timoris',    n: 'Timoris' },
   { k: 'Mortis',     n: 'Mortis' },
   { k: 'Oblivionis', n: 'Oblivionis' },
-].map((c, i) => ({ ...c, idx: i, file: `${GLB_DIR}${c.k}.glb` }));
+].map((c, i) => ({ ...c, idx: i, file: `${GLB_DIR}${c.k}.glb`, sz: SIZES[c.k] || 1500000 }));
 
 const HORIZON = [0.5556,0.5521,0.5521,0.5486,0.5451,0.5417,0.5382,0.5347,0.5347,0.5312,0.5312,0.5312,0.5312,0.5278,0.5278,0.5278,0.5278,0.5278,0.5278,0.5278,0.5278,0.5312,0.5312,0.5347,0.5347,0.5347,0.5382,0.5382,0.5417,0.5417,0.5451,0.5486,0.5521,0.5521,0.5556,0.559,0.559,0.5625,0.5625,0.566,0.5694,0.5694,0.5729,0.5764,0.5799,0.5799,0.5833,0.5868,0.5903,0.5938,0.5938,0.5972,0.6007,0.6007,0.6042,0.6042,0.6076,0.6111,0.6146,0.6181,0.6215,0.625,0.625,0.6285,0.6302,0.6319];
 const IMG_W = 2048, IMG_H = 1152;
@@ -53,7 +55,7 @@ const S = {
   elastic: 0.62,
   depth: 0.55,      // 压缩量
   audioGain: 0.55,
-  roster: ['arisa', 'rimi', 'kasumi', 'otae', 'saya', 'tomori'],
+  roster: ['kasumi', 'tomori', 'saya'],
   yaw: 0,           // 手动全局朝向（度）
   rotYaw: 0,        // 自动旋转累积角（度）
   autoRot: false,   // 自动旋转开关
@@ -294,18 +296,65 @@ const loadedMap = new Map();
 let loadDone = 0;
 let totalToLoad = 6;
 
+let totalBytes = 1, gotBytes = 0, loadedCount = 0, wantCount = 1;
+const perDollGot = new Map();
+
 function setProgress(pct) {
-  $('#ld-num').textContent = Math.round(pct);
+  const n = clamp(pct, 0, 100);
+  const num = $('#ld-num');
+  if (num) num.textContent = Math.round(n);
+  const f = $('#ld-fill');
+  if (f) f.style.width = n.toFixed(1) + '%';
+}
+function setLoadLabel() {
+  const el = $('#ld-sub');
+  if (el) el.textContent = '正在唤醒玩偶 ' + loadedCount + ' / ' + wantCount;
+}
+function addBytes(k, got) {
+  const prev = perDollGot.get(k) || 0;
+  if (got > prev) {
+    perDollGot.set(k, got);
+    gotBytes += got - prev;
+    setProgress((gotBytes / totalBytes) * 100);
+  }
+}
+function completeDoll(k, sz) {
+  const prev = perDollGot.get(k) || 0;
+  if (sz > prev) { perDollGot.set(k, sz); gotBytes += sz - prev; }
+  loadedCount++;
+  setLoadLabel();
+  setProgress((gotBytes / totalBytes) * 100);
 }
 
 /** 多源竞速：同时拉 CDN 和站点，谁先回来用谁 */
-async function raceFetch(urls) {
+async function fetchProg(url, onBytes, signal) {
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const len = +(res.headers.get('content-length') || 0);
+  if (!res.body || !len) {
+    const b = await res.arrayBuffer();
+    onBytes(b.byteLength);
+    return b;
+  }
+  const reader = res.body.getReader();
+  const chunks = [];
+  let got = 0;
+  for (;;) {
+    const r = await reader.read();
+    if (r.done) break;
+    chunks.push(r.value);
+    got += r.value.length;
+    onBytes(got);
+  }
+  const out = new Uint8Array(got);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.length; }
+  return out.buffer;
+}
+
+async function raceFetch(def, urls) {
   const ctrls = urls.map(() => new AbortController());
-  const tasks = urls.map((u, i) => fetch(u, { signal: ctrls[i].signal })
-    .then((r) => {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.arrayBuffer();
-    })
+  const tasks = urls.map((u, i) => fetchProg(u, (g) => addBytes(def.k, g), ctrls[i].signal)
     .then((buf) => {
       ctrls.forEach((c, j) => { if (j !== i) { try { c.abort(); } catch (e) {} } });
       return buf;
@@ -322,21 +371,20 @@ function sourcesFor(def) {
 function loadOne(def) {
   return new Promise((resolve) => {
     const localUrl = './glb/' + def.k + '.glb';
+    const sz = def.sz || 1500000;
     const done = (gltf) => {
       loadedMap.set(def.k, gltf);
-      loadDone++;
-      setProgress((loadDone / totalToLoad) * 100);
+      completeDoll(def.k, sz);
       mountDolls([def]);
       syncActive();
       resolve(gltf);
     };
     const giveUp = () => {
-      loadDone++;
-      setProgress((loadDone / totalToLoad) * 100);
+      completeDoll(def.k, sz);
       resolve(null);
     };
 
-    raceFetch(sourcesFor(def)).then((buf) => {
+    raceFetch(def, sourcesFor(def)).then((buf) => {
       loader.parse(buf, '', done, () => {
         // 解析失败，退回普通加载
         loader.load(localUrl, done, undefined, giveUp);
@@ -345,13 +393,54 @@ function loadOne(def) {
   });
 }
 
+async function loadBatch(list) {
+  const queue = list.slice();
+  const workers = new Array(6).fill(0).map(async () => {
+    while (queue.length) {
+      const d = queue.shift();
+      await loadOne(d);
+    }
+  });
+  await Promise.all(workers);
+}
+
+function mountDolls(list) {
+  for (const def of list) {
+    if (dolls.some((d) => d.def.k === def.k)) continue;
+    const gltf = loadedMap.get(def.k);
+    if (!gltf) continue;
+    const inst = makeDoll({ scene: cloneSkeleton(gltf.scene) }, def);
+    dolls.push(inst);
+    world.add(inst.root);
+  }
+  dolls.sort((a, b) => a.def.idx - b.def.idx);
+}
+
 async function loadAll() {
   // 首屏只拉当前名单里的角色，其余等用户点选时再加载
   const first = CAST.filter((c) => S.roster.includes(c.k));
-  totalToLoad = first.length || 1;
+  wantCount = first.length || 1;
+  loadedCount = 0;
+  gotBytes = 0;
+  perDollGot.clear();
+  totalBytes = first.reduce((a, c) => a + (c.sz || 1500000), 0) || 1;
+  setLoadLabel();
+  setProgress(0);
+
   await loadBatch(first);
   setProgress(100);
   syncActive();
+
+  // 模型到位后再开始拉音频
+  setTimeout(() => { try { audio.preload = 'auto'; audio.load(); } catch (e) {} }, 600);
+
+  if (active.length === 0) {
+    document.body.classList.add('load-fail');
+    const sub = $('#ld-sub');
+    if (sub) sub.textContent = '加载失败 · 网络太慢';
+    const rt = $('#ld-retry');
+    if (rt) rt.addEventListener('click', () => location.reload());
+  }
 }
 
 /** 简单深克隆（模型无骨骼动画，直接 clone 并克隆材质即可） */
@@ -480,7 +569,7 @@ audio.addEventListener('error', () => {
   }
 }, { once: true });
 audio.loop = true;
-audio.preload = 'auto';
+audio.preload = 'none';   // 等模型加载完再拉音乐，不抢带宽
 audio.crossOrigin = 'anonymous';
 
 let actx = null, analyser = null, freqData = null, gainNode = null, srcNode = null;

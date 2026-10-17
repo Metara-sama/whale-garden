@@ -609,3 +609,30 @@ body.ui-hidden #hint{ opacity:0 !important; pointer-events:none; }
   box-shadow:0 0 7px var(--accent-2);
 }
 .chip.busy{ opacity:.45; }
+
+/* 载入进度条（替掉那个不转的圈） */
+.ld-bar{
+  width:190px; height:2px; border-radius:2px;
+  background:rgba(255,255,255,.16);
+  overflow:hidden;
+  margin-top:2px;
+}
+.ld-bar i{
+  display:block; height:100%; width:0;
+  border-radius:2px;
+  background:linear-gradient(90deg, var(--accent), var(--accent-2));
+  box-shadow:0 0 10px rgba(127,212,255,.9);
+  transition:none;
+}
+.ld-retry{
+  display:none;
+  margin-top:6px;
+  padding:8px 20px;
+  border-radius:999px;
+  font-size:12.5px;
+  color:#fff;
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.22);
+  cursor:pointer;
+}
+body.load-fail .ld-retry{ display:block; }
