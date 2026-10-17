@@ -157,7 +157,7 @@
     const baseY0 = H * 0.74 + GM.jumpY;      // 不含下潜
     const cy = baseY0 - H * 0.055;
     const hh = H * 0.082;
-    const hw = Math.max(15, W * 0.042);
+    const hw = Math.max(14, Math.min(W, H) * 0.048);
     // 下潜：只把顶部往下压（身高变矮），底部不动
     const diveTop = GM.dive * H * 0.085;
     return { l: px0 - hw, r: px0 + hw, t: cy - hh + diveTop, b: cy + hh };
@@ -176,7 +176,8 @@
     const { W, H } = viewSize();
     const kind = forceKind || (Math.random() < 0.62 ? pick(JUMP_KINDS) : pick(DIVE_KINDS));
     const d = DEF[kind];
-    const ow = W * d.w, oh = H * d.h;
+    const S = Math.min(W, H);
+    const ow = S * d.w, oh = H * d.h;
     const sp = new PIXI.Sprite(obsTexture(kind));
     sp.anchor.set(0.5, 1);
     sp.width = ow; sp.height = oh;
@@ -201,7 +202,7 @@
 
   function updateObstacles(dt) {
     const { W, H } = viewSize();
-    const px = GM.speed * Math.min(W, H) * 0.55;
+    const px = GM.speed * Math.min(W, H) * 0.62;
     const { px: ppx } = playerGeom();
     for (let i = GM.obstacles.length - 1; i >= 0; i--) {
       const o = GM.obstacles[i];
@@ -226,11 +227,11 @@
      · v0 = 4h/T，g = 2v0/T */
   function jumpV() {
     const { H } = viewSize();
-    return -4 * (H * 0.276) / 0.556;
+    return -4 * (H * 0.300) / 0.68;
   }
   function jumpGrav() {
     const { H } = viewSize();
-    return 2 * (4 * (H * 0.276) / 0.556) / 0.556;
+    return 2 * (4 * (H * 0.300) / 0.68) / 0.68;
   }
 
   function doJump() {
@@ -245,7 +246,7 @@
 
   /* 下潜：一次手势 = 一整次下潜（0.55s → 前后插值后完全潜下约 0.4s），
      松手只提前收尾，不立刻浮起 */
-  const DIVE_HOLD = 0.55;
+  const DIVE_HOLD = 0.60;
   function diveStart() {
     if (GM.phase !== 'run' || GM.dead) return;
     if (GM.jumpY < -viewSize().H * 0.02) return;      // 空中不下潜
@@ -332,7 +333,7 @@
 
     // 难度
     GM.speed = clamp(1 + GM.dist / 7000, 1, 2.4);
-    GM.dist += GM.speed * Math.min(W, H) * 0.55 * dt;
+    GM.dist += GM.speed * Math.min(W, H) * 0.62 * dt;
     GM.score = Math.floor(GM.dist / 14) + (GM.passBonus || 0);
     const sc = $('#hud-score');
     if (sc) sc.textContent = GM.score;
@@ -362,11 +363,11 @@
     GM.tilt += (tiltT - GM.tilt) * Math.min(1, dt * 10);
 
     // 生成（间隔必须容得下「一次完整跳跃 + 落地反应」：
-    //   滞空 0.55s + 最宽浮木通过 0.36s + 落地反应 0.34s → 最小间隔 1.25s）
+    //   滞空 0.68s + 最宽浮木通过 0.32s + 落地反应 0.32s → 最小间隔 1.32s）
     GM.spawnT -= dt;
     if (GM.spawnT <= 0) {
       spawnObstacle();
-      const gapTime = clamp(1.55 - (GM.speed - 1) * 0.20, 1.25, 1.55) * rnd(1.0, 1.20);
+      const gapTime = clamp(1.66 - (GM.speed - 1) * 0.22, 1.32, 1.66) * rnd(1.0, 1.18);
       GM.spawnT = gapTime;
     }
     updateObstacles(dt);

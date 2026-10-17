@@ -186,13 +186,20 @@ select,input[type=text]{appearance:none;-webkit-appearance:none}
 
 /* 顶栏 / 面板 无缝收起 */
 .topbar{transition:transform .52s cubic-bezier(.34,1.15,.64,1), opacity .3s ease}
-#panel{transition:max-height .55s cubic-bezier(.4,0,.2,1), opacity .32s ease}
+#panel{transition:max-height .55s cubic-bezier(.4,0,.2,1), width .5s cubic-bezier(.4,0,.2,1), opacity .32s ease}
 body.playing .topbar{transform:translateY(-140%);opacity:0;pointer-events:none}
 body.playing #panel{
   max-height:0!important;
+  max-width:0!important;
+  flex:0 0 0!important;
   opacity:0;pointer-events:none;overflow:hidden;
-  padding-top:0;padding-bottom:0;border-top:0;box-shadow:none;
+  padding-top:0;padding-bottom:0;
+  padding-left:0;padding-right:0;
+  border-top:0;border-left:0;border-radius:0;box-shadow:none;
 }
+/* 横屏时面板是「右侧固定 342px 宽」的 flex item，只收高度会留一条空白竖条，
+   所以上面同时用 max-width / flex-basis 把它收成 0 —— 竖屏收高、横屏收宽，一套规则搞定 */
+body.playing #stage{flex:1 1 auto;min-width:0;min-height:0}
 body.playing #tip{opacity:0!important}
 
 /* 开始按钮 */
