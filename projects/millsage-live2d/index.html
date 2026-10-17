@@ -85,6 +85,8 @@ body{margin:0;height:100vh;overflow:hidden;background:#fff;color:var(--ink);
   box-shadow:0 4px 18px rgba(184,146,232,.16);transform:translateY(-1px)}
 .controls button:active{transform:translateY(0) scale(.94)}
 .controls button.act{color:var(--accent);border-color:rgba(184,146,232,.5);background:rgba(184,146,232,.07)}
+/* 已到本章结尾：下一句按钮弱化（仍可点，但明确给了反馈） */
+.controls button.end{opacity:.32;pointer-events:none}
 .controls .ico{font-size:12px;line-height:1}
 .bar{flex:1 1 auto;height:16px;display:flex;align-items:center;cursor:pointer;min-width:44px}
 .bar .track{position:relative;width:100%;height:2px;background:rgba(24,24,48,.07);border-radius:2px}
@@ -549,40 +551,34 @@ function applyEntry(e, dir) {
   // 不换角色时，动作先起 —— 贴合原版「Motion 指令在 Talk 之前」的顺序
   const sameChara = quiet || !wantKey || wantKey === curKey;
   if (!quiet && sameChara) applyMotion(e);
-  const show = () => {
-    if (seq !== animSeq) return;
-    txtBox.classList.toggle("telop", telop);
-    txtBox.classList.toggle("sub", sub);
-    if (quiet) {
-      if (sub) {                            // 连续影像字幕合并成一段
-        const sp = subSpan(li);
-        const seg = sp ? STORY[chIdx].l.slice(sp[0], sp[1] + 1).map(x => String(x[1]).trim()) : [String(e[1])];
-        txtBox.textContent = seg.join("\n");
-        txtBox.scrollTop = 0;
-        spkBox.textContent = "";
-      } else {
-        txtBox.textContent = e[1]; spkBox.textContent = "";
-      }
-      showChara(null);
+
+  // —— 同步渲染：文本立刻更新，绝不依赖动画/定时器（快速连点也不会脱节）——
+  txtBox.classList.toggle("telop", telop);
+  txtBox.classList.toggle("sub", sub);
+  if (quiet) {
+    if (sub) {                            // 连续影像字幕合并成一段
+      const sp = subSpan(li);
+      const seg = sp ? STORY[chIdx].l.slice(sp[0], sp[1] + 1).map(x => String(x[1]).trim()) : [String(e[1])];
+      txtBox.textContent = seg.join("\n");
+      txtBox.scrollTop = 0;
+      spkBox.textContent = "";
     } else {
-      txtBox.textContent = e[2]; spkBox.textContent = e[1] || "";
-      Promise.resolve(showChara(wantKey)).then(() => {
-        if (seq !== animSeq) return;
-        if (!sameChara && !applyMotion(e)) applyEmotionFallback(e[2]);   // 换人后补上动作
-        scheduleIdle();
-      });
+      txtBox.textContent = e[1]; spkBox.textContent = "";
     }
-    if (!txtBox.animate) return;
-    runAnim(txtBox, inFrames(dir), 680);
-    if (!quiet && spkBox.textContent) runAnim(spkBox, inFrames(dir), 540);
-    lineTimer = setTimeout(() => { if (!quiet) spkBox.classList.add("lit"); }, 360);
-  };
-  if (!txtBox.animate || !(txtBox.textContent || spkBox.textContent)) { show(); return; }
-  // 旧句退场只做视觉；推进用固定延时，不依赖 animation.finished
-  //（页面在后台/渲染未激活时 finished 会一直挂住，会导致文字卡死、也不切角色）
-  runAnim(txtBox, outFrames(dir), 165);
-  if (spkBox.textContent) runAnim(spkBox, outFrames(dir), 135);
-  setTimeout(show, document.hidden ? 0 : 175);
+    showChara(null);
+  } else {
+    txtBox.textContent = e[2]; spkBox.textContent = e[1] || "";
+    Promise.resolve(showChara(wantKey)).then(() => {
+      if (seq !== animSeq) return;
+      if (!sameChara && !applyMotion(e)) applyEmotionFallback(e[2]);   // 换人后补上动作
+      scheduleIdle();
+    });
+  }
+  if (txtBox.animate) {
+    runAnim(txtBox, inFrames(dir), 620);
+    if (!quiet && spkBox.textContent) runAnim(spkBox, inFrames(dir), 520);
+  }
+  lineTimer = setTimeout(() => { if (!quiet) spkBox.classList.add("lit"); }, 300);
 }
 
 /* 待机轮换：原版有 mtn_idle01/02/03 三套待机，长时间不动时交替播放 */
@@ -779,6 +775,10 @@ function updateUI() {
   $("count").textContent = (li + 1) + " / " + st.l.length;
   $("headCounter").textContent = st.id + "　" + (li + 1) + "/" + st.l.length;
   $("fill").style.width = (st.l.length ? ((li + 1) / st.l.length * 100) : 0) + "%";
+  // 到章末时把「下一句」置灰，避免一直点却没反应
+  const atEnd = li >= st.l.length - 1;
+  const nb = $("nextBtn");
+  if (nb) { nb.classList.toggle("end", atEnd); nb.setAttribute("aria-disabled", atEnd ? "true" : "false"); }
   $("autoBtn").classList.toggle("act", auto);
   $("autoIco").textContent = auto ? "❚❚" : "▶";
   $("autoLb").textContent = auto ? "暂停" : "自动";
