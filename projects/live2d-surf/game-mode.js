@@ -234,7 +234,7 @@
   /* 跳跃曲线参数：滞空不变（0.68s），只把高度抬到 0.34H（原 0.30H）
      → 跳得更高、落得略快，越过浮标（0.165H）的余量从 0.06H 提到 0.11H */
   const JUMP_H = 0.34;
-  const JUMP_T = 0.68;
+  const JUMP_T = 0.78;
 
   function jumpV() {
     const { H } = viewSize();
@@ -377,11 +377,11 @@
     GM.tilt += (tiltT - GM.tilt) * Math.min(1, dt * 10);
 
     // 生成（间隔必须容得下「一次完整跳跃 + 落地反应」：
-    //   滞空 0.68s + 最宽浮木通过 0.32s + 落地反应 0.32s → 最小间隔 1.32s）
+    //   滞空 0.78s + 最宽浮木通过 0.32s + 落地反应 0.34s → 最小间隔 1.44s）
     GM.spawnT -= dt;
     if (GM.spawnT <= 0) {
       spawnObstacle();
-      const gapTime = clamp(1.66 - (GM.speed - 1) * 0.22, 1.32, 1.66) * rnd(1.0, 1.18);
+      const gapTime = clamp(1.80 - (GM.speed - 1) * 0.22, 1.44, 1.80) * rnd(1.0, 1.16);
       GM.spawnT = gapTime;
     }
     updateObstacles(dt);
