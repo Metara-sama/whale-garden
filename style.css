@@ -201,6 +201,15 @@ main{max-width:var(--max);margin:0 auto;padding:0 20px 26px;background:#fff}
 }
 .badge.live{color:#0f7a4f;border-color:#bfe9d5;background:#e8f8f0}
 .badge.wip{color:#a06414;border-color:#f6e0b8;background:#fdf5e6}
+/* 转载标记 + 转载卡的一点区分：左上角一道斜切，像贴上去的标签 */
+.badge.port{color:#6d3fa4;border-color:#ddc9f7;background:#f5edff}
+.card.port{position:relative;overflow:hidden;border-color:#d4e6f7;background:linear-gradient(180deg,#fff,#f7fbff)}
+.card.port::before{
+  content:"";position:absolute;top:0;left:0;width:64px;height:64px;
+  background:linear-gradient(135deg,rgba(139,92,246,.16),transparent 62%);
+  pointer-events:none;
+}
+.section-note{margin:-8px 0 18px;font-size:12.8px;color:var(--muted);max-width:64ch}
 .year{font-size:11.5px;color:var(--muted);margin-left:auto;font-family:var(--font-bubble)}
 
 .empty{color:var(--muted);text-align:center;padding:34px 0}

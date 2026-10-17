@@ -19,8 +19,20 @@ const SITE = {
 
 /* 每个项目：name 名称 / desc 一句话介绍
    status: "live" 已完成上线 / "wip" 进行中 / "" 普通
+   category: 省略或 "own" = 原创；"port" = 转载移植（首页单独一段）
    links: 一个或多个链接（在线玩、源码、文章……）            */
 const PROJECTS = [
+  {
+    name: "EAGLER TOUHOU · 东方原作 Web 化",
+    desc: "把东方 Project 原作 STG 搬进浏览器的移植系统：红魔乡、妖妖梦、永夜抄、风神录、绀珠传直接开跑，带高刷新率、触控直触、thprac 练习菜单、多语言包与预测回滚联机。上游 GPL-3.0-or-later，站内嵌官方线上系统，不托管原作数据。",
+    status: "live",
+    category: "port",
+    year: "2026",
+    links: [
+      { label: "进入项目页", url: "projects/touhou/" },
+      { label: "官方站", url: "https://touhou.vip/" }
+    ]
+  },
   {
     name: "音MAD · Vapor Sample",
     desc: "把 MIDI 拆成音轨，每条音轨用你自己上传的采样当音色，也能按 GM 音色表默认出声；自带一个简易音频工作台（剪辑、滤波、失真、延迟、混响、变调、倍速），每条音轨能单独改音符、移调、量化，最后导出 WAV。背景是蒸汽波落日，可以一键关掉只留频谱。",

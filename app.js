@@ -31,6 +31,7 @@
   function cardHTML(p) {
     var st = STATUS[p.status] || null;
     var badge = st ? '<span class="badge ' + st[1] + '">' + st[0] + "</span>" : "";
+    var origin = p.category === "port" ? '<span class="badge port">转载</span>' : "";
     var year = p.year ? '<span class="year">' + esc(p.year) + "</span>" : "";
     var title = p.links && p.links[0] && p.links[0].url
       ? '<a href="' + esc(p.links[0].url) + '" target="_blank" rel="noopener">' + esc(p.name) + "</a>"
@@ -39,16 +40,25 @@
       return '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.label) + "</a>";
     }).join("");
 
-    return '<article class="card">' +
-      "<h3>" + title + badge + year + "</h3>" +
+    return "<article class=\"card" + (p.category === "port" ? " port" : "") + "\">" +
+      "<h3>" + title + origin + badge + year + "</h3>" +
       '<p class="desc">' + esc(p.desc) + "</p>" +
       (links ? '<div class="card-links">' + links + "</div>" : "") +
       "</article>";
   }
 
   var grid = $("#projects");
-  grid.innerHTML = all.map(cardHTML).join("");
-  if (!all.length) $("#empty").hidden = false;
+  var portGrid = $("#ported");
+  var own = [], ported = [];
+  all.forEach(function (p) { (p.category === "port" ? ported : own).push(p); });
+
+  grid.innerHTML = own.map(cardHTML).join("");
+  if (!own.length) $("#empty").hidden = false;
+
+  if (portGrid) {
+    portGrid.innerHTML = ported.map(cardHTML).join("");
+    if (!ported.length && $("#portedSection")) $("#portedSection").hidden = true;
+  }
 
   /* ---------- 气泡（只在顶部珊瑚礁区域里飘） ---------- */
   /* 珊瑚礁区域的高度随屏幕宽度变化，实时写进 --rise，让气泡正好升到图顶 */
