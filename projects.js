@@ -23,6 +23,15 @@ const SITE = {
    links: 一个或多个链接（在线玩、源码、文章……）            */
 const PROJECTS = [
   {
+    name: "邦友的酒模拟器",
+    desc: "所有人保持Q弹！",
+    status: "live",
+    year: "2026",
+    links: [
+      { label: "进去弹", url: "projects/q-doll/" }
+    ]
+  },
+  {
     name: "EAGLER TOUHOU · 东方原作 Web 化",
     desc: "东方 Project 原作 STG 的浏览器移植：红魔乡、妖妖梦、永夜抄、风神录、绀珠传，进去就跑。转载自 YomotsuHisami/eagler-touhou（GPL-3.0-or-later）。",
     status: "live",

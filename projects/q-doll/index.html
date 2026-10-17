@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"/>
+<meta name="theme-color" content="#5a8ec4"/>
+<title>邦友的酒模拟器 · 所有人保持Q弹！</title>
+<link rel="stylesheet" href="./css/style.css"/>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./js/three.module.min.js",
+    "three/addons/": "./js/"
+  }
+}
+</script>
+</head>
+<body>
+
+<!-- 背景壁纸（与 3D 世界共用同一套 cover 变换，保证地平线精确对齐） -->
+<div id="bg" aria-hidden="true"></div>
+<div id="bg-vignette" aria-hidden="true"></div>
+
+<!-- 3D 舞台 -->
+<canvas id="stage"></canvas>
+
+<!-- 顶部飘浮的细光点（CSS 层，独立于 3D，永远最柔和） -->
+<div id="dust" aria-hidden="true"></div>
+
+<!-- 载入 -->
+<div id="loader">
+  <div class="ld-ring"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16"/></svg></div>
+  <div class="ld-txt"><span id="ld-num">0</span><i>%</i></div>
+  <div class="ld-sub">唤醒玩偶中</div>
+</div>
+
+<!-- 极细进度线 -->
+<div id="progress"><div id="progress-bar"></div></div>
+
+<!-- 曲名胶囊 -->
+<div id="nowplaying"><span class="np-dot"></span><span id="np-name">邦友的酒</span><span class="np-bpm" id="np-bpm">100 BPM</span></div>
+
+<!-- 设置入口 -->
+<button id="fab" aria-label="打开控制台">
+  <svg viewBox="0 0 24 24" class="ic-eq"><rect x="3"  y="9"  width="2.6" height="6"  rx="1.3"/><rect x="8"  y="5"  width="2.6" height="14" rx="1.3"/><rect x="13" y="7.5" width="2.6" height="9" rx="1.3"/><rect x="18" y="10.5" width="2.6" height="3" rx="1.3"/></svg>
+</button>
+
+<!-- 控制台 -->
+<aside id="panel" aria-hidden="true">
+  <div class="panel-grip" aria-hidden="true"><i></i></div>
+  <div class="panel-head">
+    <div class="ph-t">
+      <span class="ph-kicker">CONTROL</span>
+      <b>Q弹控制台</b>
+    </div>
+    <button id="close" aria-label="关闭">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+
+  <div class="panel-body">
+
+    <!-- 播放 -->
+    <section class="sec">
+      <div class="sec-h"><span>播放</span><small id="track-name">邦友的酒.mp3</small></div>
+      <div class="row play-row">
+        <button id="play" class="ghost-lg">
+          <svg viewBox="0 0 24 24" class="ic-play"><path d="M8 5.5v13l11-6.5z"/></svg>
+          <svg viewBox="0 0 24 24" class="ic-pause"><path d="M8.5 5.5h3.2v13H8.5zM12.3 5.5h3.2v13h-3.2z"/></svg>
+          <span id="play-label">开始</span>
+        </button>
+        <label class="ghost-lg file">
+          <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+          <span>换 BGM</span>
+          <input type="file" id="file-audio" accept="audio/*"/>
+        </label>
+      </div>
+      <div class="row">
+        <label class="lbl">音量</label>
+        <input type="range" id="vol" min="0" max="100" value="80"/>
+        <output id="vol-o">80</output>
+      </div>
+    </section>
+
+    <!-- 律动 -->
+    <section class="sec">
+      <div class="sec-h"><span>律动</span><small>跟拍弹跳</small></div>
+      <div class="row">
+        <label class="lbl">速度</label>
+        <input type="range" id="bpm" min="40" max="240" step="1" value="100"/>
+        <span class="num-in"><input type="number" id="bpm-num" min="40" max="240" step="1" value="100"/><i>BPM</i></span>
+      </div>
+      <div class="row">
+        <label class="lbl">Q弹度</label>
+        <input type="range" id="elastic" min="0" max="100" value="62"/>
+        <output id="elastic-o">62</output>
+      </div>
+      <div class="row">
+        <label class="lbl">压缩量</label>
+        <input type="range" id="depth" min="0" max="100" value="55"/>
+        <output id="depth-o">55</output>
+      </div>
+      <div class="row">
+        <label class="lbl">声感</label>
+        <input type="range" id="audio-gain" min="0" max="100" value="55"/>
+        <output id="ag-o">55</output>
+      </div>
+    </section>
+
+    <!-- 玩偶 -->
+    <section class="sec">
+      <div class="sec-h"><span>玩偶</span><small id="roster-count">6 / 15</small></div>
+      <div class="roster" id="roster"></div>
+      <div class="row">
+        <label class="lbl">大小</label>
+        <input type="range" id="scale" min="50" max="220" value="100"/>
+        <output id="scale-o">100</output>
+      </div>
+      <div class="row">
+        <label class="lbl">位置</label>
+        <div class="move-hint">拖空白=移动 · 双指拖玩偶=缩放移动</div>
+        <button id="reset-view" class="mini">复位</button>
+      </div>
+    </section>
+
+    <!-- 3D 旋转 -->
+    <section class="sec">
+      <div class="sec-h"><span>3D</span><small>旋转 · 全局</small></div>
+
+      <div class="rot-wrap">
+        <!-- 全局手动旋转转盘 -->
+        <div class="dial" id="dial" role="slider" aria-label="全局旋转转盘" tabindex="0">
+          <span class="dial-tick"></span>
+          <span class="dial-needle" id="dial-needle"></span>
+          <span class="dial-hub"></span>
+          <span class="dial-val" id="dial-val">0°</span>
+        </div>
+
+        <div class="rot-right">
+          <div class="row tight">
+            <label class="lbl">朝向</label>
+            <input type="range" id="yaw" min="-180" max="180" step="1" value="0"/>
+            <output id="yaw-o">0°</output>
+          </div>
+          <div class="row tight">
+            <label class="lbl">自转</label>
+            <button id="auto-rot" class="switch" role="switch" aria-checked="false" aria-label="自动旋转"><i></i></button>
+            <input type="range" id="rot-speed" min="4" max="150" step="1" value="30"/>
+            <button id="rot-dir" class="mini dir" aria-label="换向">↻</button>
+          </div>
+          <div class="dial-hint">拖转转盘 / 拖玩偶旋转</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="panel-foot">
+    <span class="kbd">H</span> 隐藏界面
+    <span class="dot">·</span>
+    <span class="kbd">空格</span> 播放
+  </div>
+</aside>
+
+<div id="hint">轻触任意处 · 让它们弹起来</div>
+
+<script type="module">import('./js/app.js?v=' + Date.now());</script>
+</body>
+</html>
