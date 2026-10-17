@@ -133,3 +133,18 @@ Netlify 还支持直接把文件夹拖进网页里部署，连 Git 都不用。
 - `projects/` 里是 `/sdcard/Download/项目总集/` 的副本，中文文件名换成了 URL 友好的英文名；原始工程未改动。
 - proot 环境若被重置，`/root/whale-garden.git` 和 SSH 密钥会丢失：
   重新生成密钥、把公钥加到 GitHub、再 `git clone` 一次就能恢复，线上站点不受影响。
+
+## 页面规范（强制）
+
+所有页面都必须在 `</body>` 前引入统一全屏组件：
+
+```html
+<!-- 站点根 index.html -->
+<script src="assets/fullscreen.js"></script>
+<!-- projects/<名>/index.html -->
+<script src="../../assets/fullscreen.js"></script>
+```
+
+优先走 Fullscreen API；WebView / iOS Safari 不支持时自动退化成「沉浸模式」（藏顶栏底栏、正文铺满）。右下角玻璃态按钮，桌面 `F` 切换、`Esc` 退出。
+
+新增页面后用 `python3 tools/inject_fs.py` 批量补齐（幂等，已挂载自动跳过）。完整标准见 skill `whale-standard`。
