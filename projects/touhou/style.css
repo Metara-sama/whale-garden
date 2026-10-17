@@ -29,7 +29,10 @@ html,body{margin:0;height:100%;background:#0d0d0c;overflow:hidden}
   grid-auto-flow:row;align-content:center;
   background:#0d0d0c;
   transition:opacity .35s ease;
+  /* 就算脚本被缓存或出错，8 秒后幕布也会自己让开 */
+  animation:bootAway .6s ease 8s forwards;
 }
+@keyframes bootAway{to{opacity:0;visibility:hidden;pointer-events:none}}
 .boot.done{opacity:0;pointer-events:none}
 .spin{
   width:24px;height:24px;border-radius:50%;
