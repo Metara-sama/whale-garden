@@ -30,36 +30,16 @@
 
 <main>
 
-  <nav class="tabs" id="tabs" role="tablist">
-    <button class="tab is-on" role="tab" data-tab="projects">项目</button>
-    <button class="tab" role="tab" data-tab="mad">音MAD</button>
-  </nav>
+  <section class="section section-first">
+    <h2>项目</h2>
+    <div class="grid" id="projects"></div>
+    <p class="empty" id="empty" hidden>这片海域还没有项目 🫧</p>
+  </section>
 
-  <div class="panel" data-panel="projects">
-
-    <section class="section section-first">
-      <h2>项目</h2>
-      <div class="grid" id="projects"></div>
-      <p class="empty" id="empty" hidden>这片海域还没有项目 🫧</p>
-    </section>
-
-    <section class="section">
-      <h2>关于</h2>
-      <p class="about-text" id="about"></p>
-    </section>
-
-  </div>
-
-  <div class="panel" data-panel="mad" hidden>
-    <section class="section section-first">
-      <h2>音MAD · VAPOR SAMPLE</h2>
-      <p class="about-text">把 MIDI 拆成音轨，每条音轨用你上传的采样当音色，现场改音符、加效果，最后导出成 WAV。</p>
-      <div class="mad-frame-wrap">
-        <iframe class="mad-frame" id="madFrame" data-src="/vapor-mad/" title="音MAD / Vapor Sample" loading="lazy"></iframe>
-      </div>
-      <p class="mad-open"><a href="https://Metara-sama.github.io/vapor-mad/" target="_blank" rel="noopener">在新标签页打开 ↗</a></p>
-    </section>
-  </div>
+  <section class="section">
+    <h2>关于</h2>
+    <p class="about-text" id="about"></p>
+  </section>
 
 </main>
 
@@ -70,22 +50,5 @@
 
 <script src="projects.js"></script>
 <script src="app.js"></script>
-<script>
-(function(){
-  var bar = document.getElementById('tabs');
-  if (!bar) return;
-  bar.addEventListener('click', function(e){
-    var b = e.target.closest('.tab');
-    if (!b) return;
-    var k = b.dataset.tab;
-    bar.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('is-on', t === b); });
-    document.querySelectorAll('.panel').forEach(function(p){ p.hidden = p.dataset.panel !== k; });
-    if (k === 'mad') {
-      var f = document.getElementById('madFrame');
-      if (f && !f.getAttribute('src')) f.setAttribute('src', f.getAttribute('data-src'));
-    }
-  });
-})();
-</script>
 </body>
 </html>
