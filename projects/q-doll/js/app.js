@@ -64,6 +64,7 @@ const S = {
   rotDir: 1,        // +1 顺时针 / -1 逆时针
   view: { s: 1, x: 0, y: 0 },
   playing: false,
+  sel: null,
 };
 
 const STORE_KEY = 'dollWallpaper.v1';
@@ -165,6 +166,7 @@ function makeShadowTexture() {
 }
 const SHADOW_TEX = makeShadowTexture();
 const SHADOW_GEO = new THREE.PlaneGeometry(1, 1);
+const SEL_GEO = new THREE.RingGeometry(0.34, 0.46, 44);
 
 /* ---------------- 玩偶 ---------------- */
 
@@ -214,8 +216,16 @@ function makeDoll(gltf, def) {
   shadow.renderOrder = -1;
   root.add(shadow);
 
+  const selRing = new THREE.Mesh(SEL_GEO, new THREE.MeshBasicMaterial({
+    color: 0x7fd4ff, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide,
+  }));
+  selRing.visible = false;
+  selRing.position.set(0, 0.006, 0.06);
+  selRing.renderOrder = 2;
+  root.add(selRing);
+
   return {
-    def, root, jumpNode, squashNode, modelWrap, shadow,
+    def, root, jumpNode, squashNode, modelWrap, shadow, selRing,
     sq: 0, sqv: 0,          // 弹簧状态
     visible: false,
     jitter: hash(def.idx) - 0.5,
@@ -514,6 +524,15 @@ function toggleMember(k, el) {
   syncActive();
 }
 
+/* ---------- 选中 ---------- */
+function selectDoll(d) {
+  S.sel = d || null;
+  for (const o of dolls) {
+    if (o.selRing) o.selRing.visible = (o === d);
+  }
+}
+function deselect() { selectDoll(null); }
+
 /* ---------- 2D 玩偶（上传图片） ---------- */
 function makeImageDoll(tex, w, h, def) {
   const root = new THREE.Group();
@@ -538,8 +557,16 @@ function makeImageDoll(tex, w, h, def) {
   shadow.renderOrder = -1;
   root.add(shadow);
 
+  const selRing = new THREE.Mesh(SEL_GEO, new THREE.MeshBasicMaterial({
+    color: 0x7fd4ff, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide,
+  }));
+  selRing.visible = false;
+  selRing.position.set(0, 0.006, 0.06);
+  selRing.renderOrder = 2;
+  root.add(selRing);
+
   return {
-    def, root, jumpNode, squashNode, modelWrap, shadow,
+    def, root, jumpNode, squashNode, modelWrap, shadow, selRing,
     user: { s: 1, dx: 0, dy: 0 }, tilt: 0, yaw: 0, jitter: 0,
     baseScale: 1, anchor: { x: 0, y: 0 }, jump: 0,
     is2D: true, imgW: w, imgH: h,
@@ -778,9 +805,20 @@ canvas.addEventListener('pointerdown', (e) => {
     // 鼠标：左键=旋转，右键=平移；触屏：命玩偶=旋转，空白=平移
     const isMouse = e.pointerType === 'mouse';
     let mode;
-    if (isMouse) mode = (e.button === 2) ? 'pan' : 'rotate';
-    else mode = hit ? 'rotate' : 'pan';
-    gesture = { mode, doll: hit };
+    let target = hit;
+    if (isMouse) {
+      if (e.button === 2) {
+        // 右键：拖动选中的（或鼠标下的）那一只
+        target = hit || S.sel;
+        if (target) { selectDoll(target); mode = 'dollmove'; }
+        else mode = 'pan';
+      } else {
+        mode = 'rotate';
+      }
+    } else {
+      mode = hit ? 'rotate' : 'pan';
+    }
+    gesture = { mode, doll: target };
     lastX = e.clientX; lastY = e.clientY;
     canvas.classList.add('grabbing');
     canvas.classList.toggle('rotating', mode === 'rotate');
@@ -827,6 +865,17 @@ canvas.addEventListener('pointermove', (e) => {
   lastX = e.clientX; lastY = e.clientY;
   dragMoved += Math.abs(dx) + Math.abs(dy);
 
+  if (gesture.mode === 'dollmove') {
+    // 右键拖动：这一只跟鼠标 1:1（世界位移 = 像素位移 / 视图缩放）
+    const dd = gesture.doll;
+    if (dd) {
+      const ws = world.scale.x || 1;
+      dd.user.dx += dx / ws;
+      dd.user.dy -= dy / ws;
+      placeDolls();
+    }
+    return;
+  }
   if (gesture.mode === 'rotate') {
     setYaw(S.yaw + dx * 0.45);            // 单指拖玩偶 = 全体旋转
   } else {
@@ -840,7 +889,15 @@ function endPointer(e) {
   if (pointers.size === 0) {
     canvas.classList.remove('grabbing');
     canvas.classList.remove('rotating');
-    if (dragMoved < 8) firstTap();
+    if (dragMoved < 8) {
+      if (gesture.doll) {
+        selectDoll(gesture.doll);
+        if (!S.playing) play();
+      } else {
+        deselect();
+        firstTap();
+      }
+    }
     gesture = { mode: 'none', doll: null };
   } else if (pointers.size === 1) {
     const p = [...pointers.values()][0];
@@ -854,9 +911,17 @@ canvas.addEventListener('pointercancel', endPointer);
 
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
-  // 滚轮 = 改变大小（按住右键时同样有效）
   const f = Math.exp(-e.deltaY * 0.0012);
-  setViewScale(S.view.s * f);
+  const hit = hitDoll(e.clientX, e.clientY);
+  const target = hit || S.sel;
+  if (target) {
+    // 滚轮 = 缩放那只（命中优先）
+    target.user.s = clamp(target.user.s * f, 0.25, 4);
+    if (hit) selectDoll(hit);
+    placeDolls();
+  } else {
+    setViewScale(S.view.s * f);
+  }
 }, { passive: false });
 
 // 右键拖平移，屏蔽系统菜单
@@ -1305,6 +1370,11 @@ function frame(now) {
     paintPanel();
   }
 
+  // 选中环呼吸
+  if (S.sel && S.sel.selRing) {
+    S.sel.selRing.material.opacity = 0.62 + Math.sin(now / 260) * 0.26;
+  }
+
   // Q弹波形
   updateSquash(dt);
 
@@ -1412,4 +1482,4 @@ async function boot() {
 boot();
 
 /* 调试挂钩 */
-window.__doll = { S, dolls, active, syncActive, toggleMember, buildRosterUI, addCustomImage, makeImageDoll, analyzeBGM, detectBPM, play, pause, setViewScale, setYaw, camera, renderer, scene };
+window.__doll = { S, dolls, active, syncActive, toggleMember, buildRosterUI, addCustomImage, makeImageDoll, analyzeBGM, detectBPM, selectDoll, deselect, play, pause, setViewScale, setYaw, camera, renderer, scene };
