@@ -48,6 +48,7 @@ body{
 
 /* ---------- layout ---------- */
 .layout{display:grid;grid-template-columns:minmax(0,1fr) 358px;align-items:start}
+.stage{min-width:0}  /* 防止 grid item 被内容撑开 */
 .stage{
   position:sticky;top:54px;height:calc(100vh - 54px);
   overflow:auto;padding:24px 32px 74px;scrollbar-width:thin;
@@ -63,7 +64,7 @@ body{
 
 /* ---------- panel ---------- */
 .panel{
-  border-left:1px solid var(--line);background:rgba(13,16,21,.72);
+  min-width:0;border-left:1px solid var(--line);background:rgba(13,16,21,.72);
   padding:16px 16px 60px;min-height:calc(100vh - 54px);
 }
 .sec{border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:12px;background:rgba(255,255,255,.012)}
@@ -123,14 +124,14 @@ output{font-family:var(--mono);font-size:10.5px;color:var(--acc);min-width:26px;
 
 .tpls{display:grid;gap:7px}
 .tpl{
-  text-align:left;padding:9px 11px;border-radius:9px;border:1px solid #262e39;background:#0b0f14;
+  min-width:0;text-align:left;padding:9px 11px;border-radius:9px;border:1px solid #262e39;background:#0b0f14;
   color:#c3cbd8;cursor:pointer;font:inherit;font-size:12.5px;transition:.15s;display:flex;align-items:center;gap:9px;
 }
 .tpl:hover{border-color:#3a4553;transform:translateX(2px)}
 .tpl.on{border-color:var(--acc);background:rgba(198,255,61,.08);color:#fff;box-shadow:0 0 0 1px rgba(198,255,61,.25) inset}
 .tpl .tp-logo{font:700 10px/1 var(--mono);letter-spacing:.5px;color:var(--ink-dim);border:1px solid #2b3440;border-radius:4px;padding:3px 5px;flex:0 0 auto}
 .tpl.on .tp-logo{color:var(--acc);border-color:rgba(198,255,61,.4)}
-.tpl .tp-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tpl .tp-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .btn{
   width:100%;padding:12px;border-radius:10px;border:0;cursor:pointer;font:800 13.5px/1 inherit;letter-spacing:.6px;
@@ -402,7 +403,7 @@ output{font-family:var(--mono);font-size:10.5px;color:var(--acc);min-width:26px;
 
 /* ---------- responsive ---------- */
 @media (max-width:980px){
-  .layout{grid-template-columns:1fr}
+  .layout{grid-template-columns:minmax(0,1fr)}
   .stage{position:relative;top:0;height:auto;max-height:70vh;padding:16px 10px 24px}
   .panel{border-left:0;border-top:1px solid var(--line);min-height:0;padding-bottom:26px}
   .stage-tools{position:static;justify-content:center;margin-top:10px;opacity:1}
@@ -1255,7 +1256,7 @@ window.BASE_H = BASE_H;
     const stage = $('stage'), paper = $('paper'), inner = $('stageInner');
     if (!stage || !paper) return;
     const narrow = window.innerWidth <= 980;
-    const stageW = stage.clientWidth || window.innerWidth || 390;
+    const stageW = Math.min(stage.clientWidth || window.innerWidth || 390, window.innerWidth || 390);
     const pad = narrow ? 20 : 64;
     const avail = Math.max(200, stageW - pad);
     const base = Math.min(1, avail / 820);
@@ -1477,9 +1478,9 @@ window.BASE_H = BASE_H;
 
     /* shoot */
     $('shot').addEventListener('click', shoot);
-    $('zoomIn').addEventListener('click', function () { userZoom = Math.min(3, userZoom * 1.25); fit(); });
-    $('zoomOut').addEventListener('click', function () { userZoom = Math.max(0.35, userZoom / 1.25); fit(); });
-    $('zoomReset').addEventListener('click', function () { userZoom = 1; fit(); });
+    $('zoomIn').addEventListener('click', function () { userZoom = Math.min(3, userZoom * 1.25); doFit(); });
+    $('zoomOut').addEventListener('click', function () { userZoom = Math.max(0.35, userZoom / 1.25); doFit(); });
+    $('zoomReset').addEventListener('click', function () { userZoom = 1; doFit(); });
 
     window.addEventListener('resize', fit);
     if (window.ResizeObserver) {
