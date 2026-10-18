@@ -1459,7 +1459,19 @@ window.BASE_H = BASE_H;
 
     /* upload */
     const drop = $('drop'), file = $('file');
+    let pickTimer = null;
+    drop.addEventListener('pointerdown', function () {
+      clearTimeout(pickTimer);
+      pickTimer = setTimeout(function () {
+        if (!document.hidden) headTip('如果没弹出选图框：请换 Chrome / Edge 打开本页（Operit 内置预览器可能不支持）');
+      }, 2600);
+    });
+    document.addEventListener('visibilitychange', function () {
+      clearTimeout(pickTimer);
+      if (!document.hidden) setTimeout(function () { clearTimeout(pickTimer); }, 300);
+    });
     file.addEventListener('change', function () {
+      clearTimeout(pickTimer);
       if (file.files && file.files[0]) setHead(file.files[0]);
       setTimeout(function () { try { file.value = ''; } catch (e) { } }, 0);
     });
