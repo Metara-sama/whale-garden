@@ -28,7 +28,7 @@ const PROJECTS = [
     status: "live",
     year: "2026",
     links: [
-      { label: "打开生成器", url: "projects/wt-obit/" }
+      { label: "打开生成器", url: "projects/wt-obit/?v=2" }
     ]
   },
   {
