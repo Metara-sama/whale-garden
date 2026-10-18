@@ -17,7 +17,7 @@
   --mono:"SFMono-Regular",ui-monospace,"JetBrains Mono",Consolas,monospace;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;padding:0;min-height:100%}
+html,body{margin:0;padding:0;min-height:100%;overflow-x:hidden}
 body{
   background:
     radial-gradient(1200px 600px at 15% -10%, #131a22 0%, transparent 60%),
@@ -53,7 +53,7 @@ body{
   overflow:auto;padding:24px 32px 74px;scrollbar-width:thin;
   scrollbar-gutter:stable;
 }
-.stage-inner{width:820px;margin:0 auto;overflow:hidden;position:relative}
+.stage-inner{width:100%;margin:0 auto;overflow:hidden;position:relative}
 .stage-tools{
   position:fixed;left:16px;bottom:12px;display:flex;align-items:center;gap:8px;
   z-index:15;
@@ -86,7 +86,8 @@ body{
 
 .thumb-row{display:flex;gap:10px;align-items:center;margin-top:10px;padding:8px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.02)}
 .thumb-row[hidden]{display:none}
-.mini-tip{font-size:11px;color:#ff9a9a;margin-top:7px;min-height:14px;line-height:1.5}
+.mini-tip{font-size:11px;color:#6c7787;margin-top:7px;min-height:14px;line-height:1.5}
+.mini-tip.err{color:#ff9a9a}
 .mini-tip.ok{color:var(--acc2)}
 .thumb-row img{width:46px;height:46px;border-radius:8px;object-fit:cover;border:1px solid #2a323d}
 .thumb-meta{font-size:11.5px;color:var(--ink-dim);min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -443,7 +444,7 @@ output{font-family:var(--mono);font-size:10.5px;color:var(--acc);min-width:26px;
         <div class="drop-s">建议正面、面部居中、正方的照片</div>
         <input type="file" id="file" accept="image/*" class="drop-file" aria-label="选择头像图片">
       </div>
-      <div class="mini-tip" id="headTip"></div>
+      <div class="mini-tip" id="headTip">选图没反应？请用 Chrome / Edge 打开本页</div>
       <div class="thumb-row" id="thumbRow" hidden>
         <img id="thumb" alt="preview">
         <div class="thumb-meta">
@@ -503,7 +504,7 @@ output{font-family:var(--mono);font-size:10.5px;color:var(--acc);min-width:26px;
 <script>
 /* =========================================================
    阵亡通报生成器 —— 稿件库 & 头像替换坐标
-   {{NAME}} 会被替换为用户输入的名字
+   {{NAME}} 为用户姓名占位；11月14日 / 14日 / November 14 随日期联动
    ========================================================= */
 
 /* 底图原始尺寸 2080 × 1022，以下坐标均为该坐标系 */
@@ -518,7 +519,7 @@ const POSITIONS = {
 
 const ARTICLES = [
 
-/* ---------------------------------------------------------- 1. ТАСС 中文版 */
+/* ---------------------------------------------------------- 1. ТАСС · 电讯体 */
 {
   id: 'tass',
   theme: 'tass',
@@ -527,68 +528,59 @@ const ARTICLES = [
   place: '莫斯科 · 顿涅茨克',
   cat: '军事',
   kicker: '特别军事行动 · 国防部通报',
-  headline: '俄国防部确认：四名军事技术顾问在顿涅茨克方向身亡',
-  lead: '通报称，四人于14日清晨在一处前沿指挥所内遭精确火力打击，其中三名死者长期参与俄军模拟训练系统的研发。',
+  headline: '俄国防部：四名军事技术顾问在顿涅茨克方向身亡',
+  lead: '据通报，四人在一处指挥所内执行装备调试任务时遭火力打击，均当场死亡，另有两名随行人员受轻伤。',
   author: '塔斯社驻莫斯科记者站',
   views: '24.7万',
   comments: '412',
   caption: '俄罗斯国防部新闻处公布的四人合影。图片来源：俄罗斯国防部新闻处',
   body: [
-    { t: 'p', v: '塔斯社莫斯科11月14日电　俄罗斯国防部14日发布通报，确认四名俄罗斯籍军事技术顾问在顿涅茨克方向的一次火力打击中身亡。' },
-    { t: 'p', v: '通报称，事发时间为莫斯科时间14日6时40分左右，四人当时位于前线一处指挥所内，执行装备调试任务。该指挥所在遭无人机引导的精确打击后部分坍塌，四人均当场身亡，另有两名随行人员受轻伤，已被后送治疗。' },
-    { t: 'quote', v: '“现场已被封锁，调查小组正在确认打击所用弹药的类型。”', c: '——顿涅茨克当地紧急部门一名官员' },
-    { t: 'h2', v: '三名死者长期参与俄军模拟系统研发' },
-    { t: 'p', v: '据塔斯社掌握的信息，四名死者分别为：模拟训练项目负责人<b>安东·尤丁采夫</b>（Антон Юдинцев）、技术研发负责人<b>维亚切斯拉夫·巴兰尼科夫</b>（Вячеслав Баранников）、独立研发工作室负责人<b>尼基塔·布亚诺夫</b>（Никита Буянов），以及随行的<b>{{NAME}}</b>。' },
-    { t: 'p', v: '三人此前的公开履历显示，其团队所研制的软件系统被用于空天军飞行员与地面装备乘员的部分基础训练科目，包括飞行模拟、火控解算与战场态势推演。国防部内部人士称，四人此行是为新型训练终端做实地校准。' },
-    { t: 'p', v: '国防部表示，已就四人的死亡向家属表示哀悼，并将按既定程序追授部门奖章。通报未说明奖章的具体级别，也未披露遗体运返安排。' },
-    { t: 'p', v: '截至发稿，四人所任职的三家机构均未就此发表公开声明。塔斯社记者尝试联系其中两家机构的新闻部门，电话无人接听。' },
-    { t: 'p', v: '另据顿涅茨克地方卫生部门消息，两名伤者中一人为弹片伤，暂无生命危险。' }
+    { t: 'p', v: '塔斯社莫斯科11月14日电（记者叶菲姆·索科洛夫）　俄罗斯国防部14日发布通报，确认四名俄罗斯籍军事技术顾问在顿涅茨克方向身亡。' },
+    { t: 'p', v: '通报称，莫斯科时间14日6时40分许，四人所在的一处指挥所遭精确打击，建筑部分坍塌。四人均当场死亡，另有两名随行人员受轻伤，已后送治疗。' },
+    { t: 'quote', v: '“现场已封锁，调查组正在确认弹药类型与打击方位。”', c: '——顿涅茨克当地紧急情况部门一名官员' },
+    { t: 'h2', v: '三名死者在俄军模拟训练项目中任职' },
+    { t: 'p', v: '据塔斯社掌握的资料，四名死者为：模拟训练项目负责人安东·尤丁采夫（Антон Юдинцев）、技术研发负责人维亚切斯拉夫·巴兰尼科夫（Вячеслав Баранников）、独立研发工作室负责人尼基塔·布亚诺夫（Никита Буянов），以及随行的{{NAME}}。' },
+    { t: 'p', v: '三人的公开履历显示，其团队研制的软件系统被用于空天军飞行员与地面装备乘员的部分基础训练科目，涉及飞行模拟、火控解算与战场态势推演。' },
+    { t: 'p', v: '国防部表示，已向死者家属表示哀悼，并将按既定程序追授部门奖章。通报未说明奖章级别，也未披露遗体运返安排。' },
+    { t: 'p', v: '截至发稿，三名死者所属机构均未作出回应。塔斯社记者致电其中两家机构的新闻部门，电话无人接听。' }
   ],
-  tags: ['顿涅茨克', '特别军事行动', '国防部通报', '模拟训练系统'],
-  related: [
-    '俄技集团：新一代训练模拟终端完成国家测试',
-    '顿涅茨克方向战况：一周内双方交火次数上升',
-    '国防部通报本年度顾问人员伤亡情况'
-  ],
+  tags: ['顿涅茨克', '特别军事行动', '国防部通报', '模拟训练'],
+  related: ['俄技集团：新一代训练模拟终端完成国家测试', '顿涅茨克方向一周交火次数上升', '国防部通报本年度顾问人员伤亡情况'],
   copyright: '© ТАСС, 2024. 本页面为虚构演绎，与俄罗斯通讯社及任何真实机构无关。'
 },
 
-/* ---------------------------------------------------------- 2. 中文门户 · 突发 */
+/* ---------------------------------------------------------- 2. 军情速览 · 门户体 */
 {
   id: 'portal',
   theme: 'portal',
   logo: '军情速览',
   logoSub: '环球军事观察 · 24小时滚动',
-  place: '北京 · 综合报道',
+  place: '北京',
   cat: '突发',
   flash: true,
   kicker: '游戏 / 俄乌局势',
-  headline: '《战争雷霆》三大策划被曝在乌东身亡，第四名随行人员身份待确认',
-  lead: '一份标注为“顿涅茨克紧急情况部”的通报在俄语社交平台流传，名单中出现三名长期负责游戏研发的俄籍开发者。',
-  author: '本网记者 综合报道',
+  headline: '《战争雷霆》三名俄籍策划被曝在乌东身亡，第四名随行人员身份待确认',
+  lead: '一份标注为“顿涅茨克紧急情况部”的通报在俄语社交平台流传，名单中含三名长期负责游戏研发的俄籍开发者。官方尚未回应。',
+  author: '本网记者　综合报道',
   views: '86.3万',
   comments: '28,904',
-  caption: '网传通报所附的四人合影。图片真实性尚未得到官方渠道确认。',
+  caption: '网传通报所附的四人合影。图片真实性尚未获得官方渠道确认。',
   body: [
-    { t: 'p', v: '当地时间11月14日下午，一份标注为“顿涅茨克人民共和国紧急情况部”的通报在俄语社交平台流传。通报称，四名俄罗斯籍人员当天在顿涅茨克市西北方向的一处指挥所内遇袭身亡。' },
-    { t: 'p', v: '根据通报所附名单，四名死者中包括三名长期负责《战争雷霆》（War Thunder）研发的俄籍开发者——<b>安东·尤丁采夫</b>、<b>维亚切斯拉夫·巴兰尼科夫</b>、<b>尼基塔·布亚诺夫</b>；另一名死者的姓名登记为<b>{{NAME}}</b>。' },
-    { t: 'p', v: '公开资料显示，三人分别供职于不同的研发机构。巴兰尼科夫近两年多次以“军事顾问”身份出现在俄方装备展的合影中，其社交账号最后一次更新是在本月9日，内容为一张训练场照片。' },
-    { t: 'quote', v: '“名单里那个名字我们确实没听过，但另外三个——只要玩过这游戏的人都认识。”', c: '——一名在俄华人玩家向本网表示' },
-    { t: 'h2', v: '官方尚未回应，玩家已在评论区“刷屏”' },
-    { t: 'p', v: '截至发稿，游戏发行方尚未就此事作出任何回应。其官方社交账号的最后一条更新停留在11月12日，内容为一次关于载具平衡性的调整公告，目前该条动态下已累积超过两万条留言。' },
-    { t: 'p', v: '值得注意的是，名单中的第四人{{NAME}}，在此前所有公开报道中均未出现过，其职务与所属单位目前无法核实。有分析人士认为，此人可能是随行的技术翻译或司机。' },
-    { t: 'p', v: '目前该通报的真实性尚未得到俄方官方渠道确认。本网已就此事向相关机构发函求证，截至发稿未获回复，将持续关注事态进展。' }
+    { t: 'p', v: '军情速览11月14日北京电　当地时间14日下午，一份标注为“顿涅茨克人民共和国紧急情况部”的通报在俄语社交平台流传。通报称，四名俄罗斯籍人员当天在顿涅茨克市西北方向一处指挥所遇袭身亡。' },
+    { t: 'p', v: '通报所附名单显示，四名死者中包括安东·尤丁采夫、维亚切斯拉夫·巴兰尼科夫、尼基塔·布亚诺夫三名俄籍开发者，另一人登记姓名为{{NAME}}。' },
+    { t: 'p', v: '公开资料显示，三人分别任职于俄境内三家研发机构。巴兰尼科夫近两年多次以军事顾问身份出现在俄方装备展的合影中，其社交账号最后更新于本月9日。' },
+    { t: 'quote', v: '“名单里另外三个名字，玩过这款游戏的人大多认识。”', c: '——一名在俄华人玩家告诉本网' },
+    { t: 'h2', v: '发行方尚未回应' },
+    { t: 'p', v: '截至发稿，游戏发行方未就此事作出回应。其官方社交账号最后一条更新停留在11月12日，内容为一次载具平衡性调整公告，该条动态下已累积超过两万条留言。' },
+    { t: 'p', v: '名单中的第四人{{NAME}}此前未出现在任何公开报道中，其职务与所属单位暂无法核实。' },
+    { t: 'p', v: '上述通报的真实性尚未获得俄方官方渠道确认。本网已向相关机构发函求证，截至发稿未获回复。' }
   ],
   tags: ['战争雷霆', '突发', '俄乌局势', '玩家社区'],
-  related: [
-    '《战争雷霆》新版本引争议，开发商连夜调整数据',
-    '玩家自发在游戏内为“策划”默哀，服务器一度爆满',
-    '从模拟器到游戏：俄军工企业的民间生意'
-  ],
+  related: ['《战争雷霆》新版本引争议，开发商连夜调整数据', '玩家在游戏内自发默哀，服务器一度爆满', '从模拟器到游戏：俄军工企业的民间生意'],
   copyright: '军情速览 © 2024　未经授权禁止转载。本页面为虚构演绎内容。'
 },
 
-/* ---------------------------------------------------------- 3. RT English */
+/* ---------------------------------------------------------- 3. RT 英文 */
 {
   id: 'rt',
   theme: 'rt',
@@ -604,25 +596,21 @@ const ARTICLES = [
   comments: '3,117',
   caption: 'The four advisers, as pictured in a Defense Ministry handout. Source: Russian Defense Ministry',
   body: [
-    { t: 'p', v: 'MOSCOW — Russia’s Defense Ministry confirmed on Thursday that four Russian military technical advisers were killed in a strike on a forward command post near Donetsk, in one of the deadliest single incidents for Russian advisory personnel this year.' },
-    { t: 'p', v: 'The post was hit at around 06:40 Moscow time on November 14, according to the ministry. All four were killed instantly; two accompanying personnel sustained light injuries and were evacuated.' },
+    { t: 'p', v: 'MOSCOW — Russia’s Defense Ministry confirmed on Thursday that four Russian military technical advisers were killed in a strike on a forward command post near Donetsk, one of the deadliest single incidents for Russian advisory personnel this year.' },
+    { t: 'p', v: 'The post was hit at around 06:40 Moscow time on November 14, the ministry said. All four were killed instantly; two accompanying personnel sustained light injuries and were evacuated.' },
     { t: 'quote', v: '“The site has been sealed off. Investigators are still establishing the type of munition used.”', c: '— A local emergency services official in Donetsk' },
-    { t: 'h2', v: 'Three of the dead had worked on military simulation software' },
-    { t: 'p', v: 'The ministry named the dead as <b>Anton Yudintsev</b>, <b>Vyacheslav Barannikov</b>, <b>Nikita Buyanov</b>, and <b>{{NAME}}</b>, who was travelling with the group.' },
-    { t: 'p', v: 'According to their public records, the three had spent years developing simulation and training software — including flight simulators and fire-control trainers — used in some basic training courses for Aerospace Forces personnel. A defense official said the trip was intended to calibrate a new training terminal in the field.' },
+    { t: 'h2', v: 'Three of the dead worked on military simulation software' },
+    { t: 'p', v: 'The ministry named the dead as Anton Yudintsev, Vyacheslav Barannikov, Nikita Buyanov, and {{NAME}}, who was travelling with the group.' },
+    { t: 'p', v: 'According to their public records, the three spent years developing simulation and training software — including flight simulators and fire-control trainers — used in some basic training courses for Aerospace Forces personnel.' },
     { t: 'p', v: 'The ministry said it would posthumously award departmental medals and expressed condolences to the families. It did not specify the grade of the awards.' },
     { t: 'p', v: 'None of the three organizations the men worked for had issued a public statement by the time of publication. RT’s calls to two of their press offices went unanswered.' }
   ],
   tags: ['Donbass', 'Defense Ministry', 'Exclusive', 'Simulation'],
-  related: [
-    'MoD briefs on frontline situation in Donetsk direction',
-    'What we know about Russia’s new training terminals',
-    'Advisory personnel losses: what the numbers say'
-  ],
+  related: ['MoD briefs on frontline situation in Donetsk direction', 'What we know about Russia’s new training terminals', 'Advisory personnel losses: what the numbers say'],
   copyright: '© RT, 2024. This page is a fictional mock-up created by players. Not an actual RT publication.'
 },
 
-/* ---------------------------------------------------------- 4. Telegram 前线快报 */
+/* ---------------------------------------------------------- 4. Telegram · 快讯 */
 {
   id: 'tg',
   theme: 'tg',
@@ -639,22 +627,18 @@ const ARTICLES = [
   caption: '遇袭前拍摄的合影。照片由频道订阅者提供。',
   body: [
     { t: 'p', v: '⚡️<b>前线消息</b>：莫斯科时间14日6时40分，顿涅茨克市西北方向一处指挥所遭精确打击，建筑部分坍塌。' },
-    { t: 'p', v: '现场确认死亡4人，均为俄籍技术人员：尤丁采夫、巴兰尼科夫、布亚诺夫，以及<b>{{NAME}}</b>。另有两名随行人员轻伤，已后送。' },
-    { t: 'p', v: '⚙️ 四人此行任务为新型训练终端的实地校准。设备全部损毁。' },
-    { t: 'quote', v: '“他们进来还不到二十分钟。”', c: '——现场一名不愿具名的军人' },
+    { t: 'p', v: '现场确认死亡4人，均为俄籍技术人员：尤丁采夫、巴兰尼科夫、布亚诺夫，以及{{NAME}}。另有两名随行人员轻伤，已后送。' },
+    { t: 'p', v: '⚙️ 四人此行任务为新型训练终端的实地校准，设备全部损毁。' },
+    { t: 'quote', v: '“他们进去还不到二十分钟。”', c: '——现场一名不愿具名的军人' },
     { t: 'p', v: '官方通报尚未发布。本频道将持续跟进。' },
     { t: 'p', v: '🔴 <b>提醒</b>：请勿在评论区发布位置信息。' }
   ],
   tags: ['сводка', 'донецк', 'потери'],
-  related: [
-    '昨日战况汇总：三个方向均有交火',
-    '新型训练终端：已知的一切',
-    '订阅者投稿须知'
-  ],
+  related: ['昨日战况汇总：三个方向均有交火', '新型训练终端：已知的一切', '订阅者投稿须知'],
   copyright: 'Военный сводник · 虚构频道，仅用于梗图演示。'
 },
 
-/* ---------------------------------------------------------- 5. РИА Новости · 直升机 */
+/* ---------------------------------------------------------- 5. РИА Новости · 事故 */
 {
   id: 'ria',
   theme: 'ria',
@@ -663,19 +647,19 @@ const ARTICLES = [
   place: '布良斯克 · 莫斯科',
   cat: '军事',
   kicker: '事故调查',
-  headline: '米-8直升机在布良斯克州坠毁，机上四人全部遇难',
-  lead: '俄紧急情况部通报，一架执行训练器材运输任务的米-8直升机在布良斯克州坠毁，机上四名技术人员无一生还。',
+  headline: '米-8直升机在布良斯克州坠毁，机上四人遇难',
+  lead: '俄紧急情况部通报，一架执行训练器材运输任务的米-8直升机当天上午坠毁，机上四名技术人员全部遇难，地面无人员伤亡。',
   author: '俄新社莫斯科记者站',
   views: '18.2万',
   comments: '640',
   caption: '坠机现场附近的米-8直升机（资料图）。图片来源：俄新社',
   body: [
-    { t: 'p', v: '俄新社莫斯科11月14日电　俄罗斯紧急情况部14日通报，一架米-8运输直升机当天上午在布良斯克州克林齐市附近坠毁，机上四人全部遇难，地面无人员伤亡。' },
-    { t: 'p', v: '通报称，直升机于莫斯科时间14日9时15分左右从当地一处野战机场起飞，约12分钟后与地面失去联系。残骸在距起飞点约7公里处被发现，机体完全损毁，未发生起火。' },
-    { t: 'quote', v: '“气象条件正常，飞行前检查没有发现问题，具体原因要等黑匣子数据。”', c: '——俄紧急情况部布良斯克州分局' },
+    { t: 'p', v: '俄新社莫斯科11月14日电　俄罗斯紧急情况部14日通报，一架米-8运输直升机当天上午在布良斯克州克林齐市附近坠毁，机上四人全部遇难。' },
+    { t: 'p', v: '通报称，该机于莫斯科时间14日9时15分许从当地一处野战机场起飞，约12分钟后与地面失去联系。残骸在距起飞点约7公里处被发现，机体完全损毁，未发生起火。' },
+    { t: 'quote', v: '“气象条件正常，飞行前检查未发现问题，具体原因需等待飞行记录器数据。”', c: '——俄紧急情况部布良斯克州分局' },
     { t: 'h2', v: '四名死者均为模拟系统技术人员' },
-    { t: 'p', v: '据俄新社掌握的信息，四名死者分别为：飞行模拟系统负责人安东·尤丁采夫（Антон Юдинцев）、技术研发负责人维亚切斯拉夫·巴兰尼科夫（Вячеслав Баранников）、独立研发工作室负责人尼基塔·布亚诺夫（Никита Буянов），以及随行的{{NAME}}。' },
-    { t: 'p', v: '三人此次前往布良斯克，是为当地一处训练中心的新一批模拟终端做验收工作。除四人外，机上还有部分设备与资料。' },
+    { t: 'p', v: '据俄新社掌握的信息，四名死者为：飞行模拟系统负责人安东·尤丁采夫（Антон Юдинцев）、技术研发负责人维亚切斯拉夫·巴兰尼科夫（Вячеслав Баранников）、独立研发工作室负责人尼基塔·布亚诺夫（Никита Буянов），以及随行的{{NAME}}。' },
+    { t: 'p', v: '三人此行是为当地一处训练中心的新一批模拟终端做验收，机上另有部分设备与资料。' },
     { t: 'p', v: '俄联邦航空运输署已按“飞行事故”立案调查，初步排除天气因素，正在核查机组状态与机体维护记录。' },
     { t: 'p', v: '克林齐市地方政府表示，将协助遇难者家属处理善后事宜。' }
   ],
@@ -684,7 +668,7 @@ const ARTICLES = [
   copyright: '© РИА Новости, 2024. 本页面为虚构演绎，与任何真实机构无关。'
 },
 
-/* ---------------------------------------------------------- 6. BBC 中文 · 事实核查 */
+/* ---------------------------------------------------------- 6. BBC 中文 */
 {
   id: 'bbc',
   theme: 'bbc',
@@ -701,11 +685,11 @@ const ARTICLES = [
   caption: '俄罗斯国防部未公布四人的具体死亡地点。图片来源：Getty Images',
   body: [
     { t: 'p', v: '俄罗斯国防部于11月14日证实，四名俄罗斯籍军工技术专家在乌克兰东部顿涅茨克地区身亡。这是俄方首次公开确认此类技术顾问群体出现人员损失。' },
-    { t: 'p', v: '国防部的声明称，事发时四人正在一处指挥所内工作，该设施遭到“精确打击”。声明没有说明具体地点、时间，也没有说明使用的是何种武器。' },
+    { t: 'p', v: '国防部声明称，事发时四人正在一处指挥所内工作，该设施遭“精确打击”。声明未说明具体地点、时间，也未说明使用何种武器。' },
     { t: 'quote', v: '“仅凭目前公开的信息，无法判断这是一次定点打击，还是概率命中。”', c: '——一位不愿具名的西方军事分析人士对 BBC 中文表示' },
     { t: 'h2', v: '三人与俄军模拟训练项目有关' },
     { t: 'p', v: '根据俄方公布的信息及公开资料，四名死者为安东·尤丁采夫、维亚切斯拉夫·巴兰尼科夫、尼基塔·布亚诺夫，以及{{NAME}}。前三人的名字此前曾出现在俄罗斯军工模拟训练项目的相关报道中。' },
-    { t: 'p', v: 'BBC 中文尝试联系上述人员所属机构，截至发稿未获回应。社交平台上关于四人身份的讨论已持续数小时，但多数说法无法核实。' },
+    { t: 'p', v: 'BBC 中文尝试联系上述人员所属机构，截至发稿未获回应。社交平台上关于四人身份的讨论已持续数小时，多数说法无法核实。' },
     { t: 'p', v: '乌克兰方面尚未就此事表态。' },
     { t: 'p', v: '俄乌双方对战场伤亡数字的公开信息长期存在出入，独立机构亦难以进入前线核实。' }
   ],
@@ -714,7 +698,7 @@ const ARTICLES = [
   copyright: 'BBC 中文 © 2024　本页面为虚构演绎，与 BBC 及任何真实机构无关。'
 },
 
-/* ---------------------------------------------------------- 7. 前沿观察 · 公路上被伏击 */
+/* ---------------------------------------------------------- 7. 前沿观察 · 伏击 */
 {
   id: 'convoy',
   theme: 'portal',
@@ -723,27 +707,27 @@ const ARTICLES = [
   place: '综合报道',
   cat: '前线',
   kicker: '独家',
-  headline: '四名俄方技术人员在别尔哥罗德州遭伏击身亡，车辆被毁',
-  lead: '消息人士称，四人乘坐的越野车在公路上遭反坦克武器击中，现场无人生还。',
+  headline: '四名俄方技术人员在别尔哥罗德州遇袭身亡，车辆被毁',
+  lead: '消息人士称，四人乘坐的越野车在公路上遭反坦克武器击中，现场无人生还。俄方尚未发布通报。',
   author: '前沿观察编辑部',
   views: '41.6万',
   comments: '9,208',
   caption: '遇袭路段已被封锁。图为别尔哥罗德州公路（资料图）。',
   body: [
-    { t: 'p', v: '据接近俄军的消息人士向本网透露，11月14日上午，一辆悬挂民用牌照的越野车在别尔哥罗德州南部一条公路上遭伏击，车内四人全部身亡。' },
-    { t: 'p', v: '消息人士称，袭击使用了反坦克火箭筒，车辆被完全摧毁，现场未发现幸存者。事发路段随后被封锁，当地移动网络一度中断。' },
+    { t: 'p', v: '前沿观察11月14日综合报道　据两名接近俄军的消息人士向本网透露，14日上午，一辆悬挂民用牌照的越野车在别尔哥罗德州南部一条公路上遇袭，车内四人全部身亡。' },
+    { t: 'p', v: '消息人士称，袭击使用反坦克火箭筒，车辆完全损毁，现场未发现幸存者。事发后该路段被封锁约三小时，当地移动网络一度中断。' },
     { t: 'h2', v: '四人身份指向模拟训练项目' },
     { t: 'p', v: '四名死者中，三人被确认为安东·尤丁采夫、维亚切斯拉夫·巴兰尼科夫、尼基塔·布亚诺夫，第四人为{{NAME}}。' },
-    { t: 'quote', v: '“那条路本来不该有军车走，他们大概是赶时间。”', c: '——一名当地司机向本网表示' },
+    { t: 'p', v: '一名要求匿名的当地居民告诉本网，14日上午曾听到两次爆炸声，随后有军车抵达现场并设置路障。' },
     { t: 'p', v: '截至发稿，俄方未就此事发布正式通报。本网无法独立核实上述说法，相关细节仍待进一步确认。' },
-    { t: 'p', v: '近三个月来，别尔哥罗德州境内的公路袭击事件明显增多，多与后勤车队和目标车辆有关。' }
+    { t: 'p', v: '近三个月来，别尔哥罗德州境内公路袭击事件明显增多，多与后勤车队和目标车辆有关。' }
   ],
   tags: ['别尔哥罗德', '伏击', '前线', '独家'],
   related: ['别尔哥罗德州：边境州的日常', '反坦克武器如何摧毁轻型车辆', '俄军后勤线的“最后一公里”'],
   copyright: '前沿观察 © 2024　本页面为虚构演绎内容。'
 },
 
-/* ---------------------------------------------------------- 8. Сводки с фронта · 弹药库 */
+/* ---------------------------------------------------------- 8. Telegram · 弹药库 */
 {
   id: 'depot',
   theme: 'tg',
@@ -752,14 +736,14 @@ const ARTICLES = [
   place: '别尔哥罗德',
   cat: 'СРОЧНО',
   kicker: '02:18 · 11月14日',
-  headline: '别尔哥罗德：弹药库连环爆炸，四名技术人员身亡',
+  headline: '别尔哥罗德：弹药库发生连环爆炸，四名技术人员身亡',
   lead: '夜间连续爆炸持续约40分钟，附近三个村庄已疏散，铁路区段临时停运。',
   author: '频道编辑组',
   views: '118K',
   comments: '2,341',
   caption: '爆炸发生后拍摄的夜空。照片由订阅者提供。',
   body: [
-    { t: 'p', v: '🔴 <b>紧急</b>：莫斯科时间14日2时左右，别尔哥罗德州一处野战弹药库发生连环爆炸，火光在十公里外可见，爆炸持续约40分钟。' },
+    { t: 'p', v: '🔴 <b>紧急</b>：莫斯科时间14日2时前后，别尔哥罗德州一处野战弹药库发生连环爆炸，火光在十公里外可见，爆炸持续约40分钟。' },
     { t: 'p', v: '现场确认死亡4人，均为技术人员：尤丁采夫、巴兰尼科夫、布亚诺夫，以及{{NAME}}。另有6人受伤。' },
     { t: 'p', v: '🚨 附近三个村庄已组织疏散，约420人转移；铁路区段临时停运。' },
     { t: 'quote', v: '“第一声很闷，后来就停不下来了。”', c: '——当地订阅者' },
@@ -780,7 +764,6 @@ window.ARTICLES = ARTICLES;
 window.NAME_PRESETS = NAME_PRESETS;
 window.BASE_W = BASE_W;
 window.BASE_H = BASE_H;
-
 </script>
 <script>
 /*!
@@ -1272,8 +1255,9 @@ window.BASE_H = BASE_H;
     const stage = $('stage'), paper = $('paper'), inner = $('stageInner');
     if (!stage || !paper) return;
     const narrow = window.innerWidth <= 980;
+    const stageW = stage.clientWidth || window.innerWidth || 390;
     const pad = narrow ? 20 : 64;
-    const avail = Math.max(240, stage.clientWidth - pad);
+    const avail = Math.max(200, stageW - pad);
     const base = Math.min(1, avail / 820);
     const s = Math.max(0.22, Math.min(3, base * userZoom));
     const h = paper.offsetHeight;
@@ -1289,11 +1273,12 @@ window.BASE_H = BASE_H;
   }
 
   /* ---------------- head upload ---------------- */
-  function headTip(msg, ok) {
+  const TIP_DEFAULT = '选图没反应？请用 Chrome / Edge 打开本页';
+  function headTip(msg, type) {
     const el = $('headTip');
     if (!el) return;
-    el.className = 'mini-tip' + (ok ? ' ok' : '');
-    el.textContent = msg || '';
+    el.className = 'mini-tip' + (type === 'ok' ? ' ok' : type === 'err' ? ' err' : '');
+    el.textContent = msg || TIP_DEFAULT;
   }
 
   function setHead(file) {
@@ -1301,15 +1286,15 @@ window.BASE_H = BASE_H;
     const isImg = (file.type && /^image\//.test(file.type)) ||
       (!file.type && /\.(jpe?g|png|webp|gif|bmp|heic|avif|jfif)$/i.test(file.name || ''));
     if (!isImg) {
-      headTip('这不是图片文件：' + (file.name || '未知') + '（' + (file.type || '无类型') + '）');
+      headTip('这不是图片文件：' + (file.name || '未知') + '（' + (file.type || '无类型') + '）', 'err');
       return;
     }
     headTip('读取中…', true);
     const rd = new FileReader();
-    rd.onerror = function () { headTip('读取失败，换一张图片试试'); };
+    rd.onerror = function () { headTip('读取失败，换一张图片试试', 'err'); };
     rd.onload = function () {
       const img = new Image();
-      img.onerror = function () { headTip('图片解码失败（可能是 HEIC 格式），请换成 JPG / PNG'); };
+      img.onerror = function () { headTip('图片解码失败（可能是 HEIC 格式），请换成 JPG / PNG', 'err'); };
       img.onload = function () {
         headImg = img;
         const row = $('thumbRow');
@@ -1459,19 +1444,7 @@ window.BASE_H = BASE_H;
 
     /* upload */
     const drop = $('drop'), file = $('file');
-    let pickTimer = null;
-    drop.addEventListener('pointerdown', function () {
-      clearTimeout(pickTimer);
-      pickTimer = setTimeout(function () {
-        if (!document.hidden) headTip('如果没弹出选图框：请换 Chrome / Edge 打开本页（Operit 内置预览器可能不支持）');
-      }, 2600);
-    });
-    document.addEventListener('visibilitychange', function () {
-      clearTimeout(pickTimer);
-      if (!document.hidden) setTimeout(function () { clearTimeout(pickTimer); }, 300);
-    });
     file.addEventListener('change', function () {
-      clearTimeout(pickTimer);
       if (file.files && file.files[0]) setHead(file.files[0]);
       setTimeout(function () { try { file.value = ''; } catch (e) { } }, 0);
     });
@@ -1519,7 +1492,11 @@ window.BASE_H = BASE_H;
     initUI();
     loadBase();
     renderPaper();
-    setTimeout(fit, 80);
+    /* 布局要等字体/图片/滚动条稳定，多打几枪 */
+    [0, 50, 160, 400, 900, 1600].forEach(function (t) { setTimeout(fit, t); });
+    window.addEventListener('load', fit);
+    window.addEventListener('orientationchange', function () { setTimeout(fit, 260); });
+    if (document.fonts && document.fonts.ready) { document.fonts.ready.then(function () { fit(); }); }
   }
 
   if (document.readyState === 'loading') {
