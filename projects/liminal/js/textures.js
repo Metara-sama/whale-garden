@@ -92,17 +92,17 @@ window.LIMINAL = window.LIMINAL || {};
     var c = canvas(S), g = c.getContext("2d"), rand = prng(778899);
 
     var grad = g.createLinearGradient(0, 0, 0, S);
-    grad.addColorStop(0.0, "#d5bf75");
-    grad.addColorStop(0.55, "#c9b366");
-    grad.addColorStop(1.0, "#b6a054");
+    grad.addColorStop(0.0, "#dcd6aa");
+    grad.addColorStop(0.55, "#d4cd9e");
+    grad.addColorStop(1.0, "#c6bf90");
     g.fillStyle = grad;
     g.fillRect(0, 0, S, S);
 
     /* 竖条纹（墙纸织物经纬） */
     for (var x = 0; x < S; x += 4) {
       g.fillStyle = (x % 8 === 0)
-        ? "rgba(255,248,205,0.10)"
-        : "rgba(118,98,40,0.07)";
+        ? "rgba(255,252,225,0.075)"
+        : "rgba(120,108,52,0.045)";
       g.fillRect(x, 0, 2, S);
     }
 
@@ -127,13 +127,13 @@ window.LIMINAL = window.LIMINAL || {};
     var S = 512;
     var c = canvas(S), g = c.getContext("2d"), rand = prng(31337);
 
-    g.fillStyle = "#8d7a3a";
+    g.fillStyle = "#a8976b";
     g.fillRect(0, 0, S, S);
 
     /* 逐像素纤维噪声 */
     var img = g.getImageData(0, 0, S, S), d = img.data;
     for (var i = 0; i < d.length; i += 4) {
-      var n = (rand() - 0.5) * 64;
+      var n = (rand() - 0.5) * 44;
       d[i] = Math.max(0, Math.min(255, d[i] + n));
       d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n));
       d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n * 0.65));

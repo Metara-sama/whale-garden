@@ -16,9 +16,9 @@ window.LIMINAL = window.LIMINAL || {};
   var SH = NS.Shaders;
 
   var SCENES = [
-    { key: "pool", steps: 66, fov: 0.95, exposure: 0.78, pos: [0.0, 1.62, 26.9], yaw: 0.0, pitch: -0.115 },
-    { key: "rooms", steps: 64, fov: 1.00, exposure: 1.02, pos: [3.2, 1.62, 3.2], yaw: 0.16, pitch: -0.02 },
-    { key: "meadow", steps: 60, fov: 0.92, exposure: 0.72, pos: [0.6, 1.62, 4.0], yaw: 0.10, pitch: -0.06 }
+    { key: "pool", steps: 66, fov: 1.30, exposure: 0.80, pos: [0.0, 1.62, 26.9], yaw: 0.0, pitch: -0.115 },
+    { key: "rooms", steps: 64, fov: 1.34, exposure: 1.00, pos: [4.5, 1.62, 4.5], yaw: 0.30, pitch: -0.02 },
+    { key: "meadow", steps: 60, fov: 1.22, exposure: 0.74, pos: [0.6, 1.62, 4.0], yaw: 0.10, pitch: -0.06 }
   ];
 
   /* 子像素抖动序列（累积时用，帮助抹平边缘锯齿与 SDF 噪声） */
@@ -207,9 +207,9 @@ window.LIMINAL = window.LIMINAL || {};
         function resize() {
           var cw = canvas.clientWidth || window.innerWidth || 360;
           var ch = canvas.clientHeight || window.innerHeight || 640;
-          var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+          var dpr = Math.min(window.devicePixelRatio || 1, 2.0);
           var px = cw * dpr * ch * dpr;
-          baseScale = clamp(Math.sqrt(150000 / Math.max(px, 1)), 0.38, 0.92);
+          baseScale = clamp(Math.sqrt(380000 / Math.max(px, 1)), 0.45, 1.00);
           if (autoScale === null) autoScale = baseScale;
           var s = Math.min(baseScale, autoScale);
           var w = Math.max(64, Math.round(cw * dpr * s));
@@ -288,7 +288,9 @@ window.LIMINAL = window.LIMINAL || {};
           { x0: -3.2, x1: 3.2, z0: -2.5, z1: 10.5 },
           { x0: -15, x1: 15, z0: -26, z1: 2 },
           { x0: 16, x1: 26, z0: -16, z1: -6 },
-          { x0: 13.5, x1: 17.5, z0: -13.2, z1: -8.8 }
+          { x0: 13.5, x1: 17.5, z0: -13.2, z1: -8.8 },
+          { x0: -7.85, x1: -4.15, z0: -31.2, z1: -24.0 },
+          { x0: 2.15, x1: 5.85, z0: -31.2, z1: -24.0 }
         ];
 
         function containInRooms() {
@@ -314,12 +316,12 @@ window.LIMINAL = window.LIMINAL || {};
         /* 各场景/各水深的移动速度 */
         function speedHere() {
           if (sceneIdx === 0) {
-            if (Math.abs(pos.x) <= 9.0 && Math.abs(pos.z - 19.0) <= 7.0) return 1.05;
-            if (Math.abs(pos.x) <= 15.0 && Math.abs(pos.z + 14.0) <= 12.0) return 0.82;
-            return 1.85;
+            if (Math.abs(pos.x) <= 9.0 && Math.abs(pos.z - 19.0) <= 7.0) return 1.80;
+            if (Math.abs(pos.x) <= 15.0 && Math.abs(pos.z + 14.0) <= 12.0) return 1.45;
+            return 3.10;
           }
-          if (sceneIdx === 1) return 1.75;
-          return 1.95;
+          if (sceneIdx === 1) return 3.00;
+          return 3.20;
         }
 
         function inWater() {
@@ -354,9 +356,9 @@ window.LIMINAL = window.LIMINAL || {};
           if (tr.active) return;
           var nx = null;
           if (sceneIdx === 0) {
-            if (Math.hypot(pos.x - 25.0, pos.z + 11.0) < 2.4) nx = 1;
+            if (pos.z < -27.2 || pos.x > 28.2) nx = 1;
           } else if (sceneIdx === 1) {
-            if (Math.hypot(pos.x, pos.z) > 24) nx = 2;
+            if (Math.hypot(pos.x, pos.z) > 38) nx = 2;
           } else {
             if (Math.hypot(pos.x - 3, pos.z + 13) < 2.6) nx = 0;
             else if (Math.hypot(pos.x, pos.z) > 30) nx = 0;
@@ -545,13 +547,13 @@ window.LIMINAL = window.LIMINAL || {};
           if (sceneIdx === 0) {
             containInRooms();
           } else if (sceneIdx === 1) {
-            /* 柱子推开（格心 6.4m，柱半宽 0.42 + 身体 0.34） */
-            var gx = Math.round(pos.x / 6.4) * 6.4;
-            var gz = Math.round(pos.z / 6.4) * 6.4;
+            /* 大隔墙推开（9m 网格、3.6m 见方，半宽 1.8 + 身体 0.34） */
+            var gx = Math.round(pos.x / 9.0) * 9.0;
+            var gz = Math.round(pos.z / 9.0) * 9.0;
             var ddx = pos.x - gx;
             var ddz = pos.z - gz;
             var dd = Math.hypot(ddx, ddz);
-            var minD = 0.42 + 0.34;
+            var minD = 1.80 + 0.34;
             if (dd < minD && dd > 0.0001) {
               pos.x = gx + (ddx / dd) * minD;
               pos.z = gz + (ddz / dd) * minD;
@@ -669,8 +671,8 @@ window.LIMINAL = window.LIMINAL || {};
           var sorted = frameTimes.slice().sort(function (a, b) { return a - b; });
           var med = sorted[13];
           frameTimes.length = 0;
-          if (med > 0.037 && autoScale > 0.36) {
-            autoScale = Math.max(0.36, autoScale - 0.055);
+          if (med > 0.040 && autoScale > 0.42) {
+            autoScale = Math.max(0.42, autoScale - 0.05);
             resize();
           } else if (med < 0.0215 && autoScale < baseScale) {
             autoScale = Math.min(baseScale, autoScale + 0.03);
@@ -743,6 +745,15 @@ window.LIMINAL = window.LIMINAL || {};
               return 'scene=' + i;
             },
             render: function () { still = 0; dirty = true; render(); return 'ok'; },
+            state: function () {
+              var fx = Math.sin(yaw), fz = -Math.cos(yaw);
+              var rx = Math.cos(yaw), rz = Math.sin(yaw);
+              var inX = input.mx + (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+              var inY = input.my + (keys.fwd ? 1 : 0) - (keys.back ? 1 : 0);
+              var mx = fx * inY + rx * inX;
+              var mz = fz * inY + rz * inX;
+              return JSON.stringify({ yaw: +yaw.toFixed(3), mx: +mx.toFixed(3), mz: +mz.toFixed(3), mlen: +Math.hypot(mx, mz).toFixed(3), inX: inX, inY: inY, speed: +speed.toFixed(3), sp: speedHere(), trig: tr.active });
+            },
             walk: function (n, fwd, side) {
               keys.fwd = !!fwd;
               keys.right = !!side;

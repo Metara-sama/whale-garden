@@ -130,13 +130,15 @@ float smin(float a, float b, float k) {
 float sdRoomA(vec3 p) { return sdBox(p - vec3(0.0, 2.5, 19.0), vec3(16.0, 4.5, 11.0)); }
 float sdRoomB(vec3 p) { return sdBox(p - vec3(0.0, 1.7, 4.0), vec3(3.2, 1.7, 6.5)); }
 float sdRoomC(vec3 p) { return sdBox(p - vec3(0.0, 2.5, -12.0), vec3(15.0, 4.5, 14.0)); }
-float sdRoomD(vec3 p) { return sdBox(p - vec3(21.0, 2.0, -11.0), vec3(5.0, 2.0, 5.0)); }
+float sdRoomD(vec3 p) { return sdBox(p - vec3(23.0, 2.0, -11.0), vec3(7.0, 2.0, 5.0)); }
+float sdRoomG1(vec3 p) { return sdBox(p - vec3(-6.0, 1.6, -27.5), vec3(1.85, 1.6, 3.5)); }
+float sdRoomG2(vec3 p) { return sdBox(p - vec3(4.0, 1.6, -27.5), vec3(1.85, 1.6, 3.5)); }
 float sdRoomE(vec3 p) { return sdBox(p - vec3(15.5, 1.45, -11.0), vec3(2.0, 1.95, 2.2)); }
 
 /* 房间并集的空气距离（内部为正，等于到最近出口的距离） */
 float indoorAir(vec3 p) {
   float d = min(min(sdRoomA(p), sdRoomB(p)), min(sdRoomC(p), sdRoomD(p)));
-  d = min(d, sdRoomE(p));
+  d = min(d, min(sdRoomE(p), min(sdRoomG1(p), sdRoomG2(p))));
   return -d;
 }
 
@@ -193,8 +195,8 @@ float sdPoolRing(vec3 p) {
 
 /* 浅水房尽头墙上两扇发光门洞（纯视觉纵深） */
 float sdPoolArch(vec3 p) {
-  float a = sdBox(p - vec3(-6.0, 1.5, -25.85), vec3(0.9, 1.5, 0.07));
-  float b = sdBox(p - vec3(4.0, 1.5, -25.85), vec3(0.9, 1.5, 0.07));
+  float a = sdBox(p - vec3(-6.0, 1.6, -30.82), vec3(1.85, 1.6, 0.08));
+  float b = sdBox(p - vec3(4.0, 1.6, -30.82), vec3(1.85, 1.6, 0.08));
   return min(a, b);
 }
 
@@ -225,32 +227,32 @@ vec2 mapPool(vec3 p) {
 }
 
 /* ==========================================================
-   场景 1 · 后室（Level 0）
-   天花板 2.72m，柱阵周期 6.4m，灯阵 (6.4, 3.2)
+   场景 1 · 后室（Level 0，按参考图还原）
+   9m 网格上立 3.6m 见方的大隔墙，通道 5.4m 宽；
+   天花板 2.72m，日光灯管嵌在格子中心的顶上。
    ========================================================== */
 #define ROOM_H 2.72
-#define CELL 6.4
+#define CELL 9.0
 
 vec2 mapRooms(vec3 p) {
   float dCeil = ROOM_H - p.y;
   float dFloor = p.y;
   float d = min(dCeil, dFloor);
-  float m = (dFloor < dCeil) ? 2.0 : 3.0;
+  float mi = (dFloor < dCeil) ? 2.0 : 3.0;
 
-  /* 柱阵 */
+  /* 大隔墙（一块一块的方柱，转角处就是参考图里的那种墙角） */
   vec2 id = floor(p.xz / CELL + 0.5);
   vec2 lp = p.xz - id * CELL;
-  float dPost = sdBox(vec3(lp.x, p.y - ROOM_H * 0.5, lp.y), vec3(0.42, ROOM_H * 0.5, 0.42));
-  if (dPost < d) { d = dPost; m = 4.0; }
+  float dPost = sdBox(vec3(lp.x, p.y - ROOM_H * 0.5, lp.y), vec3(1.8, ROOM_H * 0.5, 1.8));
+  if (dPost < d) { d = dPost; mi = 4.0; }
 
-  /* 灯板 */
-  vec2 g = vec2(CELL, 3.2);
-  vec2 id2 = floor(p.xz / g + 0.5);
-  vec2 lp2 = p.xz - id2 * g;
-  float dLamp = sdBox(vec3(lp2.x, p.y - (ROOM_H - 0.035), lp2.y), vec3(0.86, 0.035, 0.15));
-  if (dLamp < d) { d = dLamp; m = 5.0; }
+  /* 日光灯管：嵌在天花板里，沿 x 方向一条 */
+  vec2 lgrid = floor(p.xz / CELL);
+  vec2 llp = p.xz - (lgrid + 0.5) * CELL;
+  float dLamp = sdBox(vec3(llp.x, p.y - (ROOM_H - 0.055), llp.y), vec3(1.20, 0.055, 0.15));
+  if (dLamp < d) { d = dLamp; mi = 5.0; }
 
-  return vec2(d, m);
+  return vec2(d, mi);
 }
 
 /* ==========================================================
@@ -439,7 +441,7 @@ vec3 fogColorAt(vec3 p) {
   if (uScene == 1) {
     float far = length(p.xz);
     vec3 base = vec3(0.40, 0.34, 0.15);
-    return mix(base, vec3(0.98, 0.94, 0.82), smoothstep(15.0, 31.0, far));
+    return mix(base, vec3(0.98, 0.94, 0.82), smoothstep(30.0, 52.0, far));
   }
   float far = length(p.xz);
   return mix(vec3(1.02, 0.86, 0.76), vec3(1.10, 1.02, 0.98), smoothstep(12.0, 34.0, far));
@@ -447,9 +449,9 @@ vec3 fogColorAt(vec3 p) {
 
 float fogDensity() {
   float base;
-  if (uScene == 0) base = 0.022;
-  else if (uScene == 1) base = 0.052;
-  else base = 0.020;
+  if (uScene == 0) base = 0.0105;
+  else if (uScene == 1) base = 0.015;
+  else base = 0.0090;
   if (uUnder == 1) base *= 4.5;
   return base;
 }
@@ -467,11 +469,11 @@ vec3 glowAt(vec3 p) {
     return vec3(0.95, 1.05, 1.10) * (0.16 + band * 0.85);
   }
   if (uScene == 1) {
-    vec2 g = vec2(CELL, 3.2);
-    vec2 lc = floor(p.xz / g + 0.5) * g;
-    vec3 lp = vec3(lc.x, ROOM_H - 0.06, lc.y);
+    vec2 lgrid = floor(p.xz / CELL);
+    vec2 lc = (lgrid + 0.5) * CELL;
+    vec3 lp = vec3(lc.x, ROOM_H - 0.10, lc.y);
     float d = length(p - lp);
-    return vec3(1.00, 0.93, 0.62) * (2.2 / (1.0 + d * d * 1.7));
+    return vec3(1.00, 0.93, 0.62) * (1.8 / (1.0 + d * d * 1.2));
   }
   vec3 sd = normalize(vec3(-0.30, 0.200, -0.95));
   float s = max(dot(normalize(p - uCam), sd), 0.0);
@@ -512,6 +514,15 @@ void marchScene(vec3 ro, vec3 rd, float maxDist, int maxSteps,
 /* ==========================================================
    材质着色
    ========================================================== */
+/* 便宜的环境反射：上方亮、下方暗，灯带高度再叠一条亮带。
+   瓷砖/不锈钢靠它才有“釉面反光”，不然怎么打光都是哑光。 */
+vec3 envRefl(vec3 p, vec3 n) {
+  vec3 c = mix(vec3(0.10, 0.13, 0.14), vec3(0.80, 0.90, 0.94), clamp(n.y * 0.5 + 0.5, 0.0, 1.0));
+  float lamp = exp(-abs(p.y - 5.05) * 0.85);
+  c += vec3(0.45, 0.52, 0.56) * lamp;
+  return c;
+}
+
 vec3 shadePool(vec3 p, vec3 n, float mi, vec3 rd, float t) {
   vec3 L = normalize(vec3(0.13, 1.0, 0.06));
   vec3 albedo = vec3(0.5);
@@ -561,6 +572,13 @@ vec3 shadePool(vec3 p, vec3 n, float mi, vec3 rd, float t) {
   vec3 hv = normalize(L - rd);
   col += vec3(1.0) * pow(max(dot(n, hv), 0.0), 120.0) * specK * 0.35;
 
+  /* 反射：瓷砖给足，金属给一半；掠射角更强 */
+  if (mi < 1.5 || mi > 4.9) {
+    float fres = pow(1.0 - clamp(dot(n, -rd), 0.0, 1.0), 4.0);
+    float amt = (mi < 1.5) ? (0.085 + 0.34 * fres) : (0.05 + 0.22 * fres);
+    col = mix(col, envRefl(p, n), amt);
+  }
+
   return col + emit;
 }
 
@@ -577,43 +595,49 @@ vec3 shadeRooms(vec3 p, vec3 n, float mi, vec3 rd, float t) {
   vec3 albedo = vec3(0.5);
   vec3 emit = vec3(0.0);
 
-  vec2 g = vec2(CELL, 3.2);
-  vec2 lc = floor(p.xz / g + 0.5) * g;
-  vec3 lampP = vec3(lc.x, ROOM_H - 0.07, lc.y);
+  /* 最近的那盏灯（格子中心，沿 x 的灯管） */
+  vec2 lid = floor(p.xz / CELL);
+  vec2 lc = (lid + 0.5) * CELL;
 
   if (mi < 2.5) {
-    /* 地毯 */
-    albedo = carpetAt(p.xz * 0.42, t) * vec3(2.55, 2.40, 2.05);
+    /* 米黄地毯 */
+    albedo = carpetAt(p.xz * 0.30, t) * vec3(3.55, 3.30, 2.55);
   } else if (mi < 3.5) {
-    /* 天花板吊顶板 */
-    vec2 ap = p.xz * 1.25;
-    float seam = smoothstep(0.02, 0.06, abs(fract(ap.x) - 0.5)) * smoothstep(0.02, 0.06, abs(fract(ap.y) - 0.5));
-    albedo = vec3(1.15, 1.08, 0.86) * (0.72 + 0.28 * seam) * (0.9 + 0.1 * vnoise(p.xz * 3.0));
+    /* 白色吊顶，灯槽附近稍微压一点 */
+    albedo = vec3(1.02, 0.99, 0.90) * (0.94 + 0.10 * vnoise(p.xz * 2.2));
   } else if (mi < 4.5) {
-    /* 墙纸柱 */
-    albedo = wallAt(triUV(p, n, 0.55), t) * vec3(2.30, 2.18, 1.80);
-    if (p.y < 0.15) albedo = vec3(0.24, 0.21, 0.13);
+    /* 竖条纹墙纸 + 深色踢脚线 */
+    albedo = wallAt(triUV(p, n, 0.62), t) * vec3(2.45, 2.40, 1.95);
+    if (p.y < 0.13) albedo = vec3(0.30, 0.255, 0.135);
   } else {
-    /* 灯板 */
-    float f = flicker(lc, uTime);
-    emit = vec3(2.45, 2.32, 1.72) * f;
+    /* 灯管 */
+    float f = flicker(lid, uTime);
+    emit = vec3(2.30, 2.24, 1.90) * f;
     albedo = vec3(1.0);
   }
 
+  /* 灯是沿 x 的一段线光源：取到线段的最近点，
+     地毯上才会出现一条亮带，而不是一个圆斑 */
+  float lx = clamp(p.x - lc.x, -1.20, 1.20);
+  vec3 lampP = vec3(lc.x + lx, ROOM_H - 0.12, lc.y);
   vec3 ld = lampP - p;
   float dl = max(length(ld), 0.001);
   vec3 ldir = ld / dl;
-  float att = 1.0 / (1.0 + dl * dl * 0.62);
+
+  float att = 1.0 / (1.0 + dl * dl * 0.30);
   float ndl = max(dot(n, ldir), 0.0);
   float sh = softShadow(p + n * 0.03, ldir, dl, 5);
   float ao = contactAO(p, n);
 
-  vec3 col = albedo * (vec3(0.16, 0.145, 0.095) + vec3(1.20, 1.08, 0.78) * ndl * att * 4.6 * mix(0.45, 1.0, sh)) * ao;
+  vec3 col = albedo * (vec3(0.115, 0.106, 0.076) +
+    vec3(1.32, 1.20, 0.90) * ndl * att * 4.0 * mix(0.35, 1.0, sh)) * ao;
 
-  /* 天花板附近整体偏暖亮，地面更闷 —— 后室的空气感 */
-  col += albedo * vec3(0.17, 0.15, 0.09) * smoothstep(1.4, 2.7, p.y) * ao;
+  /* 吊顶被灯管烘亮：嵌顶灯朝下，天花板拿不到 ndl，得单独给一层 */
+  if (mi > 2.5 && mi < 3.5) {
+    col += albedo * vec3(0.42, 0.40, 0.34);
+  }
 
-  return col * 1.15 + emit;
+  return col + emit;
 }
 
 vec3 shadeMeadow(vec3 p, vec3 n, float mi, vec3 rd, float t) {
