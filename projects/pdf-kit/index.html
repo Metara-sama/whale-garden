@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PDF 拆分 · 合并 · Whale's Garden</title>
+<meta name="description" content="在浏览器里把 PDF 拆开、拼起来、重排、旋转：不上传服务器，文件不出这台设备。">
+<meta name="theme-color" content="#06182a">
+<link rel="icon" href="../../assets/favicon.png">
+<link rel="apple-touch-icon" href="../../assets/favicon.png">
+<link rel="stylesheet" href="../../fonts.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="top">
+  <a class="back" href="../../" aria-label="返回花园" title="返回花园">
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </a>
+  <div class="brand">
+    <h1>PDF 拆分 · 合并</h1>
+    <p>拆开、拼上、重排、转个角度 —— 全部在本机完成</p>
+  </div>
+  <div class="badges">
+    <span class="badge" id="badge-pages" title="当前工位总页数">0 页</span>
+    <span class="badge on" id="badge-sel" title="已选中的页">选中 0</span>
+  </div>
+</header>
+
+<main>
+  <aside class="panel">
+
+    <section class="card">
+      <h2><span class="n">1</span>载入</h2>
+      <button class="btn primary wide" id="btn-add">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        选择 PDF 文件
+      </button>
+      <input type="file" id="file-input" accept="application/pdf,.pdf" multiple hidden>
+      <p class="hint">也可以把 PDF 直接拖到页面任意位置。多份文件按载入顺序排进工位；页面卡片可以按住 ⠿ 拖动换位。</p>
+      <div class="files" id="files"></div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">2</span>输出</h2>
+      <label class="field">
+        <span>文件名（留空自动按时间命名）</span>
+        <input type="text" id="out-name" placeholder="例如 作品集-合并" autocomplete="off" spellcheck="false">
+      </label>
+      <button class="btn primary wide" id="btn-export-all">导出全部 <b id="cnt-all">0</b> 页</button>
+      <button class="btn wide" id="btn-export-sel">只导出选中 <b id="cnt-sel">0</b> 页</button>
+      <p class="hint" id="out-hint">按页面当前顺序输出，旋转会一起写进去。</p>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">3</span>拆分</h2>
+      <div class="seg" id="split-mode" role="tablist">
+        <button data-mode="range" class="on" role="tab">按范围</button>
+        <button data-mode="every" role="tab">每 N 页</button>
+        <button data-mode="single" role="tab">每页一份</button>
+      </div>
+      <label class="field" data-mode-field="range">
+        <span>范围（逗号分段，一段一份）</span>
+        <input type="text" id="split-range" placeholder="1-3, 5, 8-" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="field" data-mode-field="every" hidden>
+        <span>每份页数</span>
+        <input type="number" id="split-every" min="1" step="1" value="10">
+      </label>
+      <label class="check"><input type="checkbox" id="split-sel"><span>只拆选中的页</span></label>
+      <button class="btn wide" id="btn-split">拆开并下载</button>
+      <p class="hint">拆出多份时自动打成一个 ZIP，一次拿走。</p>
+    </section>
+
+    <section class="card keys">
+      <h2><span class="n">?</span>快捷键</h2>
+      <ul>
+        <li><kbd>Ctrl</kbd>+<kbd>O</kbd> 载入文件</li>
+        <li><kbd>Ctrl</kbd>+<kbd>A</kbd> 全选当前工位</li>
+        <li><kbd>Ctrl</kbd>+<kbd>S</kbd> 导出全部</li>
+        <li><kbd>Del</kbd> 删除选中的页</li>
+        <li><kbd>Esc</kbd> 取消选择 / 关掉大图</li>
+      </ul>
+    </section>
+
+  </aside>
+
+  <section class="stage">
+    <div class="toolbar" id="toolbar">
+      <div class="tools">
+        <button class="btn small" data-act="all">全选</button>
+        <button class="btn small" data-act="none">清空选择</button>
+        <button class="btn small" data-act="invert">反选</button>
+        <button class="btn small" data-act="odd">奇数页</button>
+        <button class="btn small" data-act="even">偶数页</button>
+        <button class="btn small" data-act="reverse">反转顺序</button>
+      </div>
+      <span class="divider" aria-hidden="true"></span>
+      <div class="tools">
+        <button class="btn small" data-act="rotate">旋转 90°</button>
+        <button class="btn small danger" data-act="remove">删除页</button>
+      </div>
+      <div class="tool-sel">
+        <input type="text" id="sel-expr" placeholder="按编号选：1-3,7,-1" autocomplete="off" spellcheck="false">
+        <button class="btn small" id="btn-sel-apply">应用</button>
+      </div>
+    </div>
+
+    <div class="pages" id="pages"></div>
+
+    <div class="empty" id="empty">
+      <div class="empty-art" aria-hidden="true">
+        <svg viewBox="0 0 120 96" width="120" height="96">
+          <rect x="34" y="10" width="52" height="66" rx="5" fill="rgba(255,255,255,.07)" stroke="rgba(160,205,235,.4)" stroke-width="1.6"/>
+          <path d="M44 26h32M44 36h32M44 46h20" stroke="rgba(160,205,235,.45)" stroke-width="3" stroke-linecap="round"/>
+          <path d="M52 62c-9 0-16 7-16 15 0 4 3 7 7 7h46c4 0 7-3 7-7 0-8-7-15-16-15H52z" fill="rgba(91,230,208,.16)" stroke="rgba(91,230,208,.7)" stroke-width="1.6"/>
+          <circle cx="78" cy="74" r="2.4" fill="rgba(91,230,208,.95)"/>
+        </svg>
+      </div>
+      <h3>把 PDF 丢进来</h3>
+      <p>拖拽文件到这里，或点左上角「选择 PDF 文件」。<br>多份叠在一起就是合并，编号拆开就是拆分。</p>
+      <button class="btn primary" id="btn-empty-add">选择文件</button>
+      <p class="tiny">文件只在本页面的内存里处理，一个字节都不会上传。</p>
+    </div>
+  </section>
+</main>
+
+<section class="about">
+  <h2>怎么用</h2>
+  <ol>
+    <li>把一份或多份 PDF 拖进来，每页自动铺成缩略图。</li>
+    <li>点卡片选页，按住顶部 ⠿ 拖动换位；删除、旋转只动被选中的那几页。</li>
+    <li>「导出全部」拼成一份，「拆开并下载」按份数打包成 ZIP。</li>
+  </ol>
+  <h2>它不偷看</h2>
+  <p>解析、拼页、写出全在这个页面的内存里完成——没有服务器、没有上传、没有统计脚本，断网照用。关掉页面，文件就散了。</p>
+  <h2>为什么这么大还是很快</h2>
+  <p>pdf-lib 负责写、PDF.js 负责看，两个库都自托管在项目里，不走 CDN；拆分多份时的 ZIP 是现搓的，只打包不压缩——PDF 本来就压过一遍了。</p>
+</section>
+
+<div class="statusbar">
+  <div class="progress" id="progress"><i id="progress-fill"></i></div>
+  <span class="status" id="status">就绪</span>
+  <button class="btn small ghost" id="btn-cancel" hidden>取消</button>
+</div>
+
+<div class="dropzone-veil" id="veil" hidden><span>松手，放下 PDF</span></div>
+
+<div class="lightbox" id="lightbox" hidden>
+  <div class="lb-inner" role="dialog" aria-label="页面预览">
+    <canvas id="lb-canvas"></canvas>
+    <div class="lb-bar">
+      <span id="lb-label">第 1 页</span>
+      <button class="btn small ghost" id="lb-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="lib/pdf-lib.min.js" defer></script>
+<script src="lib/pdf.min.js" defer></script>
+<script src="js/zip.js" defer></script>
+<script src="js/app.js" defer></script>
+<script src="../../assets/fullscreen.js"></script>
+</body>
+</html>
