@@ -401,6 +401,43 @@ output{font-family:var(--mono);font-size:10.5px;color:var(--acc);min-width:26px;
 .tg-rel li{font-size:13px;line-height:1.85;color:#9fb0c2}
 .tg-copy{margin-top:14px;font-size:10.5px;color:#5b6877}
 
+/* ---------- tg 消息流 ---------- */
+.tg-feed{padding:12px 14px 6px;display:grid;gap:10px}
+.tg-msg{background:#18212b;border-radius:12px;padding:10px 12px 11px}
+.tg-msg:first-child{border-top-left-radius:4px}
+.tg-who{display:flex;align-items:baseline;gap:8px;font-size:11.5px;color:#6ea8dc;font-weight:700;margin-bottom:6px}
+.tg-who span{margin-left:auto;font-size:10.5px;color:#5f6c7b;font-weight:400;font-family:var(--mono)}
+.tg-msg p{font-size:15px;line-height:1.78;color:#d6e2ee;margin:0 0 8px}
+.tg-msg p:last-child{margin-bottom:0}
+.tg-msg .tg-lead{font-size:16.5px;line-height:1.55}
+.tg-msg .tg-sub{font-size:13px;color:#7fc4f5;font-weight:700;margin:2px 0 6px}
+.tg-msg blockquote{margin:8px 0;padding-left:11px;border-left:3px solid #2b6cb0}
+.tg-msg blockquote p{font-size:14px;color:#9fb0c2;margin:0}
+.tg-msg blockquote cite{display:block;text-align:right;font-size:10.5px;color:#5f6c7b;font-style:normal;margin-top:4px}
+.tg-photo{margin:9px 0 0}
+.tg-photo figcaption{font-size:10.5px;color:#6d7a88;margin-top:6px;font-family:var(--mono)}
+.tg-tail{padding:4px 18px 20px}
+
+/* ---------- 自写稿件弹层 ---------- */
+.modal{position:fixed;inset:0;z-index:120;background:rgba(4,6,9,.84);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center}
+.modal[hidden]{display:none}
+.mcard{width:100%;max-width:760px;max-height:92vh;background:#0d1116;border:1px solid #232c36;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden}
+@media(min-width:760px){.modal{align-items:center;padding:24px}.mcard{border-radius:16px;max-height:86vh}}
+.mhead{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #1d242d;font-size:14px;font-weight:700}
+.mclose{background:none;border:0;color:#8b95a5;font-size:19px;line-height:1;cursor:pointer;padding:4px 6px}
+.mbody{overflow:auto;padding:14px 16px;display:grid;gap:11px;-webkit-overflow-scrolling:touch}
+.mrow2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mbody label{display:grid;gap:5px;font-size:11px;color:#8b95a5;font-family:var(--mono);letter-spacing:.3px}
+.mbody input,.mbody textarea,.mbody select{background:#0a0e13;border:1px solid #262e39;border-radius:8px;color:#e7ebf2;padding:9px 10px;font:inherit;font-size:13px;outline:none;width:100%;min-width:0}
+.mbody textarea{resize:vertical;line-height:1.65}
+.mbody input:focus,.mbody textarea:focus,.mbody select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(198,255,61,.1)}
+.mfoot{display:flex;gap:10px;padding:12px 16px;border-top:1px solid #1d242d;background:#0d1116}
+.mfoot .btn{flex:1}
+.mfoot .ghost{flex:0 0 auto;padding:0 16px}
+.tpl-wrap{position:relative;display:flex}
+.tpl-x{margin-left:6px;min-width:26px;background:none;border:1px solid #2b3440;color:#9aa5b4;border-radius:6px;font-size:11px;cursor:pointer}
+.tpl-x:hover{color:#ff7d7d;border-color:#5a2a2a}
+
 /* ---------- responsive ---------- */
 @media (max-width:980px){
   .layout{grid-template-columns:minmax(0,1fr)}
@@ -481,6 +518,7 @@ output{font-family:var(--mono);font-size:10.5px;color:var(--acc);min-width:26px;
     <div class="sec">
       <div class="sec-h"><b>03</b> 稿件</div>
       <div class="tpls" id="tpls"></div>
+      <button class="ghost" id="edNew" style="width:100%;margin-top:8px;padding:9px">＋ 自己写一篇（自定义稿件）</button>
       <div class="row">
         <label>日期</label>
         <input type="date" id="dateIn" class="inp sm">
@@ -497,6 +535,56 @@ output{font-family:var(--mono);font-size:10.5px;color:var(--acc);min-width:26px;
 
   </aside>
 </main>
+
+<div class="modal" id="editor" hidden>
+  <div class="mcard">
+    <div class="mhead"><span>自定义稿件</span><button class="mclose" id="edClose" type="button">✕</button></div>
+    <div class="mbody">
+      <div class="mrow2">
+        <label>媒体名<input id="edLogo" maxlength="16" placeholder="军情速览"></label>
+        <label>副标<input id="edSub" maxlength="26" placeholder="环球军事观察 · 24小时滚动"></label>
+      </div>
+      <div class="mrow2">
+        <label>栏目<input id="edCat" maxlength="10" placeholder="突发"></label>
+        <label>小标<input id="edKicker" maxlength="24" placeholder="游戏 / 俄乌局势"></label>
+      </div>
+      <div class="mrow2">
+        <label>版面
+          <select id="edLayout">
+            <option value="wire">通讯社电讯</option>
+            <option value="portal">中文门户</option>
+            <option value="rt">RT 英文站</option>
+            <option value="bbc">BBC 中文</option>
+            <option value="tg">Telegram 频道</option>
+          </select>
+        </label>
+        <label>配色
+          <select id="edTheme">
+            <option value="tass">通讯社蓝</option>
+            <option value="ria">俄新社蓝</option>
+            <option value="portal">门户红</option>
+            <option value="rt">RT 黑绿</option>
+            <option value="bbc">BBC 红</option>
+            <option value="tg">暗色</option>
+          </select>
+        </label>
+      </div>
+      <label>标题<input id="edHead" maxlength="70" placeholder="俄国防部：四名军事技术顾问在顿涅茨克方向身亡"></label>
+      <label>导语<textarea id="edLead" rows="2" placeholder="一句话说清5W"></textarea></label>
+      <label>正文<textarea id="edBody" rows="11" placeholder="空行分段；&#10;## 开头 = 小标题；&#10;> 开头 = 引语，用 | 分隔署名；&#10;名字写 {{NAME}} 会自动换成用户输入的名字"></textarea></label>
+      <div class="mrow2">
+        <label>作者<input id="edAuthor" maxlength="30" placeholder="本报记者"></label>
+        <label>图说<input id="edCaption" maxlength="50" placeholder="图片来源："></label>
+      </div>
+      <label>标签（逗号分隔）<input id="edTags" placeholder="顿涅茨克, 国防部通报"></label>
+      <label>相关阅读（每行一条）<textarea id="edRel" rows="3"></textarea></label>
+    </div>
+    <div class="mfoot">
+      <button class="ghost" id="edDel" type="button">删除</button>
+      <button class="btn" id="edSave" type="button">保存并使用</button>
+    </div>
+  </div>
+</div>
 
 <footer class="legal">
   本页为纯本地运行的虚构梗图生成器，所有“新闻”均为玩家二创演绎，与任何真实机构、人物、事件无关。请勿用于传播虚假信息。
@@ -967,18 +1055,51 @@ window.BASE_H = BASE_H;
       '</div>';
   }
 
-  /* Telegram 频道 */
+  /* Telegram 频道 —— 多消息流 */
+  function plusMin(base, add) {
+    const p = (base || '09:00').split(':');
+    const t = ((+p[0] || 0) * 60 + (+p[1] || 0) + add) % 1440;
+    return pad2(Math.floor(t / 60)) + ':' + pad2(t % 60);
+  }
+  function tgBlocks(a) {
+    const out = [];
+    let cur = [];
+    a.body.forEach(function (n) {
+      cur.push(n);
+      if (n.t === 'h2' || (n.t === 'p' && cur.filter(function (x) { return x.t === 'p'; }).length >= 2) || n.t === 'quote') {
+        out.push(cur); cur = [];
+      }
+    });
+    if (cur.length) out.push(cur);
+    return out;
+  }
   function layoutTG(a) {
     const ava = (a.logo || '').replace(/[^A-Za-z\u0410-\u044F\u0401\u0451]/g, '').slice(0, 2).toUpperCase() || 'ВС';
+    const start = hhmm();
+    const blocks = tgBlocks(a);
+    let feed = '';
+    blocks.forEach(function (blk, i) {
+      let inner = '';
+      if (i === 0) {
+        inner += '<div class="tg-tag">' + fill(a.kicker) + '</div>';
+        inner += '<p class="tg-lead"><b>' + fill(a.headline) + '</b></p>';
+      }
+      blk.forEach(function (n) {
+        if (n.t === 'p') inner += '<p>' + fill(n.v) + '</p>';
+        else if (n.t === 'h2') inner += '<p class="tg-sub">' + fill(n.v) + '</p>';
+        else if (n.t === 'quote') inner += '<blockquote><p>' + fill(n.v) + '</p>' + (n.c ? '<cite>' + fill(n.c) + '</cite>' : '') + '</blockquote>';
+      });
+      if (i === 0) {
+        inner += '<figure class="tg-photo"><div class="fig-wrap"><canvas id="scene" width="' + BASE_W + '" height="' + BASE_H + '"></canvas></div>' +
+          '<figcaption>' + fill(a.caption) + '</figcaption></figure>';
+      }
+      feed += '<div class="tg-msg"><div class="tg-who">' + a.logo + '<span>' + plusMin(start, i * 4) + '</span></div>' + inner + '</div>';
+    });
     return '<div class="tg-head"><div class="tg-ava">' + ava + '</div>' +
         '<div><div class="tg-name">' + a.logo + '</div><div class="tg-sub">' + a.logoSub + '</div></div>' +
         '<div class="tg-btn">ПОДПИСАТЬСЯ</div></div>' +
-      '<div class="tg-main">' +
-        '<div class="tg-meta"><span>' + a.logo + '</span><span>' + hhmm() + '</span></div>' +
-        '<div class="tg-tag">' + fill(a.kicker) + '</div>' +
-        '<div class="tg-title">' + fill(a.headline) + '</div>' +
-        heroHTML(a) + bodyHTML(a, 'tg-body') +
-        tagHTML(a, 'tg-tags', true) +
+      '<div class="tg-feed">' + feed + '</div>' +
+      '<div class="tg-tail">' + tagHTML(a, 'tg-tags', true) +
         '<div class="tg-foot"><span>◉ ' + a.views + '</span><span>➦ ' + (a.comments || '') + '</span></div>' +
         relHTML(a, 'tg-rel', 'tg-rel-h', 'ЕЩЁ') +
         '<div class="tg-copy">' + a.copyright + '</div>' +
@@ -1368,6 +1489,132 @@ window.BASE_H = BASE_H;
     }, 120);
   }
 
+  /* ---------------- 自定义稿件 ---------------- */
+  const LS_KEY = 'wtobit_custom_v1';
+
+  function loadCustom() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) arr.forEach(function (a) { a.custom = true; ARTICLES.push(a); });
+    } catch (e) { }
+  }
+  function saveCustom() {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(ARTICLES.filter(function (a) { return a.custom; })));
+    } catch (e) { }
+  }
+  function parseBody(text) {
+    const out = [];
+    String(text || '').split(/\n\s*\n/).forEach(function (block) {
+      const b = block.replace(/\r/g, '').trim();
+      if (!b) return;
+      if (b.indexOf('##') === 0) { out.push({ t: 'h2', v: b.slice(2).trim() }); return; }
+      if (b.charAt(0) === '>') {
+        const parts = b.slice(1).trim().split('|');
+        out.push({ t: 'quote', v: parts[0].trim(), c: (parts[1] || '').trim() });
+        return;
+      }
+      out.push({ t: 'p', v: b.replace(/\n/g, '<br>') });
+    });
+    return out;
+  }
+  function bodyText(a) {
+    return (a.body || []).map(function (n) {
+      if (n.t === 'h2') return '## ' + n.v;
+      if (n.t === 'quote') return '> ' + n.v + (n.c ? ' | ' + n.c : '');
+      return n.v;
+    }).join('\n\n');
+  }
+
+  let editingIdx = -1;
+
+  function openEditor(idx) {
+    editingIdx = idx;
+    const a = idx >= 0 ? ARTICLES[idx] : null;
+    $('edLogo').value = a ? a.logo : '军情速览';
+    $('edSub').value = a ? (a.logoSub || '') : '环球军事观察 · 24小时滚动';
+    $('edCat').value = a ? (a.cat || '') : '突发';
+    $('edKicker').value = a ? (a.kicker || '') : '游戏 / 俄乌局势';
+    $('edLayout').value = a ? (a.layout || LAYOUT_MAP[a.id] || 'portal') : 'portal';
+    $('edTheme').value = a ? a.theme : 'portal';
+    $('edHead').value = a ? a.headline : '四名俄方技术顾问在顿涅茨克方向身亡';
+    $('edLead').value = a ? a.lead : '据消息人士透露，四人在一处指挥所内遇袭，均当场身亡。';
+    $('edBody').value = a ? bodyText(a) : '据本网记者了解，事件发生于当地时间下午，四名技术顾问当时正在一处指挥所内执行例行任务。\n\n通报称，现场已封锁，调查工作正在进行。\n\n## 三名死者在相关项目中任职\n\n四名死者中，三人长期从事模拟训练系统的研发工作，第四人为{{NAME}}。\n\n> 名单里另外三个名字，玩过这款游戏的人大多认识。 |一名在俄华人玩家\n\n截至发稿，相关机构未就此作出回应。';
+    $('edAuthor').value = a ? a.author : '本网记者　综合报道';
+    $('edCaption').value = a ? a.caption : '事发现场附近。图片来源：受访者提供';
+    $('edTags').value = a ? a.tags.join(', ') : '顿涅茨克, 军事';
+    $('edRel').value = a ? a.related.join('\n') : '';
+    $('edDel').style.display = (a && a.custom) ? '' : 'none';
+    $('editor').hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+  function closeEditor() {
+    $('editor').hidden = true;
+    document.body.style.overflow = '';
+  }
+  function saveEditor() {
+    const o = {
+      id: editingIdx >= 0 ? ARTICLES[editingIdx].id : ('custom' + Date.now()),
+      custom: true,
+      layout: $('edLayout').value,
+      theme: $('edTheme').value,
+      logo: $('edLogo').value.trim() || '未命名媒体',
+      logoSub: $('edSub').value.trim(),
+      place: editingIdx >= 0 ? (ARTICLES[editingIdx].place || '') : '',
+      cat: $('edCat').value.trim() || '军事',
+      kicker: $('edKicker').value.trim(),
+      headline: $('edHead').value.trim() || '（无标题）',
+      lead: $('edLead').value.trim(),
+      author: $('edAuthor').value.trim() || '本报记者',
+      views: '1.2万',
+      comments: '36',
+      caption: $('edCaption').value.trim(),
+      body: parseBody($('edBody').value),
+      tags: $('edTags').value.split(/[,，]/).map(function (x) { return x.trim(); }).filter(Boolean),
+      related: $('edRel').value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean),
+      copyright: '本页面为虚构演绎，与任何真实机构、人物、事件无关。'
+    };
+    if (!o.body.length) o.body = [{ t: 'p', v: '（正文为空）' }];
+    if (editingIdx >= 0) ARTICLES[editingIdx] = o;
+    else { ARTICLES.push(o); editingIdx = ARTICLES.length - 1; }
+    saveCustom();
+    renderTpls();
+    state.artIdx = editingIdx;
+    renderPaper();
+    closeEditor();
+  }
+
+  function renderTpls() {
+    const tpls = $('tpls');
+    tpls.innerHTML = '';
+    ARTICLES.forEach(function (a, i) {
+      const wrap = document.createElement('div');
+      wrap.className = 'tpl-wrap';
+      const b = document.createElement('button');
+      b.className = 'tpl' + (i === state.artIdx ? ' on' : '');
+      b.type = 'button';
+      b.style.flex = '1';
+      b.innerHTML = '<span class="tp-logo">' + (a.custom ? '★' : String(a.logo).replace(/</g, '&lt;')) + '</span>' +
+        '<span class="tp-t">' + String(a.headline || '').replace(/《/g, '「').replace(/》/g, '」') + '</span>';
+      b.addEventListener('click', function () {
+        state.artIdx = i;
+        Array.prototype.forEach.call(tpls.querySelectorAll('.tpl'), function (c) { c.classList.remove('on'); });
+        b.classList.add('on');
+        renderPaper();
+      });
+      wrap.appendChild(b);
+      if (a.custom) {
+        const x = document.createElement('button');
+        x.className = 'tpl-x'; x.type = 'button'; x.textContent = '✎'; x.title = '编辑这篇稿件';
+        x.addEventListener('click', function (e) { e.stopPropagation(); openEditor(i); });
+        wrap.appendChild(x);
+      }
+      tpls.appendChild(wrap);
+    });
+  }
+
   /* ---------------- UI init ---------------- */
   function initUI() {
     /* positions */
@@ -1381,20 +1628,7 @@ window.BASE_H = BASE_H;
     sel.addEventListener('change', function () { state.posKey = sel.value; drawScene(); });
 
     /* templates */
-    const tpls = $('tpls');
-    ARTICLES.forEach(function (a, i) {
-      const b = document.createElement('button');
-      b.className = 'tpl' + (i === 0 ? ' on' : '');
-      b.type = 'button';
-      b.innerHTML = '<span class="tp-logo">' + a.logo.replace(/</g, '&lt;') + '</span><span class="tp-t">' + a.headline.replace(/《/g, '「').replace(/》/g, '」') + '</span>';
-      b.addEventListener('click', function () {
-        state.artIdx = i;
-        Array.prototype.forEach.call(tpls.children, function (c) { c.classList.remove('on'); });
-        b.classList.add('on');
-        renderPaper();
-      });
-      tpls.appendChild(b);
-    });
+    renderTpls();
 
     /* name presets */
     const chips = $('nameChips');
@@ -1476,6 +1710,22 @@ window.BASE_H = BASE_H;
       drawScene();
     });
 
+    /* editor */
+    $('edNew').addEventListener('click', function () { openEditor(-1); });
+    $('edClose').addEventListener('click', closeEditor);
+    $('edSave').addEventListener('click', saveEditor);
+    $('edDel').addEventListener('click', function () {
+      if (editingIdx >= 0 && ARTICLES[editingIdx].custom) {
+        ARTICLES.splice(editingIdx, 1);
+        saveCustom();
+        state.artIdx = 0;
+        renderTpls();
+        renderPaper();
+      }
+      closeEditor();
+    });
+    $('editor').addEventListener('click', function (e) { if (e.target === $('editor')) closeEditor(); });
+
     /* shoot */
     $('shot').addEventListener('click', shoot);
     $('zoomIn').addEventListener('click', function () { userZoom = Math.min(3, userZoom * 1.25); doFit(); });
@@ -1490,6 +1740,7 @@ window.BASE_H = BASE_H;
 
   /* ---------------- boot ---------------- */
   function boot() {
+    loadCustom();
     initUI();
     loadBase();
     renderPaper();
