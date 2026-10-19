@@ -5,169 +5,91 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#fbfbfa">
 <title>趋势实验室 · 搜索词频折线</title>
-<meta name="description" content="百度 / B站 / 微博 的搜索词频，按自定义时间段画折线：可合计、可平台对比、可分面。">
+<meta name="description" content="输入任意词，看它在 8 个平台的搜索词频折线，时间自己拖。">
 <link rel="icon" href="../../assets/favicon.png">
-<link rel="stylesheet" href="css/style.css?v=1">
+<link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body>
 <div class="page">
 
   <header class="top">
-    <div class="brand">
-      <span class="mark" aria-hidden="true"></span>
-      <span class="brand-name">趋势实验室</span>
-      <em>TREND LAB</em>
-    </div>
-    <div class="top-meta">
-      <span class="dot" id="liveDot" aria-hidden="true"></span>
-      <span id="topMeta">140 天 · 3 平台 · 18 词</span>
-    </div>
+    <div class="brand"><span class="mark" aria-hidden="true"></span>趋势实验室</div>
+    <div class="top-meta" id="topMeta">8 平台 · 180 天</div>
   </header>
 
   <main>
 
     <section class="intro">
-      <h1>把「搜索词频」拆开看。</h1>
-      <p>百度 / B站 / 微博 三家的热词强度，按你拖出来的时间段画折线。可以三平台合成一条总热度，也可以把平台拆开一格一格看。</p>
+      <h1>输入一个词，看它在八个平台的走势。</h1>
+      <p>时间自己拖，平台可以分开看，也可以合起来看。</p>
     </section>
 
-    <section class="panel controls" aria-label="筛选">
+    <section class="panel filter" aria-label="筛选">
 
-      <div class="ctrl">
-        <div class="ctrl-h"><span>关键词</span><em>最多 3 个</em></div>
-        <div class="chips" id="wordChips"></div>
-        <input id="wordFilter" class="inp" type="search" placeholder="过滤词…" autocomplete="off">
-      </div>
-
-      <div class="ctrl">
-        <div class="ctrl-h"><span>平台</span><em>至少 1 个</em></div>
-        <div class="plats" id="platChips"></div>
-        <div class="seg" id="segView" role="tablist" aria-label="视图">
-          <button type="button" data-mode="merge">合计</button>
-          <button type="button" data-mode="split">平台对比</button>
-          <button type="button" data-mode="facet">分面</button>
+      <div class="frow">
+        <div class="wordbox">
+          <input id="wordIn" type="text" placeholder="输入关键词，回车添加（最多 3 个）" autocomplete="off" maxlength="24" aria-label="关键词">
+          <button type="button" id="wordAdd" aria-label="添加">＋</button>
         </div>
+        <div class="chips" id="wordChips"></div>
       </div>
 
-      <div class="ctrl">
-        <div class="ctrl-h"><span>时间</span><em id="rngText">—</em></div>
+      <div class="frow">
+        <div class="plats" id="platChips"></div>
+        <button type="button" class="link" id="platAll">全选 / 全不选</button>
+      </div>
+
+      <div class="frow time">
         <div class="rng">
           <div class="rng-track"><div class="rng-fill" id="rngFill"></div></div>
-          <input type="range" id="rA" min="0" max="139" value="110" step="1" aria-label="起始日期">
-          <input type="range" id="rB" min="0" max="139" value="139" step="1" aria-label="结束日期">
+          <input type="range" id="rA" min="0" max="179" value="150" step="1" aria-label="起始日期">
+          <input type="range" id="rB" min="0" max="179" value="179" step="1" aria-label="结束日期">
         </div>
-        <div class="row-sub">
-          <div class="quick" id="quickBar">
-            <button type="button" data-quick="7">7 天</button>
-            <button type="button" data-quick="30">30 天</button>
-            <button type="button" data-quick="90">90 天</button>
-            <button type="button" data-quick="all">全部</button>
-          </div>
-          <div class="seg small" id="grainSeg">
-            <button type="button" data-grain="day">日</button>
-            <button type="button" data-grain="week">周</button>
-          </div>
-          <button type="button" class="toggle" id="normChk">归一化</button>
+        <div class="rng-text" id="rngText">—</div>
+      </div>
+
+      <div class="frow tools">
+        <div class="seg" id="quickBar">
+          <button type="button" data-quick="7">7 天</button>
+          <button type="button" data-quick="30">30 天</button>
+          <button type="button" data-quick="90">90 天</button>
+          <button type="button" data-quick="all">全部</button>
         </div>
+        <div class="seg" id="grainSeg">
+          <button type="button" data-grain="day">日</button>
+          <button type="button" data-grain="week">周</button>
+        </div>
+        <div class="seg" id="segView">
+          <button type="button" data-mode="merge">合计</button>
+          <button type="button" data-mode="split">分平台</button>
+          <button type="button" data-mode="facet">分面</button>
+        </div>
+        <button type="button" class="toggle" id="normChk">归一化</button>
+        <button type="button" class="link" id="dlPng">存图</button>
+        <button type="button" class="link" id="dlCsv">CSV</button>
       </div>
 
     </section>
 
     <section class="panel chartcard" aria-label="趋势图">
-
-      <div class="kpis">
-        <div class="kpi">
-          <div class="kpi-l">区间合计</div>
-          <div class="kpi-num" id="kTotal" data-v="0">0</div>
-          <div class="kpi-sub" id="kTotalSub">—</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-l">峰值日</div>
-          <div class="kpi-num" id="kPeak">—</div>
-          <div class="kpi-sub" id="kPeakSub">—</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-l">走势</div>
-          <div class="kpi-num" id="kSlope">—</div>
-          <div class="kpi-sub" id="kSlopeSub">后半段 vs 前半段</div>
-        </div>
-      </div>
-
-      <div class="share">
-        <div class="share-bar" id="shareBar"></div>
-        <div class="share-text" id="shareText"></div>
-      </div>
-
-      <div class="cap">
-        <span id="capLine">—</span>
-        <div class="cap-btns">
-          <button type="button" class="mini" id="dlPng">存图</button>
-          <button type="button" class="mini" id="dlCsv">导 CSV</button>
-        </div>
+      <div class="stats" id="stats">
+        <span>区间合计 <b id="kTotal">—</b></span>
+        <span>峰值 <b id="kPeak">—</b></span>
+        <span>走势 <b id="kSlope">—</b></span>
       </div>
 
       <div class="chart-wrap" id="chartWrap">
         <canvas id="chartCv"></canvas>
         <div class="tip" id="chartTip"></div>
-        <div class="empty" id="emptyHint">线全被你点没了 —— 点下面的图例叫回来</div>
+        <div class="empty on" id="emptyHint">在上面输入一个词，曲线立刻出现</div>
       </div>
 
       <div class="legend" id="legend"></div>
-
-    </section>
-
-    <section class="panel livecard" aria-label="实时快照">
-      <div class="live-head">
-        <div>
-          <div class="section-t">今日实时快照</div>
-          <p class="section-d">点一下真去抓三家公开热搜榜，统计「你关心的词在榜单标题里命中几条」。</p>
-        </div>
-        <button type="button" class="btn" id="liveBtn">抓取今日榜单</button>
-      </div>
-      <div class="live-meta" id="liveMeta"></div>
-      <div class="live-out" id="liveOut"></div>
-
-      <details class="adv">
-        <summary>抓不到？三条备用通道：本地桥 / 粘贴文本 / 换代理</summary>
-        <div class="adv-body">
-
-          <div class="adv-col">
-            <label class="lab">① 本地桥（最稳，绕开 CORS）</label>
-            <input id="bridgeIn" class="inp mono" type="text" placeholder="http://127.0.0.1:8899">
-            <div class="adv-row">
-              <button type="button" class="mini" id="bridgeSave">保存</button>
-              <button type="button" class="mini" id="bridgeTest">测一下</button>
-            </div>
-            <p class="adv-hint" id="bridgeHint">同机跑 <code>python3 tools/bridge.py</code>，再点「测一下」。桥是仓库里的 <code>tools/bridge.py</code>，只读、加 CORS 头。</p>
-          </div>
-
-          <div class="adv-col">
-            <label class="lab">② 粘贴热搜（一行一条）</label>
-            <textarea id="pasteIn" class="area" rows="5" placeholder="直接全选复制榜单页面的标题粘进来&#10;每行一条，序号会自动去掉"></textarea>
-            <div class="adv-row">
-              <select id="pastePlat" class="inp sel"></select>
-              <button type="button" class="mini solid" id="pasteGo">统计</button>
-            </div>
-          </div>
-
-          <div class="adv-col">
-            <label class="lab">③ CORS 代理前缀（一行一个，留空用默认）</label>
-            <textarea id="proxyIn" class="area mono" rows="4" placeholder="https://你的worker.workers.dev/?url="></textarea>
-            <div class="adv-row">
-              <button type="button" class="mini" id="proxySave">保存</button>
-              <button type="button" class="mini" id="proxyReset">恢复默认</button>
-              <button type="button" class="mini" id="snapClear">清空快照</button>
-            </div>
-          </div>
-
-        </div>
-      </details>
     </section>
 
     <footer class="foot">
-      <p><b>数据说明。</b>历史曲线来自页面内置的示例数据集（140 天 · 18 词 · 3 平台），按公开热搜的形态构造：周内周期、事件脉冲、平台错峰（微博先爆 → B站滞后 → 百度再滞后），用来演示「同一件事三家不一样」这件事本身。<b>它不是爬下来的真实历史</b>。</p>
-      <p>「今日实时快照」是页面运行时的真实请求，走各平台公开榜单接口：先试仓库里的 <code>tools/bridge.py</code> 本地桥（同机跑一条命令，绕开 CORS），再试直连，最后试公共代理。信得过的做法是本地桥——它只读榜单、加一个 CORS 头，不存任何东西。词频口径 = 目标词在榜单标题中的命中条数，跟平台真实的搜索量不是一回事，别拿它当权威数据。</p>
-      <p class="foot-end">Whale's Garden · trend-lab</p>
+      曲线由词名确定性生成：同一个词每次打开都一样，各平台有自己的量级、周内节奏和滞后。它是演示数据，不是真实抓取的搜索量。
+      <span class="foot-end">Whale's Garden · trend-lab</span>
     </footer>
 
   </main>
@@ -175,10 +97,9 @@
   <div class="flash" id="flashMsg" role="status" aria-live="polite"></div>
 </div>
 
-<script src="js/data.js?v=1"></script>
-<script src="js/live.js?v=2"></script>
-<script src="js/chart.js?v=1"></script>
-<script src="js/app.js?v=2"></script>
+<script src="js/model.js?v=1"></script>
+<script src="js/chart.js?v=2"></script>
+<script src="js/app.js?v=5"></script>
 <script src="../../assets/fullscreen.js"></script>
 </body>
 </html>
