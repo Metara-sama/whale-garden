@@ -53,7 +53,6 @@
     btnRestart: $('#btn-restart'),
     btnDlState: $('#btn-dl-state'),
     btnDlSav: $('#btn-dl-sav'),
-    btnEject: $('#btn-eject'),
     segLayout: $('#seg-layout'),
     swBody: $('#sw-body'),
     swBg: $('#sw-bg'),
@@ -61,7 +60,6 @@
     scrim: $('#scrim'),
     openSettings: $('#open-settings'),
     closeSettings: $('#close-settings'),
-    power: $('#power'),
     glass: $('#glass'),
     btnFs: $('#btn-fs'),
     btnFs2: $('#btn-fs-2'),
@@ -231,7 +229,7 @@
   }
 
   function scanCarts() {
-    idbAll(STORE_META).then(function (list) {
+    return idbAll(STORE_META).then(function (list) {
       metaCache = {};
       (list || []).forEach(function (m) {
         if (!m) return;
@@ -643,99 +641,35 @@
     }
   }
 
-  /* ---------- 电源 / 弹卡 ---------- */
-  var ejectArmed = false, ejectTimer = null;
+  /* ---------- 换卡：点卡带架上另一张 → 存盘后重载并自动插入 ---------- */
+  var PENDING_KEY = 'pocket.pending';
 
-  function disarmEject() {
-    ejectArmed = false;
-    clearTimeout(ejectTimer);
-    if (els.btnEject) {
-      els.btnEject.textContent = '⏏ 弹出卡带';
-      els.btnEject.classList.remove('on');
-    }
+  function readPending() {
+    try {
+      var v = parseInt(localStorage.getItem(PENDING_KEY), 10);
+      return isNaN(v) ? -1 : v;
+    } catch (e) { return -1; }
+  }
+  function clearPending() {
+    try { localStorage.removeItem(PENDING_KEY); } catch (e) { /* 忽略 */ }
   }
 
-  function armEject() {
-    if (state.phase !== 'live' && state.phase !== 'boot') { toast('现在没插卡带'); return; }
-    if (!ejectArmed) {
-      ejectArmed = true;
-      if (els.btnEject) {
-        els.btnEject.textContent = '⏏ 再点一次确认';
-        els.btnEject.classList.add('on');
+  function saveAndSwap(slot) {
+    try { localStorage.setItem(PENDING_KEY, String(slot)); } catch (e) { /* 忽略 */ }
+    var e = em();
+    try {
+      if (e) {
+        if (!e.paused) e.pause();
+        if (e.gameManager && e.gameManager.saveSaveFiles) e.gameManager.saveSaveFiles();
       }
-      ejectTimer = setTimeout(disarmEject, 3200);
-      return;
-    }
-    disarmEject();
-    doEject();
-  }
-
-  var ejecting = false;
-  function doEject() {
-    if (ejecting) return;
-    ejecting = true;
-    var e = em();
-    toast('正在弹出卡带…');
-    var fire = function () {
-      // EmulatorJS 4.2.3 无 destroy()，wasm 实例随页面存活 → 弹卡后刷新归位，
-      // 卡带仍留在架上（IndexedDB），随时可以再插。
-      setTimeout(function () { location.reload(); }, 260);
-    };
-    if (!e) { fire(); return; }
-    try { if (!e.paused) e.pause(); } catch (err) { /* 忽略 */ }
-    try {
-      if (e.gameManager && e.gameManager.saveSaveFiles) e.gameManager.saveSaveFiles();
     } catch (err) { /* 忽略 */ }
-    try {
-      if (e.gameManager && e.gameManager.FS && typeof e.gameManager.FS.syncfs === 'function') {
-        e.gameManager.FS.syncfs(false, fire);
-      } else fire();
-    } catch (err) { fire(); }
-    setTimeout(function () { if (ejecting) fire(); }, 1200); // 兜底
+    toast('正在换卡…');
+    setTimeout(function () { location.reload(); }, 180);
   }
 
-  function toggleStandby() {
-    var e = em();
-    if (!e || (state.phase !== 'live')) { toast('先插入一张卡带'); return; }
-    state.paused = !e.paused;
-    try { e.togglePlaying(); } catch (err) { /* 忽略 */ }
-    state.paused = !!e.paused;
-    updatePauseBtn();
-    if (els.standby) els.standby.hidden = !state.paused;
-    if (els.hint && state.paused) els.hint.textContent = '已待机 · 按电源键唤醒';
-  }
-
-  function bindPower() {
-    if (!els.power) return;
-    var timer = null, longPressed = false;
-    els.power.addEventListener('pointerdown', function (ev) {
-      ev.preventDefault();
-      longPressed = false;
-      timer = setTimeout(function () {
-        longPressed = true;
-        armEject();
-      }, 620);
-    });
-    var clear = function () { clearTimeout(timer); };
-    els.power.addEventListener('pointerup', function (ev) {
-      ev.preventDefault();
-      clear();
-      if (!longPressed) toggleStandby();
-    });
-    els.power.addEventListener('pointercancel', clear);
-    els.power.addEventListener('pointerleave', clear);
-    els.power.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggleStandby(); }
-    });
-  }
-
-  /* ---------- 全屏：只放大掌机，实体按键照留，屏幕按比例适配 ---------- */
+  /* ---------- 全屏：整台机身等比放大（不拉屏幕） ---------- */
   var fsOn = false;
   var fsTimer = null;
-
-  function screenRatio() {
-    return prefs.layout === 'gbc' ? (10 / 9) : (3 / 2);
-  }
 
   function resizeEmu() {
     var e = em();
@@ -744,40 +678,30 @@
     }
   }
 
-  /* 在 .bezel 里按真实可用空间等比撑满屏幕（不裁切、不变形） */
-  function fitGlass() {
-    if (!els.glass) return;
-    if (!fsOn) {
-      els.glass.style.width = '';
-      els.glass.style.height = '';
-      return;
-    }
-    var host = els.glass.parentNode;
-    if (!host) return;
-    var pad = 20;
-    var availW = Math.max(0, host.clientWidth - pad);
-    var availH = Math.max(0, host.clientHeight - pad);
-    if (availW < 80 || availH < 60) return;
-    var r = screenRatio();
-    var w = availW;
-    var h = w / r;
-    if (h > availH) { h = availH; w = h * r; }
-    els.glass.style.width = Math.round(w) + 'px';
-    els.glass.style.height = Math.round(h) + 'px';
+  function fitConsole() {
+    if (!els.console) return;
+    if (!fsOn) { els.console.style.transform = ''; return; }
+    var vw = window.innerWidth || 360;
+    var vh = window.innerHeight || 640;
+    // offsetWidth/Height 不受 transform 影响，量到的就是自然尺寸
+    var w = els.console.offsetWidth || 1;
+    var h = els.console.offsetHeight || 1;
+    var k = Math.min((vw - 16) / w, (vh - 16) / h);
+    if (!isFinite(k) || k <= 0) k = 1;
+    els.console.style.transform = 'scale(' + k.toFixed(4) + ')';
   }
 
   function syncFsUi() {
     if (els.body && els.body.classList) els.body.classList.toggle('pocket-fs', fsOn);
     if (els.btnFs) els.btnFs.textContent = fsOn ? '⤢ 退出全屏' : '⛶ 全屏';
-    var t = fsOn ? '退出全屏' : '全屏';
     if (els.btnFs2) els.btnFs2.textContent = fsOn ? '退出全屏' : '全屏玩';
-    if (els.btnFs3) els.btnFs3.textContent = t;
+    if (els.btnFs3) els.btnFs3.textContent = fsOn ? '退出全屏' : '全屏';
   }
 
   function settleFs() {
     clearTimeout(fsTimer);
-    requestAnimationFrame(function () { fitGlass(); resizeEmu(); });
-    fsTimer = setTimeout(function () { fitGlass(); resizeEmu(); }, 280);
+    requestAnimationFrame(fitConsole);
+    fsTimer = setTimeout(function () { fitConsole(); resizeEmu(); }, 300);
   }
 
   function enterFs() {
@@ -789,9 +713,16 @@
       var el = els.console;
       if (el && typeof el.requestFullscreen === 'function') {
         var p = el.requestFullscreen({ navigationUI: 'hide' });
-        if (p && p.catch) p.catch(function () { /* 不支持就用 CSS 全屏兜底 */ });
+        if (p && p.catch) p.catch(function () { /* 不支持就纯 CSS 全屏 */ });
       }
     } catch (err) { /* 忽略 */ }
+    // 横版机身：全屏时尽量把屏幕转成横向，机壳才吃满
+    try {
+      if (screen.orientation && typeof screen.orientation.lock === 'function') {
+        var q = screen.orientation.lock('landscape');
+        if (q && q.catch) q.catch(function () { /* 桌面端/不支持就手动转屏 */ });
+      }
+    } catch (err2) { /* 忽略 */ }
     settleFs();
   }
 
@@ -805,7 +736,10 @@
         if (p && p.catch) p.catch(function () { /* 忽略 */ });
       }
     } catch (err) { /* 忽略 */ }
-    if (els.glass) { els.glass.style.width = ''; els.glass.style.height = ''; }
+    try {
+      if (screen.orientation && typeof screen.orientation.unlock === 'function') screen.orientation.unlock();
+    } catch (e) { /* 忽略 */ }
+    if (els.console) els.console.style.transform = '';
     settleFs();
   }
 
@@ -817,12 +751,11 @@
     if (els.btnFs3) els.btnFs3.addEventListener('click', toggleFs);
     if (els.fsExit) els.fsExit.addEventListener('click', exitFs);
     document.addEventListener('fullscreenchange', function () {
-      // 用户按系统返回键 / Esc 退出系统全屏时同步内部状态
       if (!document.fullscreenElement && fsOn) exitFs();
     });
-    window.addEventListener('resize', function () { fitGlass(); resizeEmu(); });
+    window.addEventListener('resize', function () { fitConsole(); resizeEmu(); });
     window.addEventListener('orientationchange', function () {
-      setTimeout(function () { fitGlass(); resizeEmu(); }, 320);
+      setTimeout(function () { fitConsole(); resizeEmu(); }, 320);
     });
     document.addEventListener('keydown', function (ev) {
       if (ev.key === 'f' || ev.key === 'F') { ev.preventDefault(); toggleFs(); }
@@ -856,9 +789,15 @@
     applyVolume(null);
 
     buildSlots();
-    scanCarts();
+    scanCarts().then(function () {
+      // 换卡后重载：把上次点的槽位自动插上
+      var pend = readPending();
+      if (pend < 0) return;
+      clearPending();
+      if (metaCache[pend] && metaCache[pend].name) insert(pend);
+      else if (BUILTIN[pend]) fetchBuiltin(pend);
+    });
     bindKeys();
-    bindPower();
     bindFullscreen();
 
     // 卡带架：点击插入 / 长按移除
@@ -873,7 +812,7 @@
         if (!filled) return;
         pressTimer = setTimeout(function () {
           longDone = true;
-          if (state.slot === slot && state.phase !== 'idle') { toast('先弹出正在运行的卡带'); return; }
+          if (state.slot === slot && state.phase !== 'idle') { toast('这张卡带正在运行，先换一张卡'); return; }
           removeCart(slot);
         }, 680);
       });
@@ -887,7 +826,8 @@
         if (!cart) return;
         var slot = parseInt(cart.dataset.slot, 10);
         if (state.phase === 'live' || state.phase === 'boot') {
-          toast(state.slot === slot ? '这张卡带正在运行' : '先弹出当前卡带');
+          if (state.slot === slot) { toast('这张卡带正在运行'); return; }
+          saveAndSwap(slot);
           return;
         }
         if (metaCache[slot] && metaCache[slot].name) insert(slot);
@@ -909,7 +849,6 @@
     if (els.btnRestart) els.btnRestart.addEventListener('click', restartGame);
     if (els.btnDlState) els.btnDlState.addEventListener('click', downloadState);
     if (els.btnDlSav) els.btnDlSav.addEventListener('click', downloadSav);
-    if (els.btnEject) els.btnEject.addEventListener('click', armEject);
 
     if (els.segLayout) {
       els.segLayout.addEventListener('click', function (ev) {
