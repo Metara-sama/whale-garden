@@ -446,48 +446,42 @@ body[data-bg="sand"] .site-header{
   margin-top: 10px;
 }
 
-/* --- 十字键：一整块裁出十字，上面叠四个透明热区 --- */
+/* --- 十字键（回到早期版本观感：3×3 网格，四臂 + 中心） --- */
 .dpad{
   --d: 108px;
   position: relative;
   justify-self: start;
   width: var(--d);
   height: var(--d);
-}
-.dpad-shape{
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(158deg, var(--s-hi), var(--s-mid) 55%, var(--s-lo));
-  clip-path: polygon(
-    33.333% 0%, 66.667% 0%,
-    66.667% 33.333%, 100% 33.333%,
-    100% 66.667%, 66.667% 66.667%,
-    66.667% 100%, 33.333% 100%,
-    33.333% 66.667%, 0% 66.667%,
-    0% 33.333%, 33.333% 33.333%);
-  filter: drop-shadow(0 4px 6px rgba(0,0,0,.55));
-}
-.dpad-shape::before{
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 42%);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
 }
 .dk{
-  position: absolute;
-  width: 33.334%;
-  height: 33.334%;
+  position: relative;
   border: 0;
   padding: 0;
-  background: transparent;
   cursor: pointer;
-  transition: background .07s;
+  background: linear-gradient(158deg, var(--s-hi), var(--s-mid) 55%, var(--s-lo));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.22),
+    inset 0 -2px 3px rgba(0,0,0,.42),
+    0 4px 9px -6px rgba(0,0,0,.65);
+  transition: background .07s, box-shadow .07s, filter .07s;
 }
-.dk.up{ left: 33.333%; top: 0; }
-.dk.left{ left: 0; top: 33.333%; }
-.dk.right{ left: 66.666%; top: 33.333%; }
-.dk.down{ left: 33.333%; top: 66.666%; }
-.dk.hub{ left: 33.333%; top: 33.333%; cursor: default; }
+.dk.up{ grid-area: 1 / 2; border-radius: 10px 10px 2px 2px; }
+.dk.left{ grid-area: 2 / 1; border-radius: 10px 2px 2px 10px; }
+.dk.right{ grid-area: 2 / 3; border-radius: 2px 10px 10px 2px; }
+.dk.down{ grid-area: 3 / 2; border-radius: 2px 2px 10px 10px; }
+.dk.hub{
+  grid-area: 2 / 2;
+  cursor: default;
+  border-radius: 2px;
+  background: linear-gradient(158deg, var(--s-mid), var(--s-lo));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.14),
+    inset 0 -2px 3px rgba(0,0,0,.35);
+}
 /* 方向箭头 */
 .dk.up::after,
 .dk.down::after,
@@ -498,7 +492,8 @@ body[data-bg="sand"] .site-header{
   left: 50%; top: 50%;
   transform: translate(-50%, -50%);
   width: 0; height: 0;
-  opacity: .22;
+  opacity: .24;
+  pointer-events: none;
 }
 .dk.up::after{
   border-left: 4px solid transparent;
@@ -520,11 +515,16 @@ body[data-bg="sand"] .site-header{
   border-bottom: 4px solid transparent;
   border-left: 6px solid var(--s-txt);
 }
-/* 按下：只压暗对应的那条臂，几何完全不动 */
+/* 按下：配色压深 + 内阴影，位置/尺寸完全不动 */
 .dk:active,
-.dk.down{ background: rgba(0,0,0,.28); }
+.dk.down{
+  background: linear-gradient(158deg, var(--s-lo), var(--s-mid));
+  box-shadow:
+    inset 0 3px 7px rgba(0,0,0,.66),
+    inset 0 -1px 0 rgba(255,255,255,.05);
+}
 .dk:active::after,
-.dk.down::after{ opacity: .40; }
+.dk.down::after{ opacity: .42; }
 
 /* --- A / B --- */
 .ab{

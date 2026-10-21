@@ -431,19 +431,44 @@
 
   function bindKeys() {
     var nodes = $$('[data-key]');
+
     nodes.forEach(function (el) {
+      var held = false;
+      var pid = null;
+
+      // Android 长按会弹上下文菜单，并随之取消 pointer → 按键“自己断开”
+      el.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
+
       el.addEventListener('pointerdown', function (ev) {
+        if (held) return;
         ev.preventDefault();
-        if (el.setPointerCapture) { try { el.setPointerCapture(ev.pointerId); } catch (e) {} }
+        held = true;
+        pid = ev.pointerId;
+        if (el.setPointerCapture) { try { el.setPointerCapture(pid); } catch (e) { /* 忽略 */ } }
         press(el, true);
       });
-      var up = function (ev) {
-        if (ev) ev.preventDefault();
+
+      var release = function (ev) {
+        if (ev) {
+          if (pid !== null && ev.pointerId !== undefined && ev.pointerId !== pid) return;
+          if (ev.cancelable) ev.preventDefault();
+        }
+        if (!held) return;
+        held = false;
+        pid = null;
         press(el, false);
       };
-      el.addEventListener('pointerup', up);
-      el.addEventListener('pointercancel', up);
-      el.addEventListener('pointerleave', function () { press(el, false); });
+
+      el.addEventListener('pointerup', release);
+      el.addEventListener('pointercancel', release);
+      el.addEventListener('lostpointercapture', release);
+
+      // 只有鼠标离开才算松手；触摸的 pointerleave 会被轻微抖动误触发，
+      // 那正是「按着按着就断 / 反应错位」的根因。
+      el.addEventListener('pointerleave', function (ev) {
+        if (ev.pointerType === 'mouse' && held && ev.buttons === 0) release(ev);
+      });
+
       // 键盘可达性
       el.addEventListener('keydown', function (ev) {
         if (ev.key === ' ' || ev.key === 'Enter') { ev.preventDefault(); press(el, true); }
@@ -452,9 +477,17 @@
         if (ev.key === ' ' || ev.key === 'Enter') { ev.preventDefault(); press(el, false); }
       });
     });
-    // 失焦时全部松手，避免按键卡住
-    window.addEventListener('blur', function () {
-      nodes.forEach(function (el) { press(el, false); });
+
+    // 失焦 / 切后台时全部松手，避免按键卡住
+    var releaseAll = function () {
+      nodes.forEach(function (el) {
+        el.classList.remove('down');
+        press(el, false);
+      });
+    };
+    window.addEventListener('blur', releaseAll);
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) releaseAll();
     });
   }
 
