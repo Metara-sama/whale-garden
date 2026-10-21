@@ -361,6 +361,10 @@
           applyVolume(emulator);
           flashSlots();
           paintCarts();
+          // 开跑后再让 EmulatorJS 按真实容器尺寸算一次画布
+          resizeEmu();
+          setTimeout(resizeEmu, 120);
+          setTimeout(resizeEmu, 420);
           toast('已插入 ' + meta.name);
         },
         onError: function (err) {

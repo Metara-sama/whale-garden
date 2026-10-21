@@ -156,6 +156,32 @@ body.running .hint,body.running .steps{display:none}
 .srow button{flex:1;height:40px;border-radius:9px;font-family:var(--ui);font-size:13px;cursor:pointer;
   border:1px solid var(--ink);background:var(--ink);color:#fff}
 .srow button.g{background:#fff;color:var(--ink);border-color:var(--line)}
+.qrbox{display:flex;gap:13px;align-items:flex-start;border:1px solid var(--line);
+  border-radius:11px;padding:13px}
+.qrimg{width:108px;height:108px;flex:0 0 auto;border:1px solid var(--line);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink3);
+  background:#fbfaf7;overflow:hidden}
+.qrimg img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
+.qrside{flex:1;min-width:0;font-size:12.5px;color:var(--ink2);line-height:1.6}
+.qrside b{display:block;font-size:13.5px;color:var(--ink);margin-bottom:3px}
+.qrstate{margin:7px 0 0;font-size:11.5px;color:var(--ink3);min-height:16px;line-height:1.5}
+.btnline{margin-top:8px;height:31px;padding:0 12px;border:1px solid var(--ink);
+  background:var(--ink);color:#fff;border-radius:8px;font-size:12.5px;
+  font-family:var(--ui);cursor:pointer}
+.flow{display:flex;align-items:center;gap:6px;margin-top:13px;flex-wrap:wrap}
+.fstep{flex:1;min-width:86px;border:1px solid var(--line);border-radius:9px;padding:7px 9px;
+  background:#fbfaf7}
+.fstep i{display:block;font-style:normal;font-family:var(--mono);font-size:10px;color:var(--ink3)}
+.fstep b{display:block;font-size:12.5px;font-weight:600;margin:1px 0}
+.fstep span{display:block;font-size:10.5px;color:var(--ink3);line-height:1.45}
+.fstep.ok{border-color:#d5e0da;background:#f4f8f6}
+.fstep.ok b{color:var(--ok)}
+.farrow{color:var(--ink3);font-size:12px;flex:0 0 auto}
+.fold{margin-top:16px;border-top:1px solid var(--line2);padding-top:12px}
+.fold summary{cursor:pointer;font-size:12.5px;color:var(--ink2);list-style:none;outline:none}
+.fold summary::-webkit-details-marker{display:none}
+.fold summary:before{content:"＋ ";color:var(--ink3)}
+.fold[open] summary:before{content:"－ "}
 .hidden{display:none!important}
 .spin{width:11px;height:11px;border:1.5px solid rgba(255,255,255,.45);border-top-color:#fff;
   border-radius:50%;display:inline-block;animation:sp .65s linear infinite;vertical-align:-1px;margin-right:5px}
@@ -168,7 +194,7 @@ body.running .hint,body.running .steps{display:none}
   <div class="head">
     <div class="brand"><b>同人文猎手</b>　贴吧 · NGA</div>
     <div class="right">
-      <button class="tbtn" id="btnCk"><span class="dot" id="ckDot"></span>Cookie</button>
+      <button class="tbtn" id="btnCk"><span class="dot" id="ckDot"></span>账号</button>
     </div>
   </div>
   <div class="sw">
@@ -183,17 +209,23 @@ body.running .hint,body.running .steps{display:none}
         <button class="pill" data-site="both" type="button">双站</button>
       </div>
       <input class="scope" id="scope" placeholder="限定贴吧名（可留空）">
+      <select class="sel" id="sort" title="排序方式" style="margin-left:auto;background:#fff">
+        <option value="rel">相关度</option>
+        <option value="time_desc">最新发布</option>
+        <option value="time_asc">最早发布</option>
+        <option value="reply_desc">回复最多</option>
+      </select>
     </div>
     <div class="hint" id="hint">
       <span>贴吧搜索免登录，直接搜。</span><span>｜</span>
-      <a id="hintCk">要抓全文，先填一次 Cookie →</a>
+      <a id="hintCk">要抓全文，扫码连接一次账号 →</a>
     </div>
     <div class="steps" id="steps">
       <p class="t">怎么用 <span id="stepsHide">收起</span></p>
       <ol>
         <li>输入关键词回车。<b>贴吧不需要登录</b>，NGA 需要账号。</li>
         <li>点一条结果，出现抓取条，选「仅看楼主」或页数，点<b>抓取正文</b>。</li>
-        <li>第一次抓全文会提示缺 Cookie：点右上角 <b>Cookie</b>，整段粘进去即可，之后不用再填。</li>
+        <li>第一次抓全文会提示没登录：点右上角 <b>账号</b>，点「生成二维码」再用贴吧 App 扫一下即可，之后不用再弄。</li>
       </ol>
     </div>
   </div>
@@ -209,21 +241,44 @@ body.running .hint,body.running .steps{display:none}
   <div class="bg" data-close></div>
   <div class="p">
     <div class="hd">
-      <h3>Cookie</h3>
+      <h3>连接账号</h3>
       <button class="x" data-close>×</button>
     </div>
-    <p class="sub">只有抓全文才需要。整段粘贴任何含 Cookie 的文本即可，工具自己挑字段，其余丢掉。</p>
-    <div class="lab">贴吧 <span class="st free">搜索免登录</span> <span class="st need">正文需 BDUSS</span></div>
-    <textarea class="ta" id="ckTb" placeholder="BDUSS=...; STOKEN=...;"></textarea>
-    <p class="more-help">电脑版贴吧任意页面 → 开发者工具 Network → 复制请求头里的 Cookie。</p>
-    <div class="lab">NGA <span class="st need">全部需登录</span></div>
-    <textarea class="ta" id="ckNg" placeholder="ngaPassportUid=...; ngaPassportCid=...;"></textarea>
-    <p class="more-help">登录 bbs.nga.cn 后复制整串；缺 uid 或 cid 会被判为未登录。搜索还需账号威望 &gt; 0。</p>
-    <div class="srow">
-      <button id="btnSaveCk">保存</button>
-      <button class="g" id="btnTest">测试连通</button>
+    <p class="sub">贴吧扫码就行，不用去官网翻 Cookie。NGA 没有扫码，只能手动一次。</p>
+
+    <div class="qrbox">
+      <div class="qrimg" id="qrImg">未生成</div>
+      <div class="qrside">
+        <b>扫码登录贴吧</b>
+        用贴吧 App 扫一下，手机上点「确认」，Cookie 自动写入。
+        <button class="btnline" id="btnQr">生成二维码</button>
+        <p class="qrstate" id="qrState"></p>
+      </div>
     </div>
-    <div id="ckNote"></div>
+
+    <div class="flow">
+      <div class="fstep"><i>STEP 1</i><b>点生成</b><span>出现二维码</span></div>
+      <div class="farrow">→</div>
+      <div class="fstep"><i>STEP 2</i><b>App 扫码</b><span>贴吧 / 百度 App</span></div>
+      <div class="farrow">→</div>
+      <div class="fstep"><i>STEP 3</i><b>点确认</b><span>手机上同意登录</span></div>
+      <div class="farrow">→</div>
+      <div class="fstep ok"><i>DONE</i><b>自动写入</b><span>无需复制任何东西</span></div>
+    </div>
+
+    <details class="fold">
+      <summary>或手动粘贴 Cookie（NGA 必须走这里）</summary>
+      <div class="lab">贴吧 <span class="st free">搜索免登录</span> <span class="st need">正文需 BDUSS</span></div>
+      <textarea class="ta" id="ckTb" placeholder="BDUSS=...; STOKEN=...;"></textarea>
+      <div class="lab">NGA <span class="st need">全部需登录</span></div>
+      <textarea class="ta" id="ckNg" placeholder="ngaPassportUid=...; ngaPassportCid=...;"></textarea>
+      <p class="more-help">手机上取不到 Cookie 时，用电脑登 bbs.nga.cn → F12 → Network → 复制整串请求头 Cookie；也可以把电脑上的串发到手机粘贴。缺 uid 或 cid 会被判未登录，搜索还需威望 &gt; 0。</p>
+      <div class="srow">
+        <button id="btnSaveCk">保存</button>
+        <button class="g" id="btnTest">测试连通</button>
+      </div>
+      <div id="ckNote"></div>
+    </details>
   </div>
 </div>
 <script>
@@ -231,7 +286,8 @@ body.running .hint,body.running .steps{display:none}
 "use strict";
 var API = location.protocol === "file:" ? "http://127.0.0.1:18660" : (location.origin || "http://127.0.0.1:18660");
 var S = { site:"tieba", page:1, q:"", items:[], cur:null, floors:[], seeLz:false,
-          showName:true, busy:false, hasCk:false, digest:false };
+          showName:true, busy:false, hasCk:false, digest:false,
+          sort:"rel", end:false, polling:false };
 
 function $(id){ return document.getElementById(id); }
 function el(t,c,x){ var n=document.createElement(t); if(c)n.className=c; if(x!=null)n.textContent=x; return n; }
@@ -265,7 +321,7 @@ function search(reset){
   if(!q){ $("q").focus(); return; }
   if(S.busy) return;
   S.busy=true; S.q=q;
-  if(reset){ S.page=1; S.items=[]; $("results").innerHTML=""; S.cur=null;
+  if(reset){ S.page=1; S.items=[]; S.end=false; $("results").innerHTML=""; S.cur=null;
     $("fetchBox").innerHTML=""; $("reader").innerHTML="";
     note("sNote","",""); note("fNote","",""); }
   var b=$("btnSearch");
@@ -276,21 +332,26 @@ function search(reset){
   var kw = S.site==="tieba" ? $("scope").value.trim() : "";
   Promise.all(sites.map(function(s){
     var u=API+"/api/search?site="+s+"&q="+encodeURIComponent(q)+
-          "&kw="+encodeURIComponent(kw)+"&page="+S.page;
+          "&kw="+encodeURIComponent(kw)+"&page="+S.page+"&sort="+S.sort;
     return api(u).catch(function(e){ return {ok:false,site:s,error:"请求失败："+e.message,items:[]}; });
   })).then(function(list){
-    var add=[], errs=[], free=false;
+    var add=[], errs=[], free=false, notes=[];
     list.forEach(function(r){
       if(!r||r.ok===false) errs.push(((r&&r.site)?label(r.site)+"：":"")+((r&&r.error)||"未知错误"));
-      else if(r.nocookie) free=true;
+      else {
+        if(r.nocookie) free=true;
+        if(r.note) notes.push(r.note);
+        if(r.has_more===false) S.end=true;
+      }
       (r&&r.items||[]).forEach(function(x){ add.push(x); });
     });
-    S.items=S.items.concat(add);
+    mergeItems(add);
     renderResults();
+    if(notes.length) note("sNote","warn", notes.join("；"));
     if(errs.length){
       var t=errs.join("；");
       var need=/Cookie|登录|403|2048|威望|验证/.test(t);
-      note("sNote", need?"warn":"err", t+(need?"（点右上角 Cookie）":""));
+      note("sNote", need?"warn":"err", t+(need?"（点右上角「账号」扫码一次）":""));
     } else if(!add.length){
       note("sNote","warn","没有结果，换个关键词。");
     } else if(free){
@@ -323,36 +384,73 @@ function renderResults(){
     d.addEventListener("click", function(){ pick(it); });
     box.appendChild(d);
   });
-  var more=el("button","more","加载更多");
+  var more=el("button","more", S.end ? "没有更多了" : "加载更多");
   more.type="button";
+  if(S.end) more.disabled=true;
   more.addEventListener("click", function(){
     var btn=this; btn.disabled=true; btn.textContent="加载中…";
-    var before=S.items.length;
     loadMore(function(){
-      btn.disabled=false;
-      btn.textContent = (S.items.length===before) ? "没有更多了" : "加载更多";
+      btn.disabled = S.end;
+      btn.textContent = S.end ? "没有更多了" : "加载更多";
     });
   });
   box.appendChild(more);
 }
 
+function mergeItems(add){
+  var seen={};
+  S.items.forEach(function(it){ seen[it.site+"|"+it.tid]=1; });
+  var n=0;
+  (add||[]).forEach(function(it){
+    var k=it.site+"|"+it.tid;
+    if(seen[k]) return;
+    seen[k]=1; S.items.push(it); n++;
+  });
+  return n;
+}
+function applySort(){
+  var s=S.sort;
+  if(s==="time_desc") S.items.sort(function(a,b){ return String(b.date||"").localeCompare(String(a.date||"")); });
+  else if(s==="time_asc") S.items.sort(function(a,b){ return String(a.date||"9999").localeCompare(String(b.date||"9999")); });
+  else if(s==="reply_desc") S.items.sort(function(a,b){
+    var x=parseInt(a.reply||0,10)||0, y=parseInt(b.reply||0,10)||0;
+    return y-x;
+  });
+}
+
 function loadMore(done){
-  if(S.busy){ done&&done(); return; }
+  if(S.busy || S.end){ done&&done(); return; }
   S.busy=true; S.page++;
   var sites = S.site==="both" ? ["tieba","nga"] : [S.site];
   var kw = S.site==="tieba" ? $("scope").value.trim() : "";
   pg("sPg",true);
   Promise.all(sites.map(function(s){
     var u=API+"/api/search?site="+s+"&q="+encodeURIComponent(S.q)+
-          "&kw="+encodeURIComponent(kw)+"&page="+S.page;
+          "&kw="+encodeURIComponent(kw)+"&page="+S.page+"&sort="+S.sort;
     return api(u).catch(function(){ return {ok:false,items:[]}; });
   })).then(function(list){
-    var add=[];
-    list.forEach(function(r){ (r&&r.items||[]).forEach(function(x){ add.push(x); }); });
-    S.items=S.items.concat(add);
+    var add=[], notes=[];
+    list.forEach(function(r){
+      if(r && r.note) notes.push(r.note);
+      if(r && r.has_more===false) S.end=true;
+      (r&&r.items||[]).forEach(function(x){ add.push(x); });
+    });
+    var n=mergeItems(add);
+    if(!n) S.end=true;
+    applySort();
     renderResults();
+    if(notes.length) note("sNote","warn", notes.join("；"));
   }).finally(function(){ S.busy=false; pg("sPg",false); done&&done(); });
 }
+
+$("sort").addEventListener("change", function(){
+  S.sort=this.value;
+  if(!S.items.length) return;
+  applySort();
+  renderResults();
+  if(S.items.length) note("sNote","ok","已按「"+this.options[this.selectedIndex].text+"」重排当前 "
+    +S.items.length+" 条结果");
+});
 function pick(it){
   S.cur=it; S.floors=[]; S.digest=false;
   $("reader").innerHTML=""; note("fNote","","");
@@ -403,7 +501,7 @@ function fetchThread(){
       var e=(res&&res.error)||"没有抓到楼层";
       var need=/Cookie|登录|403|2048|威望|验证/.test(e);
       var dbg=res&&res.debug ? API+"/api/debug?f="+encodeURIComponent(String(res.debug).split("/").pop()) : null;
-      note("fNote", need?"warn":"err", e+(need?"　→ 点右上角 Cookie，整段粘一次即可":"") , dbg);
+      note("fNote", need?"warn":"err", e+(need?"　→ 点右上角「账号」扫码一次":"") , dbg);
       if(it.excerpt){
         S.floors=[{floor:"摘要",author:it.author||"",time:it.date||"",is_op:true,
           text:"（这是搜索接口返回的帖子摘要，不是全文）\n\n"+it.excerpt}];
@@ -511,6 +609,59 @@ function doSave(){
     else note("fNote","err","保存失败");
   }).catch(function(e){ note("fNote","err","保存失败："+e.message); });
 }
+var qrSign="", qrTimer=null, qrTries=0;
+
+function startQr(){
+  clearTimeout(qrTimer); qrSign=""; qrTries=0;
+  $("qrImg").textContent="生成中…";
+  $("qrState").textContent="";
+  api(API+"/api/qr").then(function(r){
+    if(!r || !r.ok){
+      $("qrImg").textContent="失败";
+      $("qrState").textContent=(r&&r.error)||"生成失败";
+      return;
+    }
+    qrSign=r.sign;
+    if(r.img){
+      $("qrImg").textContent="";
+      var im=document.createElement("img");
+      im.alt="qr"; im.src=r.img;
+      $("qrImg").appendChild(im);
+    } else {
+      $("qrImg").textContent="无图";
+      $("qrState").textContent="二维码没取到，可重试或用手动方式";
+      return;
+    }
+    $("qrState").textContent="等待扫码…";
+    pollQr();
+  }).catch(function(e){
+    $("qrImg").textContent="失败";
+    $("qrState").textContent="生成失败："+e.message;
+  });
+}
+
+function pollQr(){
+  if(!qrSign) return;
+  api(API+"/api/qr/poll?sign="+encodeURIComponent(qrSign)).then(function(r){
+    if(r && r.state==="done"){
+      qrSign="";
+      $("qrState").textContent="已登录"+(r.user?"："+r.user:"")+
+        (r.warn?"（"+r.warn+"）":"")+"，Cookie 已写入";
+      $("ckDot").classList.add("on");
+      loadConf();
+      return;
+    }
+    if(r && r.state==="expired"){
+      qrSign=""; $("qrState").textContent="二维码已过期，点按钮重新生成"; return;
+    }
+    qrTries++;
+    if(qrTries>40){ qrSign=""; $("qrState").textContent="等待超时，点按钮重新生成"; return; }
+    qrTimer=setTimeout(pollQr,600);
+  }).catch(function(){ qrTimer=setTimeout(pollQr,2500); });
+}
+
+$("btnQr").addEventListener("click", startQr);
+
 function openSheet(){ $("sheet").classList.add("show"); loadConf(); }
 $("btnCk").addEventListener("click", openSheet);
 $("hintCk").addEventListener("click", openSheet);
@@ -523,6 +674,8 @@ function loadConf(){
     $("ckNg").value=c.nga_cookie||"";
     S.hasCk=!!(c.has_tieba||c.has_nga);
     $("ckDot").classList.toggle("on", S.hasCk);
+    if(c.has_tieba && $("qrState") && !$("qrState").textContent)
+      $("qrState").textContent="已连接贴吧账号（重新扫码会覆盖）";
   }).catch(function(){});
 }
 $("btnSaveCk").addEventListener("click", function(){

@@ -277,14 +277,6 @@ body[data-bg="sand"] .site-header{
     inset 0 -1px 0 rgba(255,255,255,.09),
     0 1px 0 rgba(255,255,255,.14);
 }
-.bezel::before{
-  content: '';
-  position: absolute; left: 50%; bottom: 4px;
-  width: 40px; height: 2px;
-  transform: translateX(-50%);
-  border-radius: 2px;
-  background: rgba(255,255,255,.07);
-}
 .bezel-bar{
   display: flex;
   align-items: center;
@@ -330,20 +322,17 @@ body[data-bg="sand"] .site-header{
     0 0 0 1px rgba(255,255,255,.05),
     0 0 26px -6px var(--scr-glow);
 }
-.glass::after{
-  content: '';
-  position: absolute; inset: 0;
-  z-index: 9;
-  pointer-events: none;
-  background: radial-gradient(120% 80% at 8% 0%,
-    rgba(255,255,255,.07) 0%,
-    rgba(255,255,255,.02) 26%,
-    rgba(255,255,255,0) 46%);
-}
 #ejs-screen{ position: absolute; inset: 0; overflow: hidden; background: #000; }
-#ejs-screen canvas{ display: block; width: 100%; height: 100%; }
+#ejs-screen canvas{
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  image-rendering: pixelated;
+}
 #ejs-screen .ejs_game,
 #ejs-screen .ejs_canvas_parent{ background: #000 !important; }
+/* 游戏容器里除 canvas 之外的一切（EJS 注入的条/提示/遮罩）全不要 */
+#ejs-screen .ejs_game > *:not(canvas){ display: none !important; }
 /* EmulatorJS 自带 UI 一律禁掉：机身才是唯一的操作层 */
 #ejs-screen .ejs_start_button,
 #ejs-screen .ejs_start_button_border,

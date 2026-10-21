@@ -237,6 +237,106 @@ def sanitize_cookie(site, raw):
     return "; ".join("%s=%s" % (k, got[k]) for k in keys if k in got)
 
 
+def fetch_raw(url, referer="", ua=UA_PC, timeout=15):
+    """下载二进制（图片等）"""
+    hdr = {"User-Agent": ua, "Accept": "*/*", "Accept-Encoding": "gzip, deflate"}
+    if referer:
+        hdr["Referer"] = referer
+    r = urllib.request.urlopen(urllib.request.Request(url, headers=hdr),
+                               timeout=timeout, context=_CTX)
+    raw = r.read()
+    if (r.headers.get("Content-Encoding") or "").lower() == "gzip":
+        try:
+            raw = gzip.decompress(raw)
+        except Exception:
+            pass
+    return raw, r.headers.get("Content-Type", "")
+
+
+# ----------------------------------------------------------------------------- 扫码登录（贴吧 / 百度）
+def baidu_qr_new():
+    tt = str(int(time.time() * 1000))
+    url = ("https://passport.baidu.com/v2/api/getqrcode?lp=pc&qrloginfrom=pc"
+           "&apiver=v3&tt=%s&tpl=mn&_=%s" % (tt, tt))
+    r = fetch(url, referer="https://passport.baidu.com/", ua=UA_PC, timeout=15)
+    if r["status"] != 200:
+        return {"ok": False, "error": "二维码接口不可达"}
+    try:
+        d = json.loads(r["text"])
+    except Exception:
+        return {"ok": False, "error": "二维码接口返回异常"}
+    if d.get("errno") != 0 or not d.get("sign"):
+        return {"ok": False, "error": "二维码获取失败"}
+    sign = d["sign"]
+    img = ""
+    try:
+        raw, ctype = fetch_raw("https://" + d["imgurl"],
+                               referer="https://passport.baidu.com/", timeout=15)
+        if raw and raw[:4] == b"\x89PNG":
+            import base64
+            img = "data:image/png;base64," + base64.b64encode(raw).decode()
+    except Exception:
+        pass
+    return {"ok": True, "sign": sign, "img": img,
+            "imgurl": "https://" + d.get("imgurl", "")}
+
+
+def baidu_qr_poll(sign):
+    tt = str(int(time.time() * 1000))
+    u = ("https://passport.baidu.com/channel/unicast?channel_id=%s&tpl=mn"
+         "&apiver=v3&tt=%s&_=%s" % (quote(sign), tt, tt))
+    r = fetch(u, referer="https://passport.baidu.com/", ua=UA_PC, timeout=7)
+    if r["status"] != 200:
+        return {"ok": True, "state": "wait"}     # 长轮询没返回 = 还没扫
+    txt = (r["text"] or "").strip()
+    m = re.search(r"\{.*\}", txt, re.S)
+    if not m:
+        return {"ok": True, "state": "wait"}
+    try:
+        d = json.loads(m.group(0))
+    except Exception:
+        return {"ok": True, "state": "wait"}
+    cv = d.get("channel_v")
+    if isinstance(cv, str):
+        try:
+            cv = json.loads(cv)
+        except Exception:
+            cv = {}
+    if not isinstance(cv, dict):
+        cv = {}
+    v = cv.get("v") or ""
+    status = cv.get("status")
+    if v and len(v) > 40 and not v.isdigit():
+        return {"ok": True, "state": "done", "bduss": v}
+    if str(status) == "2" or d.get("errno") in (1, 2):
+        if not v:
+            return {"ok": True, "state": "expired"}
+    return {"ok": True, "state": "wait"}
+
+
+def verify_bduss(bduss):
+    r = fetch("https://tieba.baidu.com/f/user/json_userinfo",
+              cookie="BDUSS=" + bduss, referer="https://tieba.baidu.com/",
+              ua=UA_PC, timeout=12)
+    try:
+        d = json.loads((r["text"] or "").strip())
+    except Exception:
+        return ""
+    data = d.get("data") or {}
+    if isinstance(data, dict):
+        return data.get("user_name") or data.get("user_name_show") or ""
+    return ""
+
+
+def merge_bduss(old, bduss):
+    parts = [p.strip() for p in (old or "").split(";") if p.strip()]
+    parts = [p for p in parts
+             if not p.startswith("BDUSS=") and not p.startswith("BDUSS_BFESS=")]
+    parts.insert(0, "BDUSS=" + bduss)
+    merged = "; ".join(parts)
+    return sanitize_cookie("tieba", merged) or merged
+
+
 # ----------------------------------------------------------------------------- 贴吧
 def ts2date(v):
     try:
@@ -248,8 +348,44 @@ def ts2date(v):
         return str(v or "")
 
 
-def tieba_mobile_search(q, page=1, kw=""):
-    """贴吧移动搜索 JSON 接口：**无需任何 Cookie**"""
+SORTS = ("rel", "time_desc", "time_asc", "reply_desc")
+
+
+def sort_items(items, sort):
+    if sort == "time_desc":
+        items.sort(key=lambda it: (it.get("date") or "", it.get("reply") or "0"),
+                   reverse=True)
+    elif sort == "time_asc":
+        items.sort(key=lambda it: (it.get("date") or "9999", ))
+    elif sort == "reply_desc":
+        def n(it):
+            try:
+                return int(it.get("reply") or 0)
+            except Exception:
+                return 0
+        items.sort(key=n, reverse=True)
+    return items
+
+
+def dedupe(items):
+    seen, out = set(), []
+    for it in items:
+        k = "%s|%s" % (it.get("site"), it.get("tid"))
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(it)
+    return out
+
+
+def tieba_mobile_search(q, page=1, kw="", sort="rel"):
+    """贴吧移动搜索 JSON 接口：**无需任何 Cookie**
+    注意：该接口实测只吃 pn=0 / pn=20 两页，pn>=40 会回退成第一页，
+    所以第 3 页起直接返回空并标记到底，避免重复追加。"""
+    if page >= 3:
+        return {"ok": True, "site": "tieba", "items": [], "page": page,
+                "has_more": False, "nocookie": True,
+                "note": "贴吧搜索接口最多 2 页（约 30 条），已到底"}
     pn = max(0, (page - 1) * 20)
     url = "https://tieba.baidu.com/mo/q/search/thread?word=%s&pn=%d" % (quote(q), pn)
     conf = load_conf()
@@ -304,8 +440,10 @@ def tieba_mobile_search(q, page=1, kw=""):
         hit = [it for it in items if k and (k in it["forum"])]
         if hit:
             items = hit
-    return {"ok": True, "site": "tieba", "items": items, "page": page,
-            "has_more": bool(payload.get("has_more")), "nocookie": True}
+    items = dedupe(items)
+    return {"ok": True, "site": "tieba", "items": sort_items(items, sort), "page": page,
+            "has_more": bool(payload.get("has_more")) and len(items) >= 15,
+            "nocookie": True}
 
 
 def tieba_search(kw, q, page=1):
@@ -507,7 +645,7 @@ def parse_tieba_floors(text):
 
 
 # ----------------------------------------------------------------------------- NGA
-def nga_search(key, page=1):
+def nga_search(key, page=1, sort="rel"):
     conf = load_conf()
     url = "https://bbs.nga.cn/thread.php?key=%s&fid=-1&page=%d" % (quote(key), page)
     r = fetch(url, cookie=conf["nga_cookie"], referer="https://bbs.nga.cn/",
@@ -556,7 +694,8 @@ def nga_search(key, page=1):
             m = re.search(r"func=forum&fid=-?\d+['\"][^>]*>(.*?)</a>", row, re.S)
             if m:
                 it["forum"] = html2text(m.group(1))
-    return {"ok": True, "site": "nga", "items": items, "page": page,
+    items = dedupe(items)
+    return {"ok": True, "site": "nga", "items": sort_items(items, sort), "page": page,
             "has_more": len(items) >= 10}
 
 
@@ -749,22 +888,52 @@ class Handler(BaseHTTPRequestHandler):
                 "has_nga": bool(c["nga_cookie"]),
             })
 
+        if path == "/api/qr":
+            try:
+                return self._json(baidu_qr_new())
+            except Exception as e:
+                return self._json({"ok": False, "error": "二维码异常: %s" % e})
+
+        if path == "/api/qr/poll":
+            sign = (qs.get("sign", [""])[0] or "").strip()
+            if not sign:
+                return self._json({"ok": False, "error": "缺少 sign"})
+            try:
+                res = baidu_qr_poll(sign)
+            except Exception as e:
+                return self._json({"ok": True, "state": "wait", "warn": str(e)})
+            if res.get("state") == "done":
+                bduss = res.get("bduss") or ""
+                user = verify_bduss(bduss) if bduss else ""
+                c = load_conf()
+                c["tieba_cookie"] = merge_bduss(c.get("tieba_cookie", ""), bduss)
+                save_conf(c)
+                res["saved"] = True
+                res["user"] = user
+                if not user:
+                    res["warn"] = "BDUSS 已保存，但没能验证出用户名（可能贴吧侧限流）"
+            return self._json(res)
+
         if path == "/api/search":
             site = (qs.get("site", ["tieba"])[0] or "tieba").lower()
             kw = qs.get("kw", [""])[0].strip()
             q = qs.get("q", [""])[0].strip()
             page = int(qs.get("page", ["1"])[0] or 1)
+            sort = (qs.get("sort", ["rel"])[0] or "rel").lower()
+            if sort not in SORTS:
+                sort = "rel"
             if not q:
                 return self._json({"ok": False, "error": "关键词为空", "items": []})
             try:
                 if site == "tieba":
-                    res = tieba_mobile_search(q, page, kw)
+                    res = tieba_mobile_search(q, page, kw, sort)
                     if not res.get("ok") or not res.get("items"):
                         alt = tieba_search(kw, q, page)   # 旧 PC 接口兜底
                         if alt.get("ok") and alt.get("items"):
+                            alt["items"] = sort_items(dedupe(alt["items"]), sort)
                             res = alt
                 else:
-                    res = nga_search(q, page)
+                    res = nga_search(q, page, sort)
             except Exception as e:
                 return self._json({"ok": False, "error": "解析异常: %s" % e, "items": []})
             return self._json(res)
