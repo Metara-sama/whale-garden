@@ -184,6 +184,8 @@ body.running .hint,body.running .steps{display:none}
 .fold summary::-webkit-details-marker{display:none}
 .fold summary:before{content:"＋ ";color:var(--ink3)}
 .fold[open] summary:before{content:"－ "}
+body.online .pill[disabled]{opacity:.4;cursor:default}
+body.online .pill[disabled]:active{background:#fff}
 .hidden{display:none!important}
 .spin{width:11px;height:11px;border:1.5px solid rgba(255,255,255,.45);border-top-color:#fff;
   border-radius:50%;display:inline-block;animation:sp .65s linear infinite;vertical-align:-1px;margin-right:5px}
@@ -333,12 +335,15 @@ var S = { site:"tieba", page:1, q:"", items:[], cur:null, floors:[], seeLz:false
 function $(id){ return document.getElementById(id); }
 function el(t,c,x){ var n=document.createElement(t); if(c)n.className=c; if(x!=null)n.textContent=x; return n; }
 function label(s){ return s==="nga"?"NGA":"贴吧"; }
-function note(box,kind,text,link){
+function note(box,kind,text,link,linkText){
   var b=$(box); b.innerHTML="";
   if(!text) return;
   var d=el("div","note"+(kind?" "+kind:"")); d.textContent=text;
-  if(link){ var a=el("a",null," 查看原始页面"); a.href=link; a.target="_blank"; d.appendChild(a); }
+  if(link){ var a=el("a",null,linkText||" 查看原始页面"); a.href=link; a.target="_blank"; a.rel="noopener"; d.appendChild(a); }
   b.appendChild(d);
+}
+function tiebaSearchUrl(q){
+  return "https://tieba.baidu.com/f/search/res?ie=utf-8&qw="+encodeURIComponent(q);
 }
 function pg(id,on){ $(id).classList.toggle("on",!!on); }
 /* ── 在线层 ───────────────────────────────────────────────
@@ -415,6 +420,17 @@ function sortItems(items, s){
 function onlineTiebaSearch(q, page, kw, sort){
   if(page >= 3) return Promise.resolve({ ok:true, site:"tieba", items:[], page:page,
     has_more:false, nocookie:true, note:"贴吧搜索接口最多 2 页（约 30 条），已到底" });
+  var CKEY="fh_c|"+q+"|"+page+"|"+(kw||"")+"|"+(sort||"rel");
+  try{
+    var raw=localStorage.getItem(CKEY);
+    if(raw){
+      var obj=JSON.parse(raw);
+      if(obj && obj.t && (Date.now()-obj.t<3600000) && obj.d && (obj.d.items||[]).length){
+        var hit=obj.d; hit.cached=true;
+        return Promise.resolve(hit);
+      }
+    }
+  }catch(e){}
   var pn=Math.max(0,(page-1)*20);
   var target="https://tieba.baidu.com/mo/q/search/thread?word="+encodeURIComponent(q)+"&pn="+pn;
   return jget(target,"text").then(function(txt){
@@ -446,8 +462,10 @@ function onlineTiebaSearch(q, page, kw, sort){
       var hit=items.filter(function(it){ return k && it.forum.indexOf(k)>=0; });
       if(hit.length) items=hit;
     }
-    return { ok:true, site:"tieba", items:sortItems(items, sort), page:page,
+    var res={ ok:true, site:"tieba", items:sortItems(items, sort), page:page,
       has_more:!!payload.has_more && items.length>=15, nocookie:true };
+    try{ localStorage.setItem(CKEY, JSON.stringify({ t:Date.now(), d:res })); }catch(e){}
+    return res;
   });
 }
 function api(u,opt){
@@ -489,6 +507,7 @@ function search(reset){
   b.disabled=true; b.innerHTML='<span class="spin"></span>';
   document.body.classList.remove("idle"); document.body.classList.add("running");
   pg("sPg",true);
+  if(MODE==="online") note("sNote","", "在线模式：第一次搜索要等一会儿（中转冷启动，约 30–40 秒），同词再搜会走缓存。");
   var sites = S.site==="both" ? ["tieba","nga"] : [S.site];
   var kw = S.site==="tieba" ? $("scope").value.trim() : "";
   Promise.all(sites.map(function(s){
@@ -512,7 +531,12 @@ function search(reset){
     if(errs.length){
       var t=errs.join("；");
       var need=/Cookie|登录|403|2048|威望|验证/.test(t);
-      note("sNote", need?"warn":"err", t+(need?"（点右上角「账号」扫码一次）":""));
+      if(MODE==="online"){
+        note("sNote","warn", t+"　中转没响应的话，可以直接去贴吧搜同样的词。",
+             tiebaSearchUrl(q), "去贴吧搜 →");
+      } else {
+        note("sNote", need?"warn":"err", t+(need?"（点右上角「账号」扫码一次）":""));
+      }
     } else if(!add.length){
       note("sNote","warn","没有结果，换个关键词。");
     } else if(free){
@@ -718,7 +742,8 @@ function drawReader(isDigest){
   var b1=el("button",null,"复制"); b1.type="button"; b1.addEventListener("click", doCopy);
   var b2=el("button",null,"下载 TXT"); b2.type="button"; b2.addEventListener("click", doDl);
   var b3=el("button","p","存到手机"); b3.type="button"; b3.addEventListener("click", doSave);
-  acts.appendChild(b1); acts.appendChild(b2); acts.appendChild(b3);
+  acts.appendChild(b1); acts.appendChild(b2);
+  if(MODE!=="online") acts.appendChild(b3);
   wrap.appendChild(acts);
   box.appendChild(wrap);
   wrap.scrollIntoView({behavior:"smooth", block:"start"});
@@ -836,7 +861,24 @@ function pollQr(){
 
 $("btnQr").addEventListener("click", startQr);
 
-function openSheet(){ $("sheet").classList.add("show"); loadConf(); }
+function openSheet(){
+  $("sheet").classList.add("show");
+  var q=$("btnQr"), sv=$("btnSaveCk"), ts=$("btnTest");
+  if(MODE==="online"){
+    if(q) q.disabled=true;
+    if(sv) sv.disabled=true;
+    if(ts) ts.disabled=true;
+    if($("qrImg")) $("qrImg").textContent="—";
+    if($("qrState")) $("qrState").textContent="在线模式没有后端，扫码和保存都用不了。要抓全文请在页面顶部黄条里填后端地址。";
+    if($("ckTb")) $("ckTb").value="";
+    if($("ckNg")) $("ckNg").value="";
+    return;
+  }
+  if(q) q.disabled=false;
+  if(sv) sv.disabled=false;
+  if(ts) ts.disabled=false;
+  loadConf();
+}
 $("btnCk").addEventListener("click", openSheet);
 $("hintCk").addEventListener("click", openSheet);
 $("sheet").addEventListener("click", function(e){
@@ -901,14 +943,22 @@ function setMode(m){
     $("fhBar").classList.add("hidden");
     $("fhBar").classList.remove("on");
     $("hintCk").textContent="要抓全文，扫码连接一次账号 →";
+    [].forEach.call(document.querySelectorAll("#pills .pill"),function(b){ b.disabled=false; b.title=""; });
     loadConf();
   } else {
     $("fhBar").classList.remove("hidden");
     $("fhBar").classList.add("on");
     $("fhTitle").textContent="在线模式";
-    $("fhTip").textContent="贴吧搜索直接可用（经 r.jina.ai 中转，20 次/分钟）；抓全文要接后端";
+    $("fhTip").textContent="贴吧搜索直接可用（r.jina.ai 中转，首次约 30–40 秒，20 次/分钟，同词走缓存）；抓全文要接后端";
     $("fhOpen").textContent="接后端 →";
-    $("hintCk").textContent="抓全文要接一个后端（本机 server.py）→";
+    if($("hintCk")) $("hintCk").textContent="要抓全文：接一个后端（本机 server.py）→";
+    S.site="tieba";
+    [].forEach.call(document.querySelectorAll("#pills .pill"),function(b){
+      var s=b.getAttribute("data-site");
+      b.classList.toggle("on", s==="tieba");
+      b.disabled = (s!=="tieba");
+      if(b.disabled) b.title="在线模式只支持贴吧";
+    });
     document.body.classList.remove("idle");
   }
 }
