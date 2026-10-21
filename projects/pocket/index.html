@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0b3053">
-<meta name="description" content="拟物掌机模拟器：五张空卡带，塞进自己的 ROM 备份就能玩，存档留在本机。">
+<meta name="description" content="拟物掌机模拟器：内置五张 GBA 卡带，也能塞进自己的 ROM 备份，存档留在本机。">
 <title>POCKET · 掌机模拟器 · Whale's Garden</title>
 <link rel="icon" href="../../favicon.ico">
 <link rel="stylesheet" href="../../fonts.css">
 <link rel="stylesheet" href="data/emulator.css">
 <link rel="stylesheet" href="css/pocket.css">
 </head>
-<body class="pocket-page" data-bg="deep" data-body="graphite">
+<body class="pocket-page" data-bg="deep" data-body="indigo">
 
 <header class="site-header">
   <a class="wg-brand" href="../../index.html">Whale's Garden</a>
@@ -33,8 +33,11 @@
       <button class="shoulder sr" type="button" data-key="11" aria-label="R 键">R</button>
 
       <div class="bezel">
-        <span class="bezel-led" id="led" aria-hidden="true"></span>
-        <div class="glass">
+        <div class="bezel-bar">
+          <span class="bezel-word">POWER</span>
+          <span class="bezel-led" id="led" aria-hidden="true"></span>
+        </div>
+        <div class="glass" id="glass">
           <div class="standby" id="standby">
             <div class="standby-inner">
               <div class="standby-logo">POCKET</div>
@@ -65,23 +68,26 @@
           <button class="pill" type="button" data-key="2">SELECT</button>
           <button class="pill" type="button" data-key="3">START</button>
         </div>
-
-        <button class="power" id="power" type="button" aria-label="电源">
-          <span class="power-dot"></span>
-        </button>
       </div>
 
+      <button class="power" id="power" type="button" aria-label="电源">
+        <span class="power-dot"></span>
+      </button>
+
       <div class="speaker" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+      <button class="fs-exit" id="fs-exit" type="button" aria-label="退出全屏">⤢</button>
     </div>
 
     <!-- ============ 卡带架 ============ -->
     <section class="tray" id="tray" aria-label="卡带架">
       <div class="tray-head">
         <h2>卡带架</h2>
-        <p>ROM 只存在你这台设备上 · 点击卡带插入</p>
+        <p>内置卡带首次读取会缓存在本机 · 也能插入自己的 ROM</p>
+        <button class="fs-btn" id="btn-fs" type="button" aria-label="全屏">⛶ 全屏</button>
       </div>
       <div class="cart-grid" id="cart-grid"></div>
-      <p class="tray-foot" id="tray-foot">本页面不附带任何游戏文件。请使用自己的正版卡带 ROM 备份。</p>
+      <p class="tray-foot" id="tray-foot">内置卡带仅供个人怀旧与存档备份，请勿二次分发。存档只留在这台设备上。</p>
     </section>
   </div>
 </main>
@@ -118,6 +124,12 @@
         <span class="lab">背景</span>
         <div class="swatches" id="sw-bg"></div>
       </div>
+      <div class="row">
+        <span class="lab">画面</span>
+        <div class="btns">
+          <button type="button" id="btn-fs-2">全屏玩</button>
+        </div>
+      </div>
     </section>
 
     <section class="grp" data-when="live">
@@ -132,6 +144,7 @@
         <div class="btns">
           <button type="button" id="btn-pause">暂停</button>
           <button type="button" id="btn-restart">重启</button>
+          <button type="button" id="btn-fs-3">全屏</button>
         </div>
       </div>
     </section>

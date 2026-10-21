@@ -136,7 +136,7 @@ const PROJECTS = [
   },
   {
     name: "POCKET",
-    desc: "一台拟物掌机，塞进自己的 ROM 备份就能玩。",
+    desc: "一台能开机的拟物掌机，内置五张 GBA 卡带，也能塞进自己的 ROM 备份。",
     status: "live",
     year: "2026",
     links: [

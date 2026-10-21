@@ -17,7 +17,19 @@
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
 
-  var SLOTS = 5;
+  var SLOTS = 8;
+
+  /* ============================================================
+     内置卡带：0..4 号槽预置，首次点击从 roms/ 拉取并缓存在 IndexedDB，
+     之后完全离线（和用户自己插的 ROM 走同一条路径）。
+     ============================================================ */
+  var BUILTIN = [
+    { name: '恶魔城 晓月圆舞曲', file: 'roms/castlevania-aria.gba', bytes: 8388608 },
+    { name: '恶魔城 白夜协奏曲', file: 'roms/castlevania-harmony.gba', bytes: 8388608 },
+    { name: '逆转裁判', file: 'roms/ace-attorney-1.gba', bytes: 8705280 },
+    { name: '逆转裁判 2', file: 'roms/ace-attorney-2.gba', bytes: 10144316 },
+    { name: '逆转裁判 3', file: 'roms/ace-attorney-3.gba', bytes: 9128669 }
+  ];
   var BODIES = ['graphite', 'cream', 'indigo', 'moss', 'rose'];
   var BGS = ['deep', 'abyss', 'dusk', 'sand'];
   var STORE_META = 'meta';
@@ -50,6 +62,11 @@
     openSettings: $('#open-settings'),
     closeSettings: $('#close-settings'),
     power: $('#power'),
+    glass: $('#glass'),
+    btnFs: $('#btn-fs'),
+    btnFs2: $('#btn-fs-2'),
+    btnFs3: $('#btn-fs-3'),
+    fsExit: $('#fs-exit'),
     toast: $('#toast')
   };
 
@@ -170,6 +187,7 @@
     els.grid.innerHTML = '';
     for (var i = 0; i < SLOTS; i++) {
       var m = metaCache[i];
+      var preset = BUILTIN[i];
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'cart';
@@ -179,10 +197,20 @@
       plus.textContent = '+';
       var lab = document.createElement('span');
       lab.className = 'cart-label';
-      lab.textContent = m && m.name ? m.name : '空卡';
+      lab.textContent = (m && m.name) ? m.name : (preset ? preset.name : '空卡');
       b.appendChild(plus);
       b.appendChild(lab);
       if (m && m.name) b.classList.add('filled');
+      else if (preset) {
+        b.classList.add('preset');
+        var badge = document.createElement('span');
+        badge.className = 'cart-badge';
+        badge.textContent = '内置';
+        b.appendChild(badge);
+        var prog = document.createElement('span');
+        prog.className = 'cart-prog';
+        b.appendChild(prog);
+      }
       if (state.slot === i && (state.phase === 'live' || state.phase === 'boot')) b.classList.add('active');
       els.grid.appendChild(b);
     }
@@ -191,9 +219,13 @@
       if (state.phase === 'live' && cur) els.cartNote.textContent = '正在运行 · ' + cur.name;
       else if (state.phase === 'boot' && cur) els.cartNote.textContent = '载入中 · ' + cur.name;
       else {
-        var n = 0;
-        for (var k in metaCache) if (metaCache[k] && metaCache[k].name) n++;
-        els.cartNote.textContent = n ? ('未插入 · 架上有 ' + n + ' 张卡带') : '未插入 · 点上方空格挑选 ROM';
+        var n = 0, p = 0;
+        for (var k = 0; k < SLOTS; k++) {
+          if (metaCache[k] && metaCache[k].name) n++;
+          else if (BUILTIN[k]) p++;
+        }
+        if (n) els.cartNote.textContent = '未插入 · 架上有 ' + n + ' 张卡带' + (p ? '（还有 ' + p + ' 张内置未读取）' : '');
+        else els.cartNote.textContent = '未插入 · ' + p + ' 张内置卡带 + ' + (SLOTS - p) + ' 个空槽';
       }
     }
   }
@@ -207,6 +239,62 @@
       });
       paintCarts();
     }).catch(function () { paintCarts(); });
+  }
+
+  /* ---------- 内置卡带：流式读取 + 进度 + 缓存 ---------- */
+  function fmtSize(n) {
+    if (!n) return '';
+    return (n / 1048576).toFixed(1) + 'MB';
+  }
+
+  function fetchBuiltin(slot) {
+    var p = BUILTIN[slot];
+    if (!p) return;
+    if (state.phase === 'live' || state.phase === 'boot') { toast('先弹出当前卡带'); return; }
+    var card = els.grid ? els.grid.querySelector('.cart[data-slot="' + slot + '"]') : null;
+    var prog = card ? card.querySelector('.cart-prog') : null;
+    var label = card ? card.querySelector('.cart-label') : null;
+    var done = 0;
+    var total = p.bytes || 0;
+    toast('正在读取「' + p.name + '」' + fmtSize(total));
+
+    fetch(p.file).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var len = parseInt(res.headers.get('content-length') || '0', 10);
+      if (len > 0) total = len;
+      if (!res.body || typeof res.body.getReader !== 'function') return res.arrayBuffer();
+      var reader = res.body.getReader();
+      var chunks = [];
+      var pump = function () {
+        return reader.read().then(function (r) {
+          if (r.done) {
+            var all = new Uint8Array(done);
+            var off = 0;
+            for (var i = 0; i < chunks.length; i++) { all.set(chunks[i], off); off += chunks[i].length; }
+            return all.buffer;
+          }
+          chunks.push(r.value);
+          done += r.value.length;
+          var pct = total ? Math.min(99, Math.round(done / total * 100)) : 0;
+          if (prog) prog.style.width = pct + '%';
+          if (label) label.textContent = p.name + ' ' + pct + '%';
+          return pump();
+        });
+      };
+      return pump();
+    }).then(function (buf) {
+      var rec = { slot: slot, name: p.name + '.gba', size: buf.byteLength, builtin: p.file };
+      return idbPut(STORE_BLOB, slot, buf)
+        .then(function () { return idbPut(STORE_META, slot, rec); })
+        .then(function () {
+          metaCache[slot] = rec;
+          toast('卡带已就位 · ' + fmtSize(buf.byteLength));
+          insert(slot);
+        });
+    }).catch(function (err) {
+      paintCarts();
+      toast('读取失败：' + ((err && err.message) || err));
+    });
   }
 
   /* ---------- 插卡 / 载入 ---------- */
@@ -485,6 +573,8 @@
     if (e && typeof e.handleResize === 'function') {
       try { e.handleResize(); } catch (err) { /* 忽略 */ }
     }
+    // 全屏状态下换布局：按新比例重新撑屏
+    if (fsOn) settleFs();
   }
 
   function buildSwatches() {
@@ -600,11 +690,114 @@
     });
   }
 
+  /* ---------- 全屏：只放大掌机，实体按键照留，屏幕按比例适配 ---------- */
+  var fsOn = false;
+  var fsTimer = null;
+
+  function screenRatio() {
+    return prefs.layout === 'gbc' ? (10 / 9) : (3 / 2);
+  }
+
+  function resizeEmu() {
+    var e = em();
+    if (e && typeof e.handleResize === 'function') {
+      try { e.handleResize(); } catch (err) { /* 忽略 */ }
+    }
+  }
+
+  /* 在 .bezel 里按真实可用空间等比撑满屏幕（不裁切、不变形） */
+  function fitGlass() {
+    if (!els.glass) return;
+    if (!fsOn) {
+      els.glass.style.width = '';
+      els.glass.style.height = '';
+      return;
+    }
+    var host = els.glass.parentNode;
+    if (!host) return;
+    var pad = 20;
+    var availW = Math.max(0, host.clientWidth - pad);
+    var availH = Math.max(0, host.clientHeight - pad);
+    if (availW < 80 || availH < 60) return;
+    var r = screenRatio();
+    var w = availW;
+    var h = w / r;
+    if (h > availH) { h = availH; w = h * r; }
+    els.glass.style.width = Math.round(w) + 'px';
+    els.glass.style.height = Math.round(h) + 'px';
+  }
+
+  function syncFsUi() {
+    if (els.body && els.body.classList) els.body.classList.toggle('pocket-fs', fsOn);
+    if (els.btnFs) els.btnFs.textContent = fsOn ? '⤢ 退出全屏' : '⛶ 全屏';
+    var t = fsOn ? '退出全屏' : '全屏';
+    if (els.btnFs2) els.btnFs2.textContent = fsOn ? '退出全屏' : '全屏玩';
+    if (els.btnFs3) els.btnFs3.textContent = t;
+  }
+
+  function settleFs() {
+    clearTimeout(fsTimer);
+    requestAnimationFrame(function () { fitGlass(); resizeEmu(); });
+    fsTimer = setTimeout(function () { fitGlass(); resizeEmu(); }, 280);
+  }
+
+  function enterFs() {
+    if (fsOn) return;
+    fsOn = true;
+    syncFsUi();
+    closeDrawer();
+    try {
+      var el = els.console;
+      if (el && typeof el.requestFullscreen === 'function') {
+        var p = el.requestFullscreen({ navigationUI: 'hide' });
+        if (p && p.catch) p.catch(function () { /* 不支持就用 CSS 全屏兜底 */ });
+      }
+    } catch (err) { /* 忽略 */ }
+    settleFs();
+  }
+
+  function exitFs() {
+    if (!fsOn) return;
+    fsOn = false;
+    syncFsUi();
+    try {
+      if (document.fullscreenElement && typeof document.exitFullscreen === 'function') {
+        var p = document.exitFullscreen();
+        if (p && p.catch) p.catch(function () { /* 忽略 */ });
+      }
+    } catch (err) { /* 忽略 */ }
+    if (els.glass) { els.glass.style.width = ''; els.glass.style.height = ''; }
+    settleFs();
+  }
+
+  function toggleFs() { if (fsOn) exitFs(); else enterFs(); }
+
+  function bindFullscreen() {
+    if (els.btnFs) els.btnFs.addEventListener('click', toggleFs);
+    if (els.btnFs2) els.btnFs2.addEventListener('click', toggleFs);
+    if (els.btnFs3) els.btnFs3.addEventListener('click', toggleFs);
+    if (els.fsExit) els.fsExit.addEventListener('click', exitFs);
+    document.addEventListener('fullscreenchange', function () {
+      // 用户按系统返回键 / Esc 退出系统全屏时同步内部状态
+      if (!document.fullscreenElement && fsOn) exitFs();
+    });
+    window.addEventListener('resize', function () { fitGlass(); resizeEmu(); });
+    window.addEventListener('orientationchange', function () {
+      setTimeout(function () { fitGlass(); resizeEmu(); }, 320);
+    });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'f' || ev.key === 'F') { ev.preventDefault(); toggleFs(); }
+      else if (ev.key === 'Escape' && fsOn) exitFs();
+    });
+  }
+
   /* ---------- 全局导出（boot.js 会调 POCKET.flashSlots） ---------- */
   window.POCKET = {
     flashSlots: flashSlots,
     toast: toast,
     reloadCarts: scanCarts,
+    toggleFullscreen: toggleFs,
+    get fullscreen() { return fsOn; },
     get state() { return state; }
   };
 
@@ -627,6 +820,7 @@
     scanCarts();
     bindKeys();
     bindPower();
+    bindFullscreen();
 
     // 卡带架：点击插入 / 长按移除
     if (els.grid) {
@@ -658,6 +852,7 @@
           return;
         }
         if (metaCache[slot] && metaCache[slot].name) insert(slot);
+        else if (BUILTIN[slot]) fetchBuiltin(slot);
         else pickRom(slot);
       });
     }
