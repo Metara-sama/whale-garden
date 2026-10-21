@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#06080d">
+<meta name="description" content="贴一段文字，自动给能对上表情的词挂上 emoji。纯前端、不联网。">
+<link rel="icon" type="image/png" href="../../assets/favicon.png">
+<title>闹麻编辑器 · NAOMAO EDITOR</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="scanline"></div>
+
+<header class="topbar">
+  <div class="logo">
+    <span class="logo-mark">闹</span>
+    <span class="logo-txt">
+      <b>闹麻编辑器</b>
+      <i>NAOMAO &nbsp;EDITOR</i>
+    </span>
+  </div>
+  <div class="topbar-right">
+    <div class="stat"><span class="stat-num" id="stChars">0</span><span class="stat-lbl">字符</span></div>
+    <div class="stat"><span class="stat-num" id="stHits">0</span><span class="stat-lbl">命中</span></div>
+    <div class="stat"><span class="stat-num" id="stEmoji">0</span><span class="stat-lbl">种emoji</span></div>
+    <button class="tbtn" id="btnTheme" title="切换主题">◐</button>
+  </div>
+</header>
+
+<div class="ticker"><div class="ticker-in" id="ticker">EMOJI ENGINE ONLINE · 实时识别 · 点击回退 · 全手动可控 ·</div></div>
+
+<main class="wrap">
+  <section class="panel panel-in">
+    <div class="panel-head">
+      <h2><i class="dot"></i>输入源</h2>
+      <div class="head-actions">
+        <button class="mini" data-demo="normal">示例</button>
+        <button class="mini" data-demo="clear">清空</button>
+      </div>
+    </div>
+    <textarea id="src" spellcheck="false" placeholder="在这儿打字 / 粘进来……
+比如：今天晚上我想吃火锅，然后去看看月亮，再来点啤酒。"></textarea>
+    <div class="switches">
+      <label class="sw"><input type="checkbox" id="optSpace" checked><span></span>emoji 前加空格</label>
+      <label class="sw"><input type="checkbox" id="optPunct" checked><span></span>标点前不插 emoji</label>
+      <label class="sw"><input type="checkbox" id="optOnce"><span></span>整篇同词只插一次</label>
+      <label class="sw"><input type="checkbox" id="optSafe"><span></span>安全模式（后面已有 emoji 就不叠）</label>
+      <label class="sw"><input type="checkbox" id="optMin"><span></span>只标词组（跳过单字）</label>
+    </div>
+  </section>
+
+  <section class="panel panel-out">
+    <div class="panel-head">
+      <h2><i class="dot out"></i>输出预览</h2>
+      <div class="head-actions">
+        <button class="mini on" id="btnRun">▶ 生成</button>
+        <button class="mini" id="btnDiff">差异对比</button>
+        <button class="mini" id="btnCopy">复制</button>
+        <button class="mini" id="btnDown">下载</button>
+      </div>
+    </div>
+    <div class="out-view" id="outView" tabindex="0"></div>
+    <div class="legend">
+      <span class="lg"><i class="chip-chip c-add"></i>新加上去的 emoji（点一下可以撤掉）</span>
+      <span class="lg"><i class="chip-chip c-hi"></i>命中的词</span>
+    </div>
+  </section>
+
+  <section class="panel panel-map">
+    <div class="panel-head">
+      <h2><i class="dot map"></i>命中词表</h2>
+      <div class="head-actions">
+        <span class="hint" id="mapHint">还没命中</span>
+      </div>
+    </div>
+    <div class="chips" id="chips"></div>
+  </section>
+</main>
+
+<div class="diffbox" id="diffBox" hidden>
+  <div class="diff-head">
+    <b>差异对比 <i>DIFF</i></b>
+    <button class="mini" id="diffClose">收起</button>
+  </div>
+  <div class="diff-body" id="diffBody"></div>
+</div>
+
+<footer class="foot">
+  <span>闹麻编辑器 v1.0</span>
+  <span>纯前端 · 无联网 · 不上传任何内容</span>
+  <span>点 emoji 可撤 · 长按可复读</span>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/dict.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/app.js"></script>
+<script src="../../assets/fullscreen.js"></script>
+</body>
+</html>

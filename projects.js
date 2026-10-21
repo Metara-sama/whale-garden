@@ -69,6 +69,15 @@ const PROJECTS = [
     ]
   },
   {
+    name: "闹麻编辑器",
+    desc: "贴段文字，自动给能对上表情的词挂上 emoji。",
+    status: "live",
+    year: "2026",
+    links: [
+      { label: "开始编辑", url: "projects/naomao/" }
+    ]
+  },
+  {
     name: "音MAD · Vapor Sample",
     desc: "把 MIDI 每条音轨换成你上传的采样，再导成 WAV。",
     status: "live",
@@ -136,7 +145,7 @@ const PROJECTS = [
   },
   {
     name: "POCKET",
-    desc: "一台能开机的拟物掌机，内置五张 GBA 卡带，也能塞进自己的 ROM 备份。",
+    desc: "一台能开机的拟物掌机，五张 GBA 卡带，也能塞自己的 ROM。",
     status: "live",
     year: "2026",
     links: [
