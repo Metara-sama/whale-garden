@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0b3053">
+<meta name="description" content="拟物掌机模拟器：五张空卡带，塞进自己的 ROM 备份就能玩，存档留在本机。">
+<title>POCKET · 掌机模拟器 · Whale's Garden</title>
+<link rel="icon" href="../../favicon.ico">
+<link rel="stylesheet" href="../../fonts.css">
+<link rel="stylesheet" href="data/emulator.css">
+<link rel="stylesheet" href="css/pocket.css">
+</head>
+<body class="pocket-page" data-bg="deep" data-body="graphite">
+
+<header class="site-header">
+  <a class="wg-brand" href="../../index.html">Whale's Garden</a>
+  <nav class="wg-nav">
+    <a href="../../index.html#projects">作品</a>
+    <button class="wg-gear" id="open-settings" type="button" aria-label="设置">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm8.9 4.6.1-1.1-.1-1.1 2-1.5-1.9-3.3-2.3.9a8.4 8.4 0 0 0-1.9-1.1l-.4-2.4h-3.8l-.4 2.4c-.7.3-1.3.6-1.9 1.1l-2.3-.9L3 9.4l2 1.5-.1 1.1.1 1.1-2 1.5 1.9 3.3 2.3-.9c.6.5 1.2.8 1.9 1.1l.4 2.4h3.8l.4-2.4c.7-.3 1.3-.6 1.9-1.1l2.3.9 1.9-3.3-2-1.5z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<main class="wrap">
+  <div class="stage">
+
+    <!-- ============ 拟物机身 ============ -->
+    <div class="console" id="console" data-layout="gba">
+
+      <button class="shoulder sl" type="button" data-key="10" aria-label="L 键">L</button>
+      <button class="shoulder sr" type="button" data-key="11" aria-label="R 键">R</button>
+
+      <div class="bezel">
+        <span class="bezel-led" id="led" aria-hidden="true"></span>
+        <div class="glass">
+          <div class="standby" id="standby">
+            <div class="standby-inner">
+              <div class="standby-logo">POCKET</div>
+              <div class="standby-hint" id="standby-hint">选择下方卡带插入</div>
+            </div>
+          </div>
+          <div id="ejs-screen"></div>
+        </div>
+      </div>
+
+      <div class="brandline"><b>POCKET</b><i>ADVANCE</i></div>
+
+      <div class="ctl">
+        <div class="dpad">
+          <button class="dk up" type="button" data-key="4" aria-label="上"></button>
+          <button class="dk left" type="button" data-key="6" aria-label="左"></button>
+          <button class="dk hub" type="button" tabindex="-1" aria-hidden="true"></button>
+          <button class="dk right" type="button" data-key="7" aria-label="右"></button>
+          <button class="dk down" type="button" data-key="5" aria-label="下"></button>
+        </div>
+
+        <div class="ab">
+          <button class="btn b" type="button" data-key="0">B</button>
+          <button class="btn a" type="button" data-key="8">A</button>
+        </div>
+
+        <div class="sm">
+          <button class="pill" type="button" data-key="2">SELECT</button>
+          <button class="pill" type="button" data-key="3">START</button>
+        </div>
+
+        <button class="power" id="power" type="button" aria-label="电源">
+          <span class="power-dot"></span>
+        </button>
+      </div>
+
+      <div class="speaker" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+
+    <!-- ============ 卡带架 ============ -->
+    <section class="tray" id="tray" aria-label="卡带架">
+      <div class="tray-head">
+        <h2>卡带架</h2>
+        <p>ROM 只存在你这台设备上 · 点击卡带插入</p>
+      </div>
+      <div class="cart-grid" id="cart-grid"></div>
+      <p class="tray-foot" id="tray-foot">本页面不附带任何游戏文件。请使用自己的正版卡带 ROM 备份。</p>
+    </section>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <span>Whale's Garden · POCKET</span>
+  <span>EmulatorJS 自托管</span>
+</footer>
+
+<!-- ============ 二级设置抽屉 ============ -->
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h3>设置</h3>
+    <button class="x" id="close-settings" type="button" aria-label="关闭">✕</button>
+  </div>
+
+  <div class="drawer-body">
+
+    <section class="grp" data-when="idle">
+      <h4>机身</h4>
+      <div class="row">
+        <span class="lab">布局</span>
+        <div class="seg" id="seg-layout">
+          <button type="button" data-v="gba" class="on">横屏 GBA</button>
+          <button type="button" data-v="gbc">竖屏 GBC</button>
+        </div>
+      </div>
+      <div class="row">
+        <span class="lab">外壳</span>
+        <div class="swatches" id="sw-body"></div>
+      </div>
+      <div class="row">
+        <span class="lab">背景</span>
+        <div class="swatches" id="sw-bg"></div>
+      </div>
+    </section>
+
+    <section class="grp" data-when="live">
+      <h4>声音</h4>
+      <div class="row">
+        <span class="lab">音量</span>
+        <input class="slider" id="vol" type="range" min="0" max="100" value="70">
+        <em class="val" id="vol-val">70</em>
+      </div>
+      <div class="row">
+        <span class="lab">运行</span>
+        <div class="btns">
+          <button type="button" id="btn-pause">暂停</button>
+          <button type="button" id="btn-restart">重启</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="grp" data-when="live">
+      <h4>存档</h4>
+      <div class="row">
+        <span class="lab">即时存档</span>
+        <div class="slots" id="slots"></div>
+      </div>
+      <div class="row">
+        <span class="lab">导出</span>
+        <div class="btns">
+          <button type="button" id="btn-dl-state">即时存档文件</button>
+          <button type="button" id="btn-dl-sav">电池存档 .sav</button>
+        </div>
+      </div>
+      <p class="note">电池存档由浏览器自动保存，关掉页面也不会丢。</p>
+    </section>
+
+    <section class="grp">
+      <h4>卡带</h4>
+      <div class="row">
+        <button type="button" class="wide" id="btn-eject">⏏ 弹出卡带</button>
+      </div>
+      <p class="note" id="cart-note">未插入</p>
+    </section>
+  </div>
+</aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<input type="file" id="rom-input" accept=".gba,.gb,.gbc,.zip,.7z" hidden>
+
+<script src="js/app.js"></script>
+<script src="js/boot.js"></script>
+<script src="../../assets/fullscreen.js"></script>
+</body>
+</html>

@@ -133,5 +133,14 @@ const PROJECTS = [
     links: [
       { label: "打开工具", url: "projects/pdf-translate/" }
     ]
+  },
+  {
+    name: "POCKET",
+    desc: "一台拟物掌机，塞进自己的 ROM 备份就能玩。",
+    status: "live",
+    year: "2026",
+    links: [
+      { label: "开机", url: "projects/pocket/" }
+    ]
   }
 ];
