@@ -943,6 +943,17 @@ body.pocket-fs .console .fs-exit:hover{ border-color: var(--u-accent); color: va
   color: var(--ui-fg-dim);
 }
 
+/* 键盘说明 */
+#kbd-hint{
+  margin: 8px 0 2px;
+  font-size: 10.5px;
+  line-height: 1.6;
+  letter-spacing: .02em;
+  color: var(--ui-fg-soft);
+  opacity: .85;
+}
+
+
 /* ============================================================
    7. 设置抽屉
    ============================================================ */

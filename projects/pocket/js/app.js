@@ -473,13 +473,6 @@
         if (ev.pointerType === 'mouse' && held && ev.buttons === 0) release(ev);
       });
 
-      // 键盘可达性
-      el.addEventListener('keydown', function (ev) {
-        if (ev.key === ' ' || ev.key === 'Enter') { ev.preventDefault(); press(el, true); }
-      });
-      el.addEventListener('keyup', function (ev) {
-        if (ev.key === ' ' || ev.key === 'Enter') { ev.preventDefault(); press(el, false); }
-      });
     });
 
     // 失焦 / 切后台时全部松手，避免按键卡住
@@ -492,6 +485,51 @@
     window.addEventListener('blur', releaseAll);
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) releaseAll();
+    });
+  }
+
+  /* ---------- 键盘：方向键/WASD 移动 · Z/X = B/A · Q/E = L/R · Enter/Shift ---------- */
+  // key -> data-key（与机身按键的 data-key 一致，直接复用 press()）
+  var KEYMAP = {
+    ArrowUp: '4', ArrowDown: '5', ArrowLeft: '6', ArrowRight: '7',
+    KeyW: '4', KeyS: '5', KeyA: '6', KeyD: '7',
+    KeyZ: '0', KeyX: '8', KeyJ: '0', KeyK: '8',
+    KeyQ: '10', KeyE: '11',
+    Enter: '3', ShiftRight: '2', ShiftLeft: '2', Backspace: '2'
+  };
+
+  function bindKeyboard() {
+    var held = {};
+
+    function nodeOf(idx) {
+      return document.querySelector('.console [data-key="' + idx + '"]');
+    }
+
+    function handler(ev, down) {
+      var t = ev.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      var idx = KEYMAP[ev.code] || KEYMAP[ev.key];
+      if (!idx) return;
+      ev.preventDefault();
+      if (down) {
+        if (ev.repeat || held[idx]) return;
+        held[idx] = true;
+        var el = nodeOf(idx);
+        if (el) press(el, true);
+      } else {
+        if (!held[idx]) return;
+        held[idx] = false;
+        var el2 = nodeOf(idx);
+        if (el2) press(el2, false);
+      }
+    }
+
+    document.addEventListener('keydown', function (ev) { handler(ev, true); });
+    document.addEventListener('keyup', function (ev) { handler(ev, false); });
+    // 焦点丢了就把键盘按住的全松开
+    window.addEventListener('blur', function () {
+      held = {};
+      $$('[data-key]').forEach(function (el) { press(el, false); });
     });
   }
 
@@ -825,6 +863,7 @@
       else if (BUILTIN[pend]) fetchBuiltin(pend);
     });
     bindKeys();
+    bindKeyboard();
     bindFullscreen();
 
     // 卡带架：点击插入 / 长按移除
