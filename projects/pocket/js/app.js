@@ -247,6 +247,41 @@
     return (n / 1048576).toFixed(1) + 'MB';
   }
 
+  /* 内置 ROM 多源竞速：jsDelivr（GitHub 镜像，速度快）+ 站点同源，谁先回谁赢 */
+  var CDN_BASE = 'https://cdn.jsdelivr.net/gh/Metara-sama/whale-garden@main/projects/pocket/';
+
+  function romUrls(file) {
+    return [CDN_BASE + file, file];
+  }
+
+  function raceRom(file) {
+    var urls = romUrls(file);
+    var ctrls = urls.map(function () {
+      return (typeof AbortController === 'function') ? new AbortController() : null;
+    });
+    var tasks = urls.map(function (u, i) {
+      var opt = ctrls[i] ? { signal: ctrls[i].signal } : undefined;
+      return fetch(u, opt).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status + ' @' + u);
+        return { res: res, i: i };
+      });
+    });
+    var pick = Promise.any
+      ? Promise.any(tasks)
+      : new Promise(function (resolve, reject) {
+          var left = tasks.length;
+          tasks.forEach(function (t) {
+            t.then(resolve, function () { if (--left === 0) reject(new Error('多源均失败')); });
+          });
+        });
+    return pick.then(function (win) {
+      ctrls.forEach(function (c, i) {
+        if (i !== win.i && c) { try { c.abort(); } catch (e) { /* 忽略 */ } }
+      });
+      return win.res;
+    });
+  }
+
   function fetchBuiltin(slot) {
     var p = BUILTIN[slot];
     if (!p) return;
@@ -258,7 +293,7 @@
     var total = p.bytes || 0;
     toast('正在读取「' + p.name + '」' + fmtSize(total));
 
-    fetch(p.file).then(function (res) {
+    raceRom(p.file).then(function (res) {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       var len = parseInt(res.headers.get('content-length') || '0', 10);
       if (len > 0) total = len;
