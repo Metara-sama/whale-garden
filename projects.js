@@ -23,15 +23,6 @@ const SITE = {
    links: 一个或多个链接（在线玩、源码、文章……）            */
 const PROJECTS = [
   {
-    name: "趋势实验室",
-    desc: "三家热搜榜的词频，拖个时间段画成折线。",
-    status: "live",
-    year: "2026",
-    links: [
-      { label: "打开实验室", url: "projects/trend-lab/" }
-    ]
-  },
-  {
     name: "PDF 拆分合并",
     desc: "拖进 PDF，拆开、拼起来、转个角度，全在本机完成。",
     status: "live",
