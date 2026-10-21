@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#faf9f6">
+<meta name="description" content="同人文猎手：贴吧与 NGA 的同人文搜索、整帖抓取与 TXT 导出工具。贴吧搜索免登录可用。">
+<link rel="icon" type="image/png" href="../../assets/favicon.png">
+<title>同人文猎手 · FANFIC HUNTER</title>
+<style>
+:root{
+  --bg:#faf9f6;--card:#fff;--line:#e9e5dc;--line2:#f0ede6;
+  --ink:#171614;--ink2:#857f74;--ink3:#b3ada2;--accent:#2f5d50;--accent-soft:#eef4f1;
+  --ui:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --serif:"Songti SC","Source Han Serif SC","Noto Serif CJK SC",Georgia,serif;
+  --mono:ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui);
+  font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
+.wrap{max-width:680px;margin:0 auto;padding:0 20px 72px}
+header.top{display:flex;align-items:baseline;gap:10px;padding:30px 0 26px}
+header.top h1{font-size:17px;font-weight:600;margin:0;letter-spacing:.02em}
+header.top .en{font-size:11px;color:var(--ink3);letter-spacing:.16em;text-transform:uppercase}
+header.top a{margin-left:auto;font-size:13px;color:var(--ink2);text-decoration:underline;
+  text-underline-offset:3px;text-decoration-color:var(--line)}
+.lead{font-family:var(--serif);font-size:21px;line-height:1.65;margin:0 0 8px;letter-spacing:.01em}
+.lead-sub{font-size:13.5px;color:var(--ink2);margin:0 0 34px}
+section{margin:0 0 34px}
+h2{font-size:11px;color:var(--ink3);letter-spacing:.14em;text-transform:uppercase;
+  font-weight:500;margin:0 0 14px;padding-bottom:9px;border-bottom:1px solid var(--line2)}
+.flows{list-style:none;margin:0;padding:0}
+.flows li{padding:13px 0;border-bottom:1px solid var(--line2);display:flex;gap:14px}
+.flows li:last-child{border-bottom:none}
+.flows .n{font-family:var(--mono);font-size:11.5px;color:var(--ink3);padding-top:3px;flex:0 0 auto}
+.flows .t{font-weight:600;font-size:14.5px;margin:0 0 2px}
+.flows .d{font-size:13px;color:var(--ink2);margin:0;line-height:1.65}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:11px 0;border-bottom:1px solid var(--line2);vertical-align:top}
+th{font-weight:500;color:var(--ink3);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+td:first-child{width:34%;font-weight:500}
+td.s{width:19%;white-space:nowrap}
+.ok{color:var(--accent)} .need{color:#a2721c} .no{color:#b23b3b}
+pre{background:#f5f3ee;border:1px solid var(--line);border-radius:9px;
+  padding:13px 14px;margin:0 0 12px;overflow-x:auto;
+  font-family:var(--mono);font-size:12px;line-height:1.75;color:#3a3833}
+pre .c{color:var(--ink3)}
+p{margin:0 0 12px}
+.small{font-size:12.5px;color:var(--ink2);line-height:1.7}
+.tiny{font-size:11.5px;color:var(--ink3);line-height:1.7}
+code{font-family:var(--mono);font-size:.9em;background:#f5f3ee;padding:1px 4px;border-radius:3px}
+.dl{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 0}
+.dl a{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ink);
+  background:var(--ink);color:#fff;border-radius:8px;padding:9px 15px;font-size:13px;
+  text-decoration:none}
+.dl a.ghost{background:#fff;color:var(--ink);border-color:var(--line)}
+.quote{font-family:var(--serif);font-size:15px;line-height:1.9;color:#3a3833;
+  border-left:2px solid #cddbd5;padding:2px 0 2px 16px;margin:18px 0}
+.quote span{display:block;font-size:11.5px;color:var(--ink3);font-family:var(--ui);margin-top:8px}
+footer{border-top:1px solid var(--line);padding-top:18px;font-size:11.5px;
+  color:var(--ink3);line-height:1.9}
+footer a{color:var(--ink2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>同人文猎手</h1>
+  <span class="en">Tieba · NGA</span>
+  <a href="../../index.html">← 花园</a>
+</header>
+
+<p class="lead">在贴吧和 NGA 里翻同人文，<br>不用一页页翻楼。</p>
+<p class="lead-sub">搜标题、抓整帖、只看楼主、一键存成 TXT。全部在本机跑，不经过任何中转服务器。</p>
+
+<section>
+  <h2>它能做四件事</h2>
+  <ul class="flows">
+    <li><span class="n">01</span><div><p class="t">双站搜索</p><p class="d">贴吧与 NGA 分别或同时搜，结果按时间倒序合并，带吧名、作者、回复数。</p></div></li>
+    <li><span class="n">02</span><div><p class="t">整帖抓取</p><p class="d">扔一个帖子 ID 或整条链接进去，多页并发抓，图片位置留痕，正文转纯文本。</p></div></li>
+    <li><span class="n">03</span><div><p class="t">仅看楼主</p><p class="d">贴吧走 see_lz，NGA 先探楼主 uid 再按 authorid 拉，服务端再二次比对一遍。</p></div></li>
+    <li><span class="n">04</span><div><p class="t">导出 TXT</p><p class="d">每楼作者名可显示可隐藏，导出的文件跟着开关走。复制、下载、直接存到手机三选一。</p></div></li>
+  </ul>
+</section>
+
+<section>
+  <h2>哪些真的不用登录</h2>
+  <table>
+    <tr><th>能力</th><th>状态</th><th>说明</th></tr>
+    <tr><td>贴吧搜索</td><td class="s ok">免登录</td><td>走贴吧移动端搜索接口，零 Cookie 就返回 20 条/页的真实结果，还附带每帖摘要。</td></tr>
+    <tr><td>贴吧正文</td><td class="s need">需 Cookie</td><td>贴吧正文页已改成前端渲染，匿名拿不到楼层，必须带 BDUSS。</td></tr>
+    <tr><td>NGA 全部</td><td class="s no">需登录</td><td>NGA 明确拦截访客，搜索还额外要求账号威望大于 0。</td></tr>
+  </table>
+  <p class="tiny" style="margin-top:12px">这两条是站点策略，不是工具偷懒：镜像域名、渲染代理、搜索引擎快照都试过，拿不到正文。</p>
+</section>
+
+<section>
+  <h2>在本机跑起来</h2>
+  <pre><span class="c"># 两个文件放进同一个文件夹</span>
+python3 server.py 18660
+<span class="c"># 浏览器打开</span>
+http://127.0.0.1:18660/</pre>
+  <p class="small">只用 Python 标准库，不需要 pip 装任何东西。服务只监听 127.0.0.1，不对外暴露端口。</p>
+  <div class="dl">
+    <a href="dist/server.py" download>server.py</a>
+    <a href="dist/index.html" download class="ghost">index.html</a>
+    <a href="https://github.com/Metara-sama/whale-garden/tree/main/projects/fanfic-hunter" class="ghost" target="_blank" rel="noopener">源码</a>
+  </div>
+</section>
+
+<section>
+  <h2>关于 Cookie</h2>
+  <p class="small">设置里直接粘贴整段就行，工具会自己从里面挑出 BDUSS、ngaPassportUid 这些字段，其他全丢掉。粘完点「测试连通」看两站是否都通。</p>
+  <p class="tiny">Cookie 只写在同目录的 conf.json 里，不上传、不联网校验。想清就清空文本框再保存。</p>
+</section>
+
+<div class="quote">
+  把一栋三百层的楼压成一份能离线读的文本，这件事本身比翻页舒服。
+  <span>—— 做这个工具的理由</span>
+</div>
+
+<footer>
+  仅供个人阅读与存档。抓取频率请自行克制，别把站点打崩。<br>
+  <a href="../../index.html">Whale's Garden</a> · 手写 HTML，无框架
+</footer>
+
+</div>
+<script src="../../assets/fullscreen.js"></script>
+</body>
+</html>
