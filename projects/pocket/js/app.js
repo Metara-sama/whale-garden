@@ -61,6 +61,7 @@
     openSettings: $('#open-settings'),
     closeSettings: $('#close-settings'),
     glass: $('#glass'),
+    bezel: $('.bezel'),
     btnFs: $('#btn-fs'),
     btnFs2: $('#btn-fs-2'),
     btnFs3: $('#btn-fs-3'),
@@ -753,15 +754,54 @@
     }
   }
 
+  /* 记录“屏幕顶端 / 机身高度”的比值，全屏拉伸时按它摆放屏幕 */
+  function rememberTopRatio() {
+    var c = els.console, g = els.glass;
+    if (!c || !g) return;
+    var cr = c.getBoundingClientRect(), gr = g.getBoundingClientRect();
+    if (cr.height > 0) {
+      var r = (gr.top - cr.top) / cr.height;
+      if (isFinite(r) && r > 0 && r < 1) c.dataset.topRatio = r.toFixed(4);
+    }
+  }
+
+  function clearFsGeometry() {
+    if (!els.console) return;
+    els.console.style.transform = '';
+    els.console.style.width = '';
+    els.console.style.height = '';
+    if (els.bezel) els.bezel.style.marginTop = '';
+  }
+
   function fitConsole() {
     if (!els.console) return;
-    if (!fsOn) { els.console.style.transform = ''; return; }
+    if (!fsOn) { clearFsGeometry(); return; }
+
+    // GBC：机身拉满视口（纵向拉伸），屏幕按 10:9 吃满宽度，
+    // 屏幕顶端到机身顶端的相对位置保持不变（多出来的高度落在下方）
+    if (prefs.layout === 'gbc') {
+      var vh = window.innerHeight || 640;
+      var r = parseFloat(els.console.dataset.topRatio || '') || 0.1165;
+      els.console.style.transform = 'none';
+      els.console.style.width = (window.innerWidth || 360) + 'px';
+      els.console.style.height = vh + 'px';
+      var padTop = 20;        // .console padding-top（全屏 GBC）
+      var chrome = 17;        // .bezel padding-top 5 + .bezel-bar 12
+      var mt = Math.max(0, Math.round(vh * r - padTop - chrome));
+      if (els.bezel) els.bezel.style.marginTop = mt + 'px';
+      return;
+    }
+
+    // GBA：整台机身等比放大
+    els.console.style.transform = 'none';
+    els.console.style.width = '';
+    els.console.style.height = '';
+    if (els.bezel) els.bezel.style.marginTop = '';
     var vw = window.innerWidth || 360;
-    var vh = window.innerHeight || 640;
-    // offsetWidth/Height 不受 transform 影响，量到的就是自然尺寸
+    var vh2 = window.innerHeight || 640;
     var w = els.console.offsetWidth || 1;
     var h = els.console.offsetHeight || 1;
-    var k = Math.min((vw - 16) / w, (vh - 16) / h);
+    var k = Math.min((vw - 16) / w, (vh2 - 16) / h);
     if (!isFinite(k) || k <= 0) k = 1;
     els.console.style.transform = 'scale(' + k.toFixed(4) + ')';
   }
@@ -781,6 +821,7 @@
 
   function enterFs() {
     if (fsOn) return;
+    rememberTopRatio();
     fsOn = true;
     syncFsUi();
     closeDrawer();
@@ -804,7 +845,7 @@
         if (p && p.catch) p.catch(function () { /* 忽略 */ });
       }
     } catch (err) { /* 忽略 */ }
-    if (els.console) els.console.style.transform = '';
+    clearFsGeometry();
     settleFs();
   }
 

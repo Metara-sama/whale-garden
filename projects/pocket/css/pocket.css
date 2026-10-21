@@ -673,6 +673,10 @@ body[data-bg="sand"] .site-header{
   padding: 24px 18px 16px;
   border-radius: 44px 44px 26px 26px;
 }
+.console[data-layout="gbc"] .glass{
+  width: 100%;
+  aspect-ratio: 10 / 9;
+}
 .console[data-layout="gbc"] .ctl{
   margin-top: 12px;
   grid-template-columns: 1fr 1fr;
@@ -738,6 +742,35 @@ body.pocket-fs .console[data-layout="gbc"]{
   width: min(94vw, 1280px);
   will-change: transform;
 }
+/* GBC 全屏：机身拉满视口（不再等比缩小），屏幕保持 10:9 且吃满宽度 */
+body.pocket-fs .console[data-layout="gbc"]{
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  margin: 0;
+  padding: 20px 8px 10px;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+body.pocket-fs .console[data-layout="gbc"] .bezel{
+  flex: 0 0 auto;
+  width: 100%;
+}
+body.pocket-fs .console[data-layout="gbc"] .glass{
+  width: 100%;
+  aspect-ratio: 10 / 9;
+}
+body.pocket-fs .console[data-layout="gbc"] .ctl{
+  margin-top: auto;
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
+}
+body.pocket-fs .console[data-layout="gbc"] .brandline{
+  position: static;
+  margin: 6px 0 0;
+}
+
 body.pocket-fs .console .fs-exit{
   display: grid;
   place-items: center;
@@ -943,14 +976,15 @@ body.pocket-fs .console .fs-exit:hover{ border-color: var(--u-accent); color: va
   color: var(--ui-fg-dim);
 }
 
-/* 键盘说明 */
+/* 键盘说明（页脚最下方一行） */
 #kbd-hint{
-  margin: 8px 0 2px;
+  flex: 1 0 100%;
+  margin: 0 0 6px;
+  text-align: center;
   font-size: 10.5px;
-  line-height: 1.6;
+  line-height: 1.7;
   letter-spacing: .02em;
-  color: var(--ui-fg-soft);
-  opacity: .85;
+  color: var(--ui-fg-dim);
 }
 
 
@@ -1379,37 +1413,17 @@ body[data-state="live"] .drawer .grp[data-when="idle"]{
    10. 响应式
    ============================================================ */
 @media (max-width: 640px){
-  .console{ padding: 22px 16px 14px; border-radius: 18px 18px 52px 52px; }
-  .console .glass{ width: 74%; }
-  .bezel{ padding: 12px 13px 14px; }
-  .shoulder.sl{ left: 22px; }
-  .shoulder.sr{ right: 22px; }
-  .shoulder{ width: 62px; height: 20px; }
-  .dpad{ --d: 108px; }
-  .btn{ width: 46px; height: 46px; font-size: 14px; }
-  .ab{ gap: 12px; }
-  .btn.b{ margin-bottom: 14px; }
-  .btn.a{ margin-top: 14px; }
-  .pill{ height: 22px; padding: 0 11px; font-size: 7.5px; }
-  .sm{ gap: 9px; }
-  .speaker i{ height: 14px; }
   .cart-grid{ gap: 6px; }
   .cart{ padding: 10px 4px 7px; }
   .cart-label{ font-size: 9px; }
   .cart-plus{ font-size: 17px; }
   .tray-head h2{ font-size: 13.5px; }
 }
-
 @media (max-width: 400px){
-  .console{ padding: 18px 12px 12px; }
-  .console .glass{ width: 78%; }
-  .dpad{ --d: 96px; }
-  .btn{ width: 42px; height: 42px; }
   .cart-grid{ grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
   .cart-label{ font-size: 8.5px; }
   .wrap{ padding-left: 8px; padding-right: 8px; }
 }
-
 @media (hover: none){
   .cart:hover{ transform: none; }
   .wg-gear:hover{ color: var(--ui-fg-soft); border-color: var(--ui-line); }
