@@ -3,129 +3,776 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#faf9f6">
-<meta name="description" content="同人文猎手：贴吧与 NGA 的同人文搜索、整帖抓取与 TXT 导出工具。贴吧搜索免登录可用。">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="同人文猎手：贴吧与 NGA 的同人文搜索、整帖抓取、仅看楼主、导出 TXT。贴吧搜索免登录。">
 <link rel="icon" type="image/png" href="../../assets/favicon.png">
 <title>同人文猎手 · FANFIC HUNTER</title>
 <style>
 :root{
-  --bg:#faf9f6;--card:#fff;--line:#e9e5dc;--line2:#f0ede6;
-  --ink:#171614;--ink2:#857f74;--ink3:#b3ada2;--accent:#2f5d50;--accent-soft:#eef4f1;
+  --bg:#ffffff;--ink:#131313;--ink2:#6d6862;--ink3:#a8a29a;
+  --line:#e6e3dc;--line2:#f2f0ea;--ok:#2f5d50;--warn:#9b6c17;--err:#ad3b34;
   --ui:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
   --serif:"Songti SC","Source Han Serif SC","Noto Serif CJK SC",Georgia,serif;
   --mono:ui-monospace,Menlo,Consolas,monospace;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui);
-  font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
-.wrap{max-width:680px;margin:0 auto;padding:0 20px 72px}
-header.top{display:flex;align-items:baseline;gap:10px;padding:30px 0 26px}
-header.top h1{font-size:17px;font-weight:600;margin:0;letter-spacing:.02em}
-header.top .en{font-size:11px;color:var(--ink3);letter-spacing:.16em;text-transform:uppercase}
-header.top a{margin-left:auto;font-size:13px;color:var(--ink2);text-decoration:underline;
-  text-underline-offset:3px;text-decoration-color:var(--line)}
-.lead{font-family:var(--serif);font-size:21px;line-height:1.65;margin:0 0 8px;letter-spacing:.01em}
-.lead-sub{font-size:13.5px;color:var(--ink2);margin:0 0 34px}
-section{margin:0 0 34px}
-h2{font-size:11px;color:var(--ink3);letter-spacing:.14em;text-transform:uppercase;
-  font-weight:500;margin:0 0 14px;padding-bottom:9px;border-bottom:1px solid var(--line2)}
-.flows{list-style:none;margin:0;padding:0}
-.flows li{padding:13px 0;border-bottom:1px solid var(--line2);display:flex;gap:14px}
-.flows li:last-child{border-bottom:none}
-.flows .n{font-family:var(--mono);font-size:11.5px;color:var(--ink3);padding-top:3px;flex:0 0 auto}
-.flows .t{font-weight:600;font-size:14.5px;margin:0 0 2px}
-.flows .d{font-size:13px;color:var(--ink2);margin:0;line-height:1.65}
-table{width:100%;border-collapse:collapse;font-size:13.5px}
-th,td{text-align:left;padding:11px 0;border-bottom:1px solid var(--line2);vertical-align:top}
-th{font-weight:500;color:var(--ink3);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
-td:first-child{width:34%;font-weight:500}
-td.s{width:19%;white-space:nowrap}
-.ok{color:var(--accent)} .need{color:#a2721c} .no{color:#b23b3b}
-pre{background:#f5f3ee;border:1px solid var(--line);border-radius:9px;
-  padding:13px 14px;margin:0 0 12px;overflow-x:auto;
-  font-family:var(--mono);font-size:12px;line-height:1.75;color:#3a3833}
-pre .c{color:var(--ink3)}
-p{margin:0 0 12px}
-.small{font-size:12.5px;color:var(--ink2);line-height:1.7}
-.tiny{font-size:11.5px;color:var(--ink3);line-height:1.7}
-code{font-family:var(--mono);font-size:.9em;background:#f5f3ee;padding:1px 4px;border-radius:3px}
-.dl{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 0}
-.dl a{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ink);
-  background:var(--ink);color:#fff;border-radius:8px;padding:9px 15px;font-size:13px;
-  text-decoration:none}
-.dl a.ghost{background:#fff;color:var(--ink);border-color:var(--line)}
-.quote{font-family:var(--serif);font-size:15px;line-height:1.9;color:#3a3833;
-  border-left:2px solid #cddbd5;padding:2px 0 2px 16px;margin:18px 0}
-.quote span{display:block;font-size:11.5px;color:var(--ink3);font-family:var(--ui);margin-top:8px}
-footer{border-top:1px solid var(--line);padding-top:18px;font-size:11.5px;
-  color:var(--ink3);line-height:1.9}
-footer a{color:var(--ink2)}
+html,body{background:var(--bg)}
+body{margin:0;color:var(--ink);font-family:var(--ui);font-size:15px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden}
+.wrap{max-width:640px;margin:0 auto;padding:0 18px 96px;transition:padding-top .22s ease}
+body.idle .wrap{padding-top:min(16vh,110px)}
+.head{display:flex;align-items:center;gap:10px;padding:14px 0 0;min-height:34px}
+.head .brand{font-size:12.5px;letter-spacing:.02em;color:var(--ink3);font-weight:500}
+.head .brand b{color:var(--ink);font-weight:600}
+.head .right{margin-left:auto;display:flex;gap:14px;align-items:center}
+.tbtn{background:none;border:none;padding:4px 0;font-family:var(--ui);font-size:12.5px;
+  color:var(--ink2);cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.tbtn:active{color:var(--ink)}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--ink3);display:inline-block}
+.dot.on{background:var(--ok)}
+.sw{margin:22px 0 0;transition:margin .22s ease}
+body.idle .sw{margin-top:26px}
+body.running .sw{margin-top:10px}
+form.sf{display:flex;gap:8px;align-items:stretch}
+.q{flex:1;min-width:0;height:58px;border:1px solid var(--line);border-radius:13px;
+  background:#fff;padding:0 16px;font-size:16.5px;font-family:var(--ui);color:var(--ink);
+  outline:none;transition:height .18s,border-color .15s}
+.q::placeholder{color:var(--ink3)}
+.q:focus{border-color:#c9c3b8}
+body.running .q{height:46px;font-size:15px;border-radius:10px}
+.sbtn{flex:0 0 auto;height:58px;min-width:74px;border:1px solid var(--ink);background:var(--ink);
+  color:#fff;border-radius:13px;font-family:var(--ui);font-size:15px;font-weight:500;
+  cursor:pointer;transition:height .18s,border-radius .18s,opacity .15s;padding:0 18px}
+.sbtn:active{opacity:.72}
+.sbtn[disabled]{opacity:.4}
+body.running .sbtn{height:46px;border-radius:10px;font-size:14px;min-width:64px}
+.opts{display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.pills{display:flex;gap:4px}
+.pill{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;
+  font-family:var(--ui);font-size:12.5px;color:var(--ink2);cursor:pointer;transition:.14s}
+.pill:active{background:#f7f5f0}
+.pill.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.scope{flex:1;min-width:120px;height:32px;border:1px solid var(--line);border-radius:8px;
+  padding:0 10px;font-size:12.5px;font-family:var(--ui);color:var(--ink);outline:none;background:#fff}
+.scope::placeholder{color:var(--ink3)}
+.scope:focus{border-color:#c9c3b8}
+.hint{margin-top:12px;font-size:12.5px;color:var(--ink2);display:flex;gap:6px;
+  align-items:baseline;flex-wrap:wrap;line-height:1.7}
+.hint a{color:var(--ink);text-decoration:underline;text-underline-offset:3px;
+  text-decoration-color:#ddd8cf;cursor:pointer}
+body.running .hint,body.running .steps{display:none}
+.steps{margin-top:20px;border-top:1px solid var(--line2);padding-top:14px}
+.steps .t{font-size:11px;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;
+  margin:0 0 10px;display:flex;align-items:center}
+.steps .t span{margin-left:auto;cursor:pointer;letter-spacing:0;text-transform:none;font-size:11.5px}
+.steps ol{margin:0;padding:0;list-style:none;counter-reset:s}
+.steps li{counter-increment:s;display:flex;gap:10px;padding:5px 0;font-size:13px;
+  color:var(--ink2);line-height:1.65}
+.steps li::before{content:counter(s);font-family:var(--mono);font-size:10.5px;color:var(--ink3);
+  flex:0 0 15px;padding-top:3px}
+.steps li b{font-weight:500;color:var(--ink)}
+.h{margin:26px 0 4px;font-size:11px;color:var(--ink3);letter-spacing:.1em;
+  text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.h .n{margin-left:auto;letter-spacing:0;text-transform:none;font-size:11.5px;color:var(--ink3)}
+.ritem{padding:13px 0;border-bottom:1px solid var(--line2);cursor:pointer}
+.ritem:active .rt{color:var(--ok)}
+.rt{font-size:15px;font-weight:600;line-height:1.45;transition:color .15s;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.rd{font-size:12.5px;color:var(--ink2);margin-top:4px;line-height:1.6;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.rm{font-size:11.5px;color:var(--ink3);margin-top:6px;display:flex;gap:9px;
+  flex-wrap:wrap;align-items:center}
+.rm .src{color:var(--ink2)}
+.more{margin-top:14px;width:100%;height:40px;border:1px solid var(--line);background:#fff;
+  border-radius:9px;font-family:var(--ui);font-size:13px;color:var(--ink2);cursor:pointer}
+.more:active{background:#f7f5f0}
+.fetch{margin-top:20px;border:1px solid var(--line);border-radius:11px;padding:14px}
+.fetch .who{font-size:12.5px;color:var(--ink2);margin-bottom:11px;line-height:1.5;
+  overflow:hidden;text-overflow:ellipsis}
+.fetch .who b{color:var(--ink);font-weight:600}
+.frow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ck{display:inline-flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;
+  user-select:none;color:var(--ink)}
+.ck i{width:16px;height:16px;border:1px solid #cdc7bc;border-radius:4px;background:#fff;
+  position:relative;flex:0 0 auto;transition:.14s}
+.ck.on i{background:var(--ink);border-color:var(--ink)}
+.ck.on i::after{content:"";position:absolute;left:5px;top:1px;width:4px;height:8px;
+  border:solid #fff;border-width:0 1.6px 1.6px 0;transform:rotate(42deg)}
+.sel{height:32px;border:1px solid var(--line);border-radius:8px;padding:0 8px;background:#fff;
+  font-family:var(--ui);font-size:12.5px;color:var(--ink);outline:none}
+.fbtn{height:38px;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:9px;
+  padding:0 16px;font-family:var(--ui);font-size:13.5px;cursor:pointer;margin-left:auto}
+.fbtn:active{opacity:.75}
+.fbtn[disabled]{opacity:.4}
+.read{margin-top:24px}
+.rtitle{font-family:var(--serif);font-size:19px;font-weight:600;line-height:1.5;margin:0 0 6px}
+.rmeta{font-size:11.5px;color:var(--ink3);margin:0 0 18px}
+.fl{padding:0 0 20px 13px;border-left:1px solid var(--line2)}
+.fl:last-child{border-left-color:transparent;padding-bottom:4px}
+.fl.op{border-left-color:#d5e0da}
+.flh{display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--ink3);
+  margin-bottom:4px;flex-wrap:wrap}
+.flh .no{font-family:var(--mono);font-size:10.5px}
+.flh .au{color:var(--ink2);font-weight:500}
+.fl.op .flh .au{color:var(--ok)}
+.flh .opf{font-size:10px;color:var(--ok);border:1px solid #d5e0da;border-radius:3px;
+  padding:0 4px;background:#f4f8f6}
+.flt{font-family:var(--serif);font-size:15.5px;line-height:1.95;white-space:pre-wrap;
+  word-break:break-word;color:#252320}
+.flt:empty::after{content:"（空）";color:var(--ink3);font-family:var(--ui);font-size:13px}
+.acts{display:flex;gap:8px;margin-top:14px;padding-top:16px;border-top:1px solid var(--line2)}
+.acts button{flex:1;height:40px;border:1px solid var(--line);background:#fff;border-radius:9px;
+  font-family:var(--ui);font-size:13px;color:var(--ink);cursor:pointer}
+.acts button:active{background:#f7f5f0}
+.acts button.p{background:var(--ink);border-color:var(--ink);color:#fff}
+.note{font-size:12.5px;line-height:1.7;padding:10px 12px;border-radius:8px;margin-top:12px;
+  border:1px solid var(--line2);background:#fbfaf7;color:var(--ink2)}
+.note.err{border-color:#eddcda;background:#fdf7f6;color:var(--err)}
+.note.warn{border-color:#eee5d3;background:#fdfbf4;color:var(--warn)}
+.note.ok{border-color:#dbe7e1;background:#f5f9f7;color:var(--ok)}
+.note a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+.pg{height:1px;background:var(--line2);overflow:hidden;margin-top:12px;visibility:hidden}
+.pg.on{visibility:visible}
+.pg i{display:block;height:100%;width:30%;background:var(--ink);animation:mv 1.1s ease-in-out infinite}
+@keyframes mv{0%{transform:translateX(-100%)}100%{transform:translateX(340%)}}
+.sheet{position:fixed;inset:0;z-index:70;display:none}
+.sheet.show{display:block}
+.sheet .bg{position:absolute;inset:0;background:rgba(19,19,19,.24)}
+.sheet .p{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:14px 14px 0 0;
+  padding:16px 18px calc(20px + env(safe-area-inset-bottom));max-height:90vh;overflow-y:auto}
+.sheet .hd{display:flex;align-items:center;margin-bottom:2px}
+.sheet .hd h3{margin:0;font-size:15px;font-weight:600}
+.sheet .hd .x{margin-left:auto;background:none;border:none;font-size:20px;line-height:1;
+  color:var(--ink3);cursor:pointer;padding:4px 2px}
+.sheet .sub{font-size:12px;color:var(--ink3);margin:2px 0 14px;line-height:1.65}
+.lab{font-size:12.5px;margin:14px 0 5px;display:flex;align-items:center;gap:7px;font-weight:500}
+.st{font-size:10.5px;padding:1px 6px;border-radius:4px;font-weight:400;border:1px solid}
+.st.free{color:var(--ok);border-color:#d5e0da;background:#f4f8f6}
+.st.need{color:var(--warn);border-color:#eee5d3;background:#fdfbf4}
+.ta{width:100%;min-height:60px;border:1px solid var(--line);border-radius:9px;padding:9px 10px;
+  font-family:var(--mono);font-size:11px;line-height:1.6;color:var(--ink);background:#fff;
+  outline:none;resize:vertical}
+.ta:focus{border-color:#c9c3b8}
+.more-help{font-size:11.5px;color:var(--ink3);margin:4px 0 0;line-height:1.7}
+.srow{display:flex;gap:8px;margin-top:14px}
+.srow button{flex:1;height:40px;border-radius:9px;font-family:var(--ui);font-size:13px;cursor:pointer;
+  border:1px solid var(--ink);background:var(--ink);color:#fff}
+.srow button.g{background:#fff;color:var(--ink);border-color:var(--line)}
+.qrbox{display:flex;gap:13px;align-items:flex-start;border:1px solid var(--line);
+  border-radius:11px;padding:13px}
+.qrimg{width:108px;height:108px;flex:0 0 auto;border:1px solid var(--line);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink3);
+  background:#fbfaf7;overflow:hidden}
+.qrimg img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
+.qrside{flex:1;min-width:0;font-size:12.5px;color:var(--ink2);line-height:1.6}
+.qrside b{display:block;font-size:13.5px;color:var(--ink);margin-bottom:3px}
+.qrstate{margin:7px 0 0;font-size:11.5px;color:var(--ink3);min-height:16px;line-height:1.5}
+.btnline{margin-top:8px;height:31px;padding:0 12px;border:1px solid var(--ink);
+  background:var(--ink);color:#fff;border-radius:8px;font-size:12.5px;
+  font-family:var(--ui);cursor:pointer}
+.flow{display:flex;align-items:center;gap:6px;margin-top:13px;flex-wrap:wrap}
+.fstep{flex:1;min-width:86px;border:1px solid var(--line);border-radius:9px;padding:7px 9px;
+  background:#fbfaf7}
+.fstep i{display:block;font-style:normal;font-family:var(--mono);font-size:10px;color:var(--ink3)}
+.fstep b{display:block;font-size:12.5px;font-weight:600;margin:1px 0}
+.fstep span{display:block;font-size:10.5px;color:var(--ink3);line-height:1.45}
+.fstep.ok{border-color:#d5e0da;background:#f4f8f6}
+.fstep.ok b{color:var(--ok)}
+.farrow{color:var(--ink3);font-size:12px;flex:0 0 auto}
+.fold{margin-top:16px;border-top:1px solid var(--line2);padding-top:12px}
+.fold summary{cursor:pointer;font-size:12.5px;color:var(--ink2);list-style:none;outline:none}
+.fold summary::-webkit-details-marker{display:none}
+.fold summary:before{content:"＋ ";color:var(--ink3)}
+.fold[open] summary:before{content:"－ "}
+.hidden{display:none!important}
+.spin{width:11px;height:11px;border:1.5px solid rgba(255,255,255,.45);border-top-color:#fff;
+  border-radius:50%;display:inline-block;animation:sp .65s linear infinite;vertical-align:-1px;margin-right:5px}
+@keyframes sp{to{transform:rotate(360deg)}}
+::selection{background:#eae6dd}
+/* 站点外挂：本地服务未连接提示条 */
+.fhbar{position:sticky;top:0;z-index:60;display:flex;gap:8px;align-items:center;
+  padding:9px 14px;background:#fff8ea;border-bottom:1px solid #f0e1c4;
+  font-size:12.5px;line-height:1.5;color:#8a6114;flex-wrap:wrap}
+.fhbar>b{font-weight:600;flex:0 0 auto}
+.fhbar .fhtip{color:#a8873f;flex:1 1 140px;min-width:0}
+.fhbar input{flex:1 1 130px;min-width:0;height:30px;border:1px solid #e6d6b4;border-radius:8px;
+  background:#fff;padding:0 9px;font-family:var(--mono);font-size:11.5px;color:#5c4a24;outline:none}
+.fhbar input:focus{border-color:#cbb179}
+.fhbar button{height:30px;border:1px solid #d9c295;background:#fff;color:#8a6114;border-radius:8px;
+  padding:0 11px;font-size:12px;font-family:var(--ui);cursor:pointer;flex:0 0 auto}
+.fhbar button:active{background:#fdf3e2}
+.fhbar a{color:#8a6114;text-decoration:underline;text-underline-offset:2px;flex:0 0 auto;white-space:nowrap}
 </style>
 </head>
-<body>
+<body class="idle">
+<div class="fhbar hidden" id="fhBar">
+  <b>本地服务没连上</b>
+  <span class="fhtip">这页只是外壳，搜索靠本机的 server.py</span>
+  <a href="http://127.0.0.1:18660/" id="fhOpen">在本机打开 →</a>
+  <input id="fhUrl" spellcheck="false" autocomplete="off" placeholder="http://127.0.0.1:18660">
+  <button type="button" id="fhRetry">重试</button>
+</div>
 <div class="wrap">
-
-<header class="top">
-  <h1>同人文猎手</h1>
-  <span class="en">Tieba · NGA</span>
-  <a href="../../index.html">← 花园</a>
-</header>
-
-<p class="lead">在贴吧和 NGA 里翻同人文，<br>不用一页页翻楼。</p>
-<p class="lead-sub">搜标题、抓整帖、只看楼主、一键存成 TXT。全部在本机跑，不经过任何中转服务器。</p>
-
-<section>
-  <h2>它能做四件事</h2>
-  <ul class="flows">
-    <li><span class="n">01</span><div><p class="t">双站搜索</p><p class="d">贴吧与 NGA 分别或同时搜，结果按时间倒序合并，带吧名、作者、回复数。</p></div></li>
-    <li><span class="n">02</span><div><p class="t">整帖抓取</p><p class="d">扔一个帖子 ID 或整条链接进去，多页并发抓，图片位置留痕，正文转纯文本。</p></div></li>
-    <li><span class="n">03</span><div><p class="t">仅看楼主</p><p class="d">贴吧走 see_lz，NGA 先探楼主 uid 再按 authorid 拉，服务端再二次比对一遍。</p></div></li>
-    <li><span class="n">04</span><div><p class="t">导出 TXT</p><p class="d">每楼作者名可显示可隐藏，导出的文件跟着开关走。复制、下载、直接存到手机三选一。</p></div></li>
-  </ul>
-</section>
-
-<section>
-  <h2>哪些真的不用登录</h2>
-  <table>
-    <tr><th>能力</th><th>状态</th><th>说明</th></tr>
-    <tr><td>贴吧搜索</td><td class="s ok">免登录</td><td>走贴吧移动端搜索接口，零 Cookie 就返回 20 条/页的真实结果，还附带每帖摘要。</td></tr>
-    <tr><td>贴吧正文</td><td class="s need">需 Cookie</td><td>贴吧正文页已改成前端渲染，匿名拿不到楼层，必须带 BDUSS。</td></tr>
-    <tr><td>NGA 全部</td><td class="s no">需登录</td><td>NGA 明确拦截访客，搜索还额外要求账号威望大于 0。</td></tr>
-  </table>
-  <p class="tiny" style="margin-top:12px">这两条是站点策略，不是工具偷懒：镜像域名、渲染代理、搜索引擎快照都试过，拿不到正文。</p>
-</section>
-
-<section>
-  <h2>在本机跑起来</h2>
-  <pre><span class="c"># 两个文件放进同一个文件夹</span>
-python3 server.py 18660
-<span class="c"># 浏览器打开</span>
-http://127.0.0.1:18660/</pre>
-  <p class="small">只用 Python 标准库，不需要 pip 装任何东西。服务只监听 127.0.0.1，不对外暴露端口。</p>
-  <div class="dl">
-    <a href="dist/server.py" download>server.py</a>
-    <a href="dist/index.html" download class="ghost">index.html</a>
-    <a href="https://github.com/Metara-sama/whale-garden/tree/main/projects/fanfic-hunter" class="ghost" target="_blank" rel="noopener">源码</a>
+  <div class="head">
+    <div class="brand"><b>同人文猎手</b>　贴吧 · NGA</div>
+    <div class="right">
+      <a class="tbtn" href="../../index.html" style="text-decoration:none">← 花园</a>
+      <button class="tbtn" id="btnCk"><span class="dot" id="ckDot"></span>账号</button>
+    </div>
   </div>
-</section>
-
-<section>
-  <h2>关于 Cookie</h2>
-  <p class="small">设置里直接粘贴整段就行，工具会自己从里面挑出 BDUSS、ngaPassportUid 这些字段，其他全丢掉。粘完点「测试连通」看两站是否都通。</p>
-  <p class="tiny">Cookie 只写在同目录的 conf.json 里，不上传、不联网校验。想清就清空文本框再保存。</p>
-</section>
-
-<div class="quote">
-  把一栋三百层的楼压成一份能离线读的文本，这件事本身比翻页舒服。
-  <span>—— 做这个工具的理由</span>
+  <div class="sw">
+    <form class="sf" id="form" autocomplete="off">
+      <input class="q" id="q" placeholder="搜同人文，标题或关键词" enterkeyhint="search" autocomplete="off">
+      <button class="sbtn" id="btnSearch" type="submit">搜索</button>
+    </form>
+    <div class="opts">
+      <div class="pills" id="pills">
+        <button class="pill on" data-site="tieba" type="button">贴吧</button>
+        <button class="pill" data-site="nga" type="button">NGA</button>
+        <button class="pill" data-site="both" type="button">双站</button>
+      </div>
+      <input class="scope" id="scope" placeholder="限定贴吧名（可留空）">
+      <select class="sel" id="sort" title="排序方式" style="margin-left:auto;background:#fff">
+        <option value="rel">相关度</option>
+        <option value="time_desc">最新发布</option>
+        <option value="time_asc">最早发布</option>
+        <option value="reply_desc">回复最多</option>
+      </select>
+    </div>
+    <div class="hint" id="hint">
+      <span>贴吧搜索免登录，直接搜。</span><span>｜</span>
+      <a id="hintCk">要抓全文，扫码连接一次账号 →</a>
+    </div>
+    <div class="steps" id="steps">
+      <p class="t">怎么用 <span id="stepsHide">收起</span></p>
+      <ol>
+        <li>输入关键词回车。<b>贴吧不需要登录</b>，NGA 需要账号。</li>
+        <li>点一条结果，出现抓取条，选「仅看楼主」或页数，点<b>抓取正文</b>。</li>
+        <li>第一次抓全文会提示没登录：点右上角 <b>账号</b>，点「生成二维码」再用贴吧 App 扫一下即可，之后不用再弄。</li>
+      </ol>
+    </div>
+  </div>
+  <div id="sNote"></div>
+  <div class="pg" id="sPg"><i></i></div>
+  <div id="results"></div>
+  <div id="fetchBox"></div>
+  <div id="fNote"></div>
+  <div class="pg" id="fPg"><i></i></div>
+  <div id="reader"></div>
 </div>
+<div class="sheet" id="sheet">
+  <div class="bg" data-close></div>
+  <div class="p">
+    <div class="hd">
+      <h3>连接账号</h3>
+      <button class="x" data-close>×</button>
+    </div>
+    <p class="sub">贴吧扫码就行，不用去官网翻 Cookie。NGA 没有扫码，只能手动一次。</p>
 
-<footer>
-  仅供个人阅读与存档。抓取频率请自行克制，别把站点打崩。<br>
-  <a href="../../index.html">Whale's Garden</a> · 手写 HTML，无框架
-</footer>
+    <div class="qrbox">
+      <div class="qrimg" id="qrImg">未生成</div>
+      <div class="qrside">
+        <b>扫码登录贴吧</b>
+        用贴吧 App 扫一下，手机上点「确认」，Cookie 自动写入。
+        <button class="btnline" id="btnQr">生成二维码</button>
+        <p class="qrstate" id="qrState"></p>
+      </div>
+    </div>
 
+    <div class="flow">
+      <div class="fstep"><i>STEP 1</i><b>点生成</b><span>出现二维码</span></div>
+      <div class="farrow">→</div>
+      <div class="fstep"><i>STEP 2</i><b>App 扫码</b><span>贴吧 / 百度 App</span></div>
+      <div class="farrow">→</div>
+      <div class="fstep"><i>STEP 3</i><b>点确认</b><span>手机上同意登录</span></div>
+      <div class="farrow">→</div>
+      <div class="fstep ok"><i>DONE</i><b>自动写入</b><span>无需复制任何东西</span></div>
+    </div>
+
+    <details class="fold">
+      <summary>或手动粘贴 Cookie（NGA 必须走这里）</summary>
+      <div class="lab">贴吧 <span class="st free">搜索免登录</span> <span class="st need">正文需 BDUSS</span></div>
+      <textarea class="ta" id="ckTb" placeholder="BDUSS=...; STOKEN=...;"></textarea>
+      <div class="lab">NGA <span class="st need">全部需登录</span></div>
+      <textarea class="ta" id="ckNg" placeholder="ngaPassportUid=...; ngaPassportCid=...;"></textarea>
+      <p class="more-help">手机上取不到 Cookie 时，用电脑登 bbs.nga.cn → F12 → Network → 复制整串请求头 Cookie；也可以把电脑上的串发到手机粘贴。缺 uid 或 cid 会被判未登录，搜索还需威望 &gt; 0。</p>
+      <div class="srow">
+        <button id="btnSaveCk">保存</button>
+        <button class="g" id="btnTest">测试连通</button>
+      </div>
+      <div id="ckNote"></div>
+    </details>
+  </div>
 </div>
+<script>
+(function(){
+"use strict";
+var DEFAULT_API = "http://127.0.0.1:18660";
+var API = resolveApi();
+function resolveApi(){
+  var saved = "";
+  try { saved = localStorage.getItem("fh_api") || ""; } catch(e){}
+  if(saved) return saved.replace(/\/+$/, "");
+  if(location.protocol === "file:") return "http://127.0.0.1:18660";
+  var h = location.hostname;
+  if(h === "127.0.0.1" || h === "localhost" || h === "0.0.0.0") return location.origin;
+  return DEFAULT_API;
+}
+var S = { site:"tieba", page:1, q:"", items:[], cur:null, floors:[], seeLz:false,
+          showName:true, busy:false, hasCk:false, digest:false,
+          sort:"rel", end:false, polling:false };
+
+function $(id){ return document.getElementById(id); }
+function el(t,c,x){ var n=document.createElement(t); if(c)n.className=c; if(x!=null)n.textContent=x; return n; }
+function label(s){ return s==="nga"?"NGA":"贴吧"; }
+function note(box,kind,text,link){
+  var b=$(box); b.innerHTML="";
+  if(!text) return;
+  var d=el("div","note"+(kind?" "+kind:"")); d.textContent=text;
+  if(link){ var a=el("a",null," 查看原始页面"); a.href=link; a.target="_blank"; d.appendChild(a); }
+  b.appendChild(d);
+}
+function pg(id,on){ $(id).classList.toggle("on",!!on); }
+function api(u,opt){
+  return fetch(u,opt).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); });
+}
+
+$("pills").addEventListener("click", function(e){
+  var b=e.target.closest(".pill"); if(!b) return;
+  [].forEach.call(this.children,function(c){ c.classList.remove("on"); });
+  b.classList.add("on");
+  S.site=b.getAttribute("data-site");
+  $("scope").classList.toggle("hidden", S.site==="nga");
+  if(S.site==="nga") $("scope").value="";
+});
+
+$("form").addEventListener("submit", function(e){ e.preventDefault(); search(true); });
+$("q").addEventListener("keydown", function(e){ if(e.key==="Enter"){ e.preventDefault(); search(true); } });
+
+function search(reset){
+  var q=$("q").value.trim();
+  if(!q){ $("q").focus(); return; }
+  if(S.busy) return;
+  S.busy=true; S.q=q;
+  if(reset){ S.page=1; S.items=[]; S.end=false; $("results").innerHTML=""; S.cur=null;
+    $("fetchBox").innerHTML=""; $("reader").innerHTML="";
+    note("sNote","",""); note("fNote","",""); }
+  var b=$("btnSearch");
+  b.disabled=true; b.innerHTML='<span class="spin"></span>';
+  document.body.classList.remove("idle"); document.body.classList.add("running");
+  pg("sPg",true);
+  var sites = S.site==="both" ? ["tieba","nga"] : [S.site];
+  var kw = S.site==="tieba" ? $("scope").value.trim() : "";
+  Promise.all(sites.map(function(s){
+    var u=API+"/api/search?site="+s+"&q="+encodeURIComponent(q)+
+          "&kw="+encodeURIComponent(kw)+"&page="+S.page+"&sort="+S.sort;
+    return api(u).catch(function(e){ return {ok:false,site:s,error:"请求失败："+e.message,items:[]}; });
+  })).then(function(list){
+    var add=[], errs=[], free=false, notes=[];
+    list.forEach(function(r){
+      if(!r||r.ok===false) errs.push(((r&&r.site)?label(r.site)+"：":"")+((r&&r.error)||"未知错误"));
+      else {
+        if(r.nocookie) free=true;
+        if(r.note) notes.push(r.note);
+        if(r.has_more===false) S.end=true;
+      }
+      (r&&r.items||[]).forEach(function(x){ add.push(x); });
+    });
+    mergeItems(add);
+    renderResults();
+    if(notes.length) note("sNote","warn", notes.join("；"));
+    if(errs.length){
+      var t=errs.join("；");
+      var need=/Cookie|登录|403|2048|威望|验证/.test(t);
+      note("sNote", need?"warn":"err", t+(need?"（点右上角「账号」扫码一次）":""));
+    } else if(!add.length){
+      note("sNote","warn","没有结果，换个关键词。");
+    } else if(free){
+      note("sNote","ok","贴吧免登录，已取回结果。");
+    }
+  }).catch(function(e){
+    note("sNote","err","失败："+e.message);
+  }).finally(function(){
+    S.busy=false; b.disabled=false; b.textContent="搜索"; pg("sPg",false);
+  });
+}
+
+function renderResults(){
+  var box=$("results"); box.innerHTML="";
+  if(!S.items.length) return;
+  var h=el("div","h");
+  h.appendChild(el("span",null,"结果"));
+  h.appendChild(el("span","n",S.items.length+" 条"));
+  box.appendChild(h);
+  S.items.forEach(function(it){
+    var d=el("div","ritem");
+    d.appendChild(el("div","rt", it.title||"（无标题）"));
+    if(it.brief) d.appendChild(el("div","rd", it.brief));
+    var m=el("div","rm");
+    m.appendChild(el("span","src", label(it.site)+(it.forum?"　"+it.forum:"")));
+    if(it.author) m.appendChild(el("span",null,"@"+it.author));
+    if(it.date) m.appendChild(el("span",null,it.date));
+    if(it.reply) m.appendChild(el("span",null,it.reply+" 楼"));
+    d.appendChild(m);
+    d.addEventListener("click", function(){ pick(it); });
+    box.appendChild(d);
+  });
+  var more=el("button","more", S.end ? "没有更多了" : "加载更多");
+  more.type="button";
+  if(S.end) more.disabled=true;
+  more.addEventListener("click", function(){
+    var btn=this; btn.disabled=true; btn.textContent="加载中…";
+    loadMore(function(){
+      btn.disabled = S.end;
+      btn.textContent = S.end ? "没有更多了" : "加载更多";
+    });
+  });
+  box.appendChild(more);
+}
+
+function mergeItems(add){
+  var seen={};
+  S.items.forEach(function(it){ seen[it.site+"|"+it.tid]=1; });
+  var n=0;
+  (add||[]).forEach(function(it){
+    var k=it.site+"|"+it.tid;
+    if(seen[k]) return;
+    seen[k]=1; S.items.push(it); n++;
+  });
+  return n;
+}
+function applySort(){
+  var s=S.sort;
+  if(s==="time_desc") S.items.sort(function(a,b){ return String(b.date||"").localeCompare(String(a.date||"")); });
+  else if(s==="time_asc") S.items.sort(function(a,b){ return String(a.date||"9999").localeCompare(String(b.date||"9999")); });
+  else if(s==="reply_desc") S.items.sort(function(a,b){
+    var x=parseInt(a.reply||0,10)||0, y=parseInt(b.reply||0,10)||0;
+    return y-x;
+  });
+}
+
+function loadMore(done){
+  if(S.busy || S.end){ done&&done(); return; }
+  S.busy=true; S.page++;
+  var sites = S.site==="both" ? ["tieba","nga"] : [S.site];
+  var kw = S.site==="tieba" ? $("scope").value.trim() : "";
+  pg("sPg",true);
+  Promise.all(sites.map(function(s){
+    var u=API+"/api/search?site="+s+"&q="+encodeURIComponent(S.q)+
+          "&kw="+encodeURIComponent(kw)+"&page="+S.page+"&sort="+S.sort;
+    return api(u).catch(function(){ return {ok:false,items:[]}; });
+  })).then(function(list){
+    var add=[], notes=[];
+    list.forEach(function(r){
+      if(r && r.note) notes.push(r.note);
+      if(r && r.has_more===false) S.end=true;
+      (r&&r.items||[]).forEach(function(x){ add.push(x); });
+    });
+    var n=mergeItems(add);
+    if(!n) S.end=true;
+    applySort();
+    renderResults();
+    if(notes.length) note("sNote","warn", notes.join("；"));
+  }).finally(function(){ S.busy=false; pg("sPg",false); done&&done(); });
+}
+
+$("sort").addEventListener("change", function(){
+  S.sort=this.value;
+  if(!S.items.length) return;
+  applySort();
+  renderResults();
+  if(S.items.length) note("sNote","ok","已按「"+this.options[this.selectedIndex].text+"」重排当前 "
+    +S.items.length+" 条结果");
+});
+function pick(it){
+  S.cur=it; S.floors=[]; S.digest=false;
+  $("reader").innerHTML=""; note("fNote","","");
+  var box=$("fetchBox"); box.innerHTML="";
+  var card=el("div","fetch");
+  var who=el("div","who");
+  who.appendChild(el("b",null,label(it.site)+"　"+(it.title||it.tid)));
+  card.appendChild(who);
+  var row=el("div","frow");
+  var lz=el("label","ck"); lz.appendChild(el("i"));
+  lz.appendChild(el("span",null,"仅看楼主"));
+  if(S.seeLz) lz.classList.add("on");
+  lz.addEventListener("click", function(){ S.seeLz=!S.seeLz; this.classList.toggle("on",S.seeLz); });
+  var nm=el("label","ck"); nm.appendChild(el("i"));
+  nm.appendChild(el("span",null,"显示作者名"));
+  if(S.showName) nm.classList.add("on");
+  nm.addEventListener("click", function(){
+    S.showName=!S.showName; this.classList.toggle("on",S.showName);
+    if(S.floors.length) drawReader(S.digest);
+  });
+  row.appendChild(lz); row.appendChild(nm);
+  var sel=el("select","sel"); sel.id="pages";
+  [1,3,5,10,20].forEach(function(n){
+    var o=el("option"); o.value=n; o.textContent=n+" 页";
+    if(n===3) o.selected=true;
+    sel.appendChild(o);
+  });
+  row.appendChild(sel);
+  var fb=el("button","fbtn","抓取正文"); fb.type="button";
+  fb.addEventListener("click", fetchThread);
+  row.appendChild(fb);
+  card.appendChild(row);
+  box.appendChild(card);
+  card.scrollIntoView({behavior:"smooth", block:"center"});
+}
+
+function fetchThread(){
+  if(!S.cur || S.busy) return;
+  var it=S.cur;
+  var fb=$("fetchBox").querySelector(".fbtn");
+  if(fb){ fb.disabled=true; fb.innerHTML='<span class="spin"></span>抓取中'; }
+  S.busy=true; pg("fPg",true); note("fNote","","");
+  var pages=$("pages") ? $("pages").value : 3;
+  var u=API+"/api/thread?site="+it.site+"&tid="+encodeURIComponent(it.tid)+
+        "&see_lz="+(S.seeLz?1:0)+"&pages="+pages;
+  api(u).then(function(res){
+    if(!res || res.ok===false || !(res.floors||[]).length){
+      var e=(res&&res.error)||"没有抓到楼层";
+      var need=/Cookie|登录|403|2048|威望|验证/.test(e);
+      var dbg=res&&res.debug ? API+"/api/debug?f="+encodeURIComponent(String(res.debug).split("/").pop()) : null;
+      note("fNote", need?"warn":"err", e+(need?"　→ 点右上角「账号」扫码一次":"") , dbg);
+      if(it.excerpt){
+        S.floors=[{floor:"摘要",author:it.author||"",time:it.date||"",is_op:true,
+          text:"（这是搜索接口返回的帖子摘要，不是全文）\n\n"+it.excerpt}];
+        S.digest=true; drawReader(true);
+      }
+      return;
+    }
+    S.floors=res.floors; S.digest=false;
+    drawReader(false);
+    note("fNote","ok","已抓取 "+res.floors.length+" 楼"+
+      (res.total_pages?"（原帖共 "+res.total_pages+" 页）":"")+(res.error?"　⚠ "+res.error:""));
+  }).catch(function(e){
+    note("fNote","err","请求失败："+e.message+"（服务是否在运行？）");
+  }).finally(function(){
+    S.busy=false; pg("fPg",false);
+    if(fb){ fb.disabled=false; fb.textContent="抓取正文"; }
+  });
+}
+
+function drawReader(isDigest){
+  var box=$("reader"); box.innerHTML="";
+  var wrap=el("div","read");
+  wrap.appendChild(el("h2","rtitle", (S.cur&&S.cur.title)||""));
+  var chars=S.floors.reduce(function(a,f){ return a+(f.text?f.text.length:0); },0);
+  var meta=label(S.cur?S.cur.site:"tieba")+" · 楼主 "+((S.cur&&S.cur.author)||"未知")+
+    (S.seeLz?" · 仅看楼主":"")+" · "+S.floors.length+" 楼 · 约 "+chars+" 字"+(isDigest?" · 摘要":"");
+  wrap.appendChild(el("p","rmeta",meta));
+  S.floors.forEach(function(f){
+    var d=el("div","fl"+(f.is_op?" op":""));
+    var h=el("div","flh");
+    h.appendChild(el("span","no","#"+(f.floor==null?"?":f.floor)));
+    if(S.showName) h.appendChild(el("span","au",f.author||"匿名"));
+    if(f.is_op) h.appendChild(el("span","opf","楼主"));
+    if(f.time) h.appendChild(el("span",null,f.time));
+    d.appendChild(h);
+    d.appendChild(el("div","flt",f.text||""));
+    wrap.appendChild(d);
+  });
+  var acts=el("div","acts");
+  var b1=el("button",null,"复制"); b1.type="button"; b1.addEventListener("click", doCopy);
+  var b2=el("button",null,"下载 TXT"); b2.type="button"; b2.addEventListener("click", doDl);
+  var b3=el("button","p","存到手机"); b3.type="button"; b3.addEventListener("click", doSave);
+  acts.appendChild(b1); acts.appendChild(b2); acts.appendChild(b3);
+  wrap.appendChild(acts);
+  box.appendChild(wrap);
+  wrap.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function buildText(){
+  if(!S.floors.length) return "";
+  var title=(S.cur&&S.cur.title)||"";
+  var site=S.cur?S.cur.site:"tieba";
+  var url=S.cur?S.cur.url:"";
+  var op=(S.cur&&S.cur.author)||"未知";
+  var L=[title,"","来源："+label(site)+"　"+url,
+    "楼主："+op+"　模式："+(S.seeLz?"仅看楼主":"全部楼层"),
+    "导出："+now()+"　楼层："+S.floors.length,"",
+    "————————————————————————",""];
+  S.floors.forEach(function(f){
+    var head="【#"+(f.floor==null?"?":f.floor)+"】";
+    if(S.showName) head+=" "+(f.author||"匿名");
+    if(f.time) head+="　"+f.time;
+    L.push(head,"",(f.text||"").replace(/\n{3,}/g,"\n\n"),"");
+  });
+  L.push("————————————————————————");
+  L.push("同人文猎手 · 仅供个人阅读存档");
+  return L.join("\n");
+}
+function now(){
+  var d=new Date(),p=function(n){return (n<10?"0":"")+n;};
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());
+}
+function fname(){
+  var t=(S.cur&&S.cur.title)||"fanfic";
+  return t.replace(/[\\\/:*?"<>|\n\r\t]+/g,"_").slice(0,60);
+}
+function doCopy(){
+  var txt=buildText(); if(!txt){ note("fNote","warn","还没有正文"); return; }
+  var ok=function(){ note("fNote","ok","已复制（"+txt.length+" 字）"); };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok).catch(fb);
+  else fb();
+  function fb(){
+    var ta=document.createElement("textarea");
+    ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); ok(); }catch(e){ note("fNote","err","复制失败，用下载"); }
+    document.body.removeChild(ta);
+  }
+}
+function doDl(){
+  var txt=buildText(); if(!txt){ note("fNote","warn","还没有正文"); return; }
+  var blob=new Blob([txt],{type:"text/plain;charset=utf-8"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=fname()+".txt";
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1200);
+  note("fNote","ok","已生成 TXT");
+}
+function doSave(){
+  var txt=buildText(); if(!txt){ note("fNote","warn","还没有正文"); return; }
+  api(API+"/api/save",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({name:fname()+".txt",content:txt})})
+  .then(function(r){
+    if(r&&r.ok) note("fNote","ok","已保存到 "+r.android_path);
+    else note("fNote","err","保存失败");
+  }).catch(function(e){ note("fNote","err","保存失败："+e.message); });
+}
+var qrSign="", qrTimer=null, qrTries=0;
+
+function startQr(){
+  clearTimeout(qrTimer); qrSign=""; qrTries=0;
+  $("qrImg").textContent="生成中…";
+  $("qrState").textContent="";
+  api(API+"/api/qr").then(function(r){
+    if(!r || !r.ok){
+      $("qrImg").textContent="失败";
+      $("qrState").textContent=(r&&r.error)||"生成失败";
+      return;
+    }
+    qrSign=r.sign;
+    if(r.img){
+      $("qrImg").textContent="";
+      var im=document.createElement("img");
+      im.alt="qr"; im.src=r.img;
+      $("qrImg").appendChild(im);
+    } else {
+      $("qrImg").textContent="无图";
+      $("qrState").textContent="二维码没取到，可重试或用手动方式";
+      return;
+    }
+    $("qrState").textContent="等待扫码…";
+    pollQr();
+  }).catch(function(e){
+    $("qrImg").textContent="失败";
+    $("qrState").textContent="生成失败："+e.message;
+  });
+}
+
+function pollQr(){
+  if(!qrSign) return;
+  api(API+"/api/qr/poll?sign="+encodeURIComponent(qrSign)).then(function(r){
+    if(r && r.state==="done"){
+      qrSign="";
+      $("qrState").textContent="已登录"+(r.user?"："+r.user:"")+
+        (r.warn?"（"+r.warn+"）":"")+"，Cookie 已写入";
+      $("ckDot").classList.add("on");
+      loadConf();
+      return;
+    }
+    if(r && r.state==="expired"){
+      qrSign=""; $("qrState").textContent="二维码已过期，点按钮重新生成"; return;
+    }
+    qrTries++;
+    if(qrTries>40){ qrSign=""; $("qrState").textContent="等待超时，点按钮重新生成"; return; }
+    qrTimer=setTimeout(pollQr,600);
+  }).catch(function(){ qrTimer=setTimeout(pollQr,2500); });
+}
+
+$("btnQr").addEventListener("click", startQr);
+
+function openSheet(){ $("sheet").classList.add("show"); loadConf(); }
+$("btnCk").addEventListener("click", openSheet);
+$("hintCk").addEventListener("click", openSheet);
+$("sheet").addEventListener("click", function(e){
+  if(e.target.hasAttribute("data-close")) this.classList.remove("show");
+});
+function loadConf(){
+  api(API+"/api/conf").then(function(c){
+    $("ckTb").value=c.tieba_cookie||"";
+    $("ckNg").value=c.nga_cookie||"";
+    S.hasCk=!!(c.has_tieba||c.has_nga);
+    $("ckDot").classList.toggle("on", S.hasCk);
+    if(c.has_tieba && $("qrState") && !$("qrState").textContent)
+      $("qrState").textContent="已连接贴吧账号（重新扫码会覆盖）";
+  }).catch(function(){});
+}
+$("btnSaveCk").addEventListener("click", function(){
+  api(API+"/api/conf",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({tieba_cookie:$("ckTb").value, nga_cookie:$("ckNg").value})})
+  .then(function(r){
+    if(!r||!r.ok){ note("ckNote","err","保存失败"); return; }
+    $("ckTb").value=r.conf.tieba_cookie||"";
+    $("ckNg").value=r.conf.nga_cookie||"";
+    S.hasCk=!!(r.has_tieba||r.has_nga);
+    $("ckDot").classList.toggle("on", S.hasCk);
+    var bad=[];
+    if(r.parsed){
+      if(!r.parsed.tieba_cookie && $("ckTb").value) bad.push("贴吧里没找到 BDUSS");
+      if(!r.parsed.nga_cookie && $("ckNg").value) bad.push("NGA 缺 uid 或 cid");
+    }
+    if(bad.length) note("ckNote","warn", bad.join("；"));
+    else note("ckNote","ok","已保存："+(r.has_tieba?"贴吧 ✓　":"")+(r.has_nga?"NGA ✓":""));
+  }).catch(function(e){ note("ckNote","err","保存失败："+e.message); });
+});
+$("btnTest").addEventListener("click", function(){
+  note("ckNote","","测试中…");
+  Promise.all([
+    api(API+"/api/search?site=tieba&q="+encodeURIComponent("同人")+"&page=1").catch(function(e){return {ok:false,error:e.message};}),
+    api(API+"/api/search?site=nga&q="+encodeURIComponent("同人")+"&page=1").catch(function(e){return {ok:false,error:e.message};})
+  ]).then(function(rs){
+    var out=rs.map(function(r,i){
+      var n=i===0?"贴吧":"NGA";
+      return r.ok ? n+" 通（"+(r.items||[]).length+" 条）" : n+" 不通："+(r.error||"失败");
+    });
+    note("ckNote", rs.some(function(r){return !r.ok;})?"warn":"ok", out.join("　|　"));
+  });
+});
+
+if(localStorage.getItem("fh_steps")==="0") $("steps").classList.add("hidden");
+$("stepsHide").addEventListener("click", function(){
+  $("steps").classList.add("hidden");
+  localStorage.setItem("fh_steps","0");
+});
+
+function syncBar(){
+  $("fhUrl").value = API;
+  $("fhOpen").href = API + "/";
+}
+function ping(){
+  syncBar();
+  return api(API+"/api/ping").then(function(){
+    $("fhBar").classList.add("hidden");
+    loadConf();
+  }).catch(function(){
+    $("fhBar").classList.remove("hidden");
+    document.body.classList.remove("idle");
+  });
+}
+$("fhRetry").addEventListener("click", function(){
+  var v = ($("fhUrl").value || "").trim().replace(/\/+$/, "");
+  if(!v) return;
+  API = v;
+  try { localStorage.setItem("fh_api", v); } catch(e){}
+  ping();
+});
+ping();
+})();
+</script>
 <script src="../../assets/fullscreen.js"></script>
 </body>
 </html>
