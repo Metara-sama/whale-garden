@@ -28,8 +28,7 @@ const PROJECTS = [
     status: "live",
     year: "2026",
     links: [
-      { label: "打开工具", url: "projects/fanfic-hunter/" },
-      { label: "看做法", url: "projects/fanfic-hunter/about.html" }
+      { label: "打开工具", url: "projects/fanfic-hunter/" }
     ]
   },
   {
