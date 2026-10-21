@@ -716,13 +716,6 @@
         if (p && p.catch) p.catch(function () { /* 不支持就纯 CSS 全屏 */ });
       }
     } catch (err) { /* 忽略 */ }
-    // 横版机身：全屏时尽量把屏幕转成横向，机壳才吃满
-    try {
-      if (screen.orientation && typeof screen.orientation.lock === 'function') {
-        var q = screen.orientation.lock('landscape');
-        if (q && q.catch) q.catch(function () { /* 桌面端/不支持就手动转屏 */ });
-      }
-    } catch (err2) { /* 忽略 */ }
     settleFs();
   }
 
@@ -736,9 +729,6 @@
         if (p && p.catch) p.catch(function () { /* 忽略 */ });
       }
     } catch (err) { /* 忽略 */ }
-    try {
-      if (screen.orientation && typeof screen.orientation.unlock === 'function') screen.orientation.unlock();
-    } catch (e) { /* 忽略 */ }
     if (els.console) els.console.style.transform = '';
     settleFs();
   }
