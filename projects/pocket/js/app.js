@@ -250,12 +250,16 @@
   /* 内置 ROM 多源竞速：jsDelivr（GitHub 镜像，速度快）+ 站点同源，谁先回谁赢 */
   var CDN_BASE = 'https://cdn.jsdelivr.net/gh/Metara-sama/whale-garden@main/projects/pocket/';
 
-  function romUrls(file) {
-    return [CDN_BASE + file, file];
+  function romUrls(p) {
+    var urls = [];
+    // jsDelivr 单文件上限约 9MB，超过的直接走同源，免得白等一次 404
+    if (!p.bytes || p.bytes < 9000000) urls.push(CDN_BASE + p.file);
+    urls.push(p.file);
+    return urls;
   }
 
-  function raceRom(file) {
-    var urls = romUrls(file);
+  function raceRom(p) {
+    var urls = romUrls(p);
     var ctrls = urls.map(function () {
       return (typeof AbortController === 'function') ? new AbortController() : null;
     });
@@ -293,7 +297,7 @@
     var total = p.bytes || 0;
     toast('正在读取「' + p.name + '」' + fmtSize(total));
 
-    raceRom(p.file).then(function (res) {
+    raceRom(p).then(function (res) {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       var len = parseInt(res.headers.get('content-length') || '0', 10);
       if (len > 0) total = len;
