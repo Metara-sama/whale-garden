@@ -427,7 +427,7 @@
   function press(el, down) {
     var idx = keyIndex(el);
     if (idx < 0) return;
-    if (down) el.classList.add('down'); else el.classList.remove('down');
+    if (down) el.classList.add('press'); else el.classList.remove('press');
     var e = em();
     if (!e || !e.gameManager) return;
     try { e.gameManager.simulateInput(0, idx, down ? 1 : 0); } catch (err) { /* 忽略 */ }
@@ -485,7 +485,7 @@
     // 失焦 / 切后台时全部松手，避免按键卡住
     var releaseAll = function () {
       nodes.forEach(function (el) {
-        el.classList.remove('down');
+        el.classList.remove('press');
         press(el, false);
       });
     };
