@@ -9,13 +9,27 @@
 
   const el = {
     src: $('src'), out: $('outView'), chips: $('chips'), mapHint: $('mapHint'),
-    stChars: $('stChars'), stHits: $('stHits'), stEmoji: $('stEmoji'),
-    optSpace: $('optSpace'), optPunct: $('optPunct'), optOnce: $('optOnce'), optSafe: $('optSafe'), optMin: $('optMin'),
-    toggles: Array.prototype.slice.call(document.querySelectorAll('.switches input')),
+    stChars: $('stChars'), stHits: $('stHits'), stEmoji: $('stEmoji'), ruleInfo: $('ruleInfo'),
     btnRun: $('btnRun'), btnDiff: $('btnDiff'), btnCopy: $('btnCopy'), btnDown: $('btnDown'),
     btnTheme: $('btnTheme'), diffBox: $('diffBox'), diffBody: $('diffBody'), diffClose: $('diffClose'),
     toast: $('toast'), ticker: $('ticker')
   };
+
+  /* ------------------------------------------------------------
+     固定的标注规则（不再让用户选，直接按最舒服的那套来）
+       空格     中文与 emoji 之间加一个空格
+       安全     词后面本来就跟着 emoji 就不叠加
+       连续同词 只标第一个，避免「看👀看👀」
+       标点     不再抑制——词后紧跟标点也照标，emoji 落在标点前，
+                这样句末的词不会被漏掉
+     ------------------------------------------------------------ */
+  const RULES = Object.freeze({
+    space: true,
+    punct: false,
+    safe: true,
+    once: false,
+    minLen: 1
+  });
 
   const PH = '<span class="ph">输出会出现在这里 —— 左边先来点字，或者点「示例」。</span>';
 
@@ -31,15 +45,7 @@
     el.toast._t = setTimeout(function () { el.toast.classList.remove('show'); }, 1600);
   }
 
-  function opts() {
-    return {
-      space: !!(el.optSpace && el.optSpace.checked),
-      punct: !!(el.optPunct && el.optPunct.checked),
-      once: !!(el.optOnce && el.optOnce.checked),
-      safe: !!(el.optSafe && el.optSafe.checked),
-      minLen: (el.optMin && el.optMin.checked) ? 2 : 1
-    };
-  }
+  function opts() { return RULES; }
 
   /* 从 nodes 重建 hits（永远以 nodes 为唯一真相） */
   function rebuildHits() {
@@ -294,9 +300,6 @@
 
   /* ---------- 启动 ---------- */
   function boot() {
-    el.toggles.forEach(function (t) {
-      t.addEventListener('change', function () { run(true); });
-    });
     el.src.addEventListener('input', function () {
       clearTimeout(timer);
       timer = setTimeout(function () { run(true); }, 180);
@@ -304,6 +307,8 @@
     el.src.addEventListener('keydown', function (ev) {
       if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') { ev.preventDefault(); run(false); }
     });
+
+    if (el.ruleInfo) el.ruleInfo.textContent = '词库 ' + E.dictSize + ' 条';
 
     bindOut(); bindChips(); bindBtns(); bindTheme();
 

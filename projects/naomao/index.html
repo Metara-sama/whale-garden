@@ -43,11 +43,8 @@
     <textarea id="src" spellcheck="false" placeholder="在这儿打字 / 粘进来……
 比如：今天晚上我想吃火锅，然后去看看月亮，再来点啤酒。"></textarea>
     <div class="switches">
-      <label class="sw"><input type="checkbox" id="optSpace" checked><span></span>emoji 前加空格</label>
-      <label class="sw"><input type="checkbox" id="optPunct" checked><span></span>标点前不插 emoji</label>
-      <label class="sw"><input type="checkbox" id="optOnce"><span></span>整篇同词只插一次</label>
-      <label class="sw"><input type="checkbox" id="optSafe"><span></span>安全模式（后面已有 emoji 就不叠）</label>
-      <label class="sw"><input type="checkbox" id="optMin"><span></span>只标词组（跳过单字）</label>
+      <span class="rule">自动加空格 · 已有 emoji 不叠加 · 连续同词只标一次</span>
+      <span class="rule" id="ruleInfo">词库 0 条</span>
     </div>
   </section>
 
