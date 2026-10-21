@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
-<meta name="description" content="同人文猎手：贴吧与 NGA 的同人文搜索、整帖抓取、仅看楼主、导出 TXT。贴吧搜索免登录。">
+<meta name="description" content="同人文猎手：贴吧与 NGA 的同人文搜索、整帖抓取、仅看楼主、导出 TXT。贴吧搜索免登录，在线即可用。">
 <link rel="icon" type="image/png" href="../../assets/favicon.png">
 <title>同人文猎手 · FANFIC HUNTER</title>
 <style>
@@ -189,7 +189,7 @@ body.running .hint,body.running .steps{display:none}
   border-radius:50%;display:inline-block;animation:sp .65s linear infinite;vertical-align:-1px;margin-right:5px}
 @keyframes sp{to{transform:rotate(360deg)}}
 ::selection{background:#eae6dd}
-/* 站点外挂：本地服务未连接提示条 */
+/* 站点外挂：模式条 / 模式标记 */
 .fhbar{position:sticky;top:0;z-index:60;display:flex;gap:8px;align-items:center;
   padding:9px 14px;background:#fff8ea;border-bottom:1px solid #f0e1c4;
   font-size:12.5px;line-height:1.5;color:#8a6114;flex-wrap:wrap}
@@ -202,20 +202,28 @@ body.running .hint,body.running .steps{display:none}
   padding:0 11px;font-size:12px;font-family:var(--ui);cursor:pointer;flex:0 0 auto}
 .fhbar button:active{background:#fdf3e2}
 .fhbar a{color:#8a6114;text-decoration:underline;text-underline-offset:2px;flex:0 0 auto;white-space:nowrap}
+.fhbar.on{background:#eef4f1;border-bottom-color:#d6e5de;color:#2f5d50}
+.fhbar.on .fhtip{color:#5b8272}
+.fhbar.on a{color:#2f5d50}
+.mtag{display:none;font-size:10px;letter-spacing:.04em;border:1px solid #d6e5de;
+  background:#eef4f1;color:#2f5d50;border-radius:6px;padding:1px 6px;margin-left:2px;
+  vertical-align:1px}
+body.online .mtag{display:inline-block}
 </style>
 </head>
 <body class="idle">
 <div class="fhbar hidden" id="fhBar">
-  <b>本地服务没连上</b>
-  <span class="fhtip">这页只是外壳，搜索靠本机的 server.py</span>
-  <a href="http://127.0.0.1:18660/" id="fhOpen">在本机打开 →</a>
+  <b id="fhTitle">本地服务没连上</b>
+  <span class="fhtip" id="fhTip">页面自己就能搜，不用装东西</span>
+  <a href="http://127.0.0.1:18660/" id="fhOpen">接后端 →</a>
   <input id="fhUrl" spellcheck="false" autocomplete="off" placeholder="http://127.0.0.1:18660">
-  <button type="button" id="fhRetry">重试</button>
+  <button type="button" id="fhRetry">连接</button>
 </div>
 <div class="wrap">
   <div class="head">
     <div class="brand"><b>同人文猎手</b>　贴吧 · NGA</div>
     <div class="right">
+      <span class="mtag" id="mTag">在线 · 免后端</span>
       <a class="tbtn" href="../../index.html" style="text-decoration:none">← 花园</a>
       <button class="tbtn" id="btnCk"><span class="dot" id="ckDot"></span>账号</button>
     </div>
@@ -313,7 +321,7 @@ function resolveApi(){
   var saved = "";
   try { saved = localStorage.getItem("fh_api") || ""; } catch(e){}
   if(saved) return saved.replace(/\/+$/, "");
-  if(location.protocol === "file:") return "http://127.0.0.1:18660";
+  if(location.protocol === "file:") return DEFAULT_API;
   var h = location.hostname;
   if(h === "127.0.0.1" || h === "localhost" || h === "0.0.0.0") return location.origin;
   return DEFAULT_API;
@@ -333,8 +341,116 @@ function note(box,kind,text,link){
   b.appendChild(d);
 }
 function pg(id,on){ $(id).classList.toggle("on",!!on); }
-function api(u,opt){
+/* ── 在线层 ───────────────────────────────────────────────
+   没有后端时：贴吧搜索走免登录 JSON 接口，经 r.jina.ai 中转拿到 CORS。
+   贴吧正文（/p/xxx）需要登录态，公共入口拿不到，只能接后端。 */
+var MODE = "local";
+var JINA = "https://r.jina.ai/";
+function rawFetch(u,opt){
   return fetch(u,opt).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); });
+}
+function jget(target, fmt){
+  return fetch(JINA + target, { headers: { "X-Return-Format": fmt || "text" } })
+    .then(function(r){ if(!r.ok) throw new Error("中转 HTTP "+r.status); return r.text(); });
+}
+function qsParse(str){
+  var o={};
+  String(str||"").split("&").forEach(function(kv){
+    if(!kv) return;
+    var i=kv.indexOf("=");
+    if(i<0){ o[decodeURIComponent(kv)]=""; return; }
+    o[decodeURIComponent(kv.slice(0,i))]=decodeURIComponent(kv.slice(i+1));
+  });
+  return o;
+}
+function plainHtml(h){
+  return String(h==null?"":h)
+    .replace(/<br\s*\/?>/gi,"\n").replace(/<\/p>/gi,"\n")
+    .replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/&amp;/g,"&")
+    .replace(/[ \t]+/g," ").replace(/\n{3,}/g,"\n\n").trim();
+}
+function userName(u){
+  if(!u) return "";
+  if(typeof u === "string"){
+    var m=u.match(/'user_name':\s*'([^']*)'/); return m?m[1]:"";
+  }
+  return u.user_name || u.user_nickname || u.name || "";
+}
+function forumName(p){
+  if(p && p.forum_name) return p.forum_name;
+  var m=String((p&&p.forum_info)||"").match(/'forum_name':\s*'([^']*)'/);
+  return m?m[1]:"";
+}
+function ts2date(v){
+  if(v==null || v==="") return "";
+  var str=String(v), d=str.match(/\d{4}-\d{1,2}-\d{1,2}/);
+  if(d) return d[0];
+  var num=parseInt(str,10);
+  if(!num) return "";
+  if(num<1e12) num*=1000;
+  var dt=new Date(num);
+  return dt.getFullYear()+"-"+("0"+(dt.getMonth()+1)).slice(-2)+"-"+("0"+dt.getDate()).slice(-2);
+}
+function sortItems(items, s){
+  if(s==="time_desc") items.sort(function(a,b){ return String(b.date||"").localeCompare(String(a.date||"")); });
+  else if(s==="time_asc") items.sort(function(a,b){ return String(a.date||"9999").localeCompare(String(b.date||"9999")); });
+  else if(s==="reply_desc") items.sort(function(a,b){
+    return (parseInt(b.reply||0,10)||0)-(parseInt(a.reply||0,10)||0);
+  });
+  return items;
+}
+/* 贴吧搜索：mo/q/search/thread 免登录，实测只吃 pn=0 / pn=20 */
+function onlineTiebaSearch(q, page, kw, sort){
+  if(page >= 3) return Promise.resolve({ ok:true, site:"tieba", items:[], page:page,
+    has_more:false, nocookie:true, note:"贴吧搜索接口最多 2 页（约 30 条），已到底" });
+  var pn=Math.max(0,(page-1)*20);
+  var target="https://tieba.baidu.com/mo/q/search/thread?word="+encodeURIComponent(q)+"&pn="+pn;
+  return jget(target,"text").then(function(txt){
+    var data;
+    try { data = JSON.parse(txt); }
+    catch(e){ throw new Error("中转回来的不是 JSON（可能触发限速，等一分钟再试）"); }
+    var payload=(data && data.data) || {};
+    var posts=payload.post_list || [];
+    var items=[];
+    posts.forEach(function(p){
+      var tid=String(p.tid||"");
+      if(!tid) return;
+      var content=plainHtml(p.content);
+      var title=String(p.title||"").replace(/\s+/g," ").trim();
+      items.push({
+        site:"tieba", tid:tid,
+        title: title || (content.slice(0,40) || "（无标题）"),
+        brief: content.slice(0,220),
+        date: ts2date(p.create_time || p.time),
+        author: userName(p.user),
+        forum: forumName(p),
+        reply: String(p.post_num||""),
+        url: "https://tieba.baidu.com/p/"+tid,
+        excerpt: content
+      });
+    });
+    if(kw){
+      var k=kw.trim();
+      var hit=items.filter(function(it){ return k && it.forum.indexOf(k)>=0; });
+      if(hit.length) items=hit;
+    }
+    return { ok:true, site:"tieba", items:sortItems(items, sort), page:page,
+      has_more:!!payload.has_more && items.length>=15, nocookie:true };
+  });
+}
+function api(u,opt){
+  if(MODE==="online"){
+    var m=String(u).match(/\/api\/search\?([^#]*)$/);
+    if(m){
+      var p=qsParse(m[1]);
+      var page=parseInt(p.page,10)||1;
+      if(p.site==="nga") return Promise.resolve({ ok:false, site:"nga", items:[],
+        error:"在线模式只支持贴吧；NGA 必须登录，请接后端" });
+      return onlineTiebaSearch(p.q, page, p.kw, p.sort);
+    }
+    return Promise.reject(new Error("在线模式只能搜索，抓正文需要接后端"));
+  }
+  return rawFetch(u,opt);
 }
 
 $("pills").addEventListener("click", function(e){
@@ -493,6 +609,7 @@ function pick(it){
   who.appendChild(el("b",null,label(it.site)+"　"+(it.title||it.tid)));
   card.appendChild(who);
   var row=el("div","frow");
+  var onlineNow = MODE==="online";
   var lz=el("label","ck"); lz.appendChild(el("i"));
   lz.appendChild(el("span",null,"仅看楼主"));
   if(S.seeLz) lz.classList.add("on");
@@ -504,15 +621,18 @@ function pick(it){
     S.showName=!S.showName; this.classList.toggle("on",S.showName);
     if(S.floors.length) drawReader(S.digest);
   });
-  row.appendChild(lz); row.appendChild(nm);
-  var sel=el("select","sel"); sel.id="pages";
-  [1,3,5,10,20].forEach(function(n){
-    var o=el("option"); o.value=n; o.textContent=n+" 页";
-    if(n===3) o.selected=true;
-    sel.appendChild(o);
-  });
-  row.appendChild(sel);
-  var fb=el("button","fbtn","抓取正文"); fb.type="button";
+  if(!onlineNow){ row.appendChild(lz); }
+  row.appendChild(nm);
+  if(!onlineNow){
+    var sel=el("select","sel"); sel.id="pages";
+    [1,3,5,10,20].forEach(function(n){
+      var o=el("option"); o.value=n; o.textContent=n+" 页";
+      if(n===3) o.selected=true;
+      sel.appendChild(o);
+    });
+    row.appendChild(sel);
+  }
+  var fb=el("button","fbtn", onlineNow?"看摘要":"抓取正文"); fb.type="button";
   fb.addEventListener("click", fetchThread);
   row.appendChild(fb);
   card.appendChild(row);
@@ -523,6 +643,15 @@ function pick(it){
 function fetchThread(){
   if(!S.cur || S.busy) return;
   var it=S.cur;
+  if(MODE==="online"){
+    note("fNote","warn","在线模式抓不了全文：贴吧正文要登录态才给。下面是搜索接口带的摘要，全文点右侧去原帖。", it.url);
+    if(it.excerpt){
+      S.floors=[{floor:"摘要",author:it.author||"",time:it.date||"",is_op:true,
+        text:"（这是搜索接口返回的帖子摘要，不是全文）\n\n"+it.excerpt}];
+      S.digest=true; drawReader(true);
+    }
+    return;
+  }
   var fb=$("fetchBox").querySelector(".fbtn");
   if(fb){ fb.disabled=true; fb.innerHTML='<span class="spin"></span>抓取中'; }
   S.busy=true; pg("fPg",true); note("fNote","","");
@@ -550,7 +679,7 @@ function fetchThread(){
     note("fNote","err","请求失败："+e.message+"（服务是否在运行？）");
   }).finally(function(){
     S.busy=false; pg("fPg",false);
-    if(fb){ fb.disabled=false; fb.textContent="抓取正文"; }
+    if(fb){ fb.disabled=false; fb.textContent = MODE==="online" ? "看摘要" : "抓取正文"; }
   });
 }
 
@@ -753,14 +882,30 @@ function syncBar(){
   $("fhUrl").value = API;
   $("fhOpen").href = API + "/";
 }
+function setMode(m){
+  MODE = m;
+  document.body.classList.toggle("online", m==="online");
+  if(m==="local"){
+    $("fhBar").classList.add("hidden");
+    $("fhBar").classList.remove("on");
+    $("hintCk").textContent="要抓全文，扫码连接一次账号 →";
+    loadConf();
+  } else {
+    $("fhBar").classList.remove("hidden");
+    $("fhBar").classList.add("on");
+    $("fhTitle").textContent="在线模式";
+    $("fhTip").textContent="贴吧搜索直接可用（经 r.jina.ai 中转，20 次/分钟）；抓全文要接后端";
+    $("fhOpen").textContent="接后端 →";
+    $("hintCk").textContent="抓全文要接一个后端（本机 server.py）→";
+    document.body.classList.remove("idle");
+  }
+}
 function ping(){
   syncBar();
-  return api(API+"/api/ping").then(function(){
-    $("fhBar").classList.add("hidden");
-    loadConf();
+  return rawFetch(API+"/api/ping",{cache:"no-store"}).then(function(){
+    setMode("local");
   }).catch(function(){
-    $("fhBar").classList.remove("hidden");
-    document.body.classList.remove("idle");
+    setMode("online");
   });
 }
 $("fhRetry").addEventListener("click", function(){
