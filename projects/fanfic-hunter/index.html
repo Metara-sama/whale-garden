@@ -349,9 +349,21 @@ var JINA = "https://r.jina.ai/";
 function rawFetch(u,opt){
   return fetch(u,opt).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); });
 }
-function jget(target, fmt){
-  return fetch(JINA + target, { headers: { "X-Return-Format": fmt || "text" } })
-    .then(function(r){ if(!r.ok) throw new Error("中转 HTTP "+r.status); return r.text(); });
+function jget(target, fmt, retry){
+  var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+  var to = ctrl ? setTimeout(function(){ ctrl.abort(); }, 25000) : null;
+  var opt = { headers: { "X-Return-Format": fmt || "text" } };
+  if(ctrl) opt.signal = ctrl.signal;
+  return fetch(JINA + target, opt).then(function(r){
+    if(to) clearTimeout(to);
+    if(r.status === 429) throw new Error("中转限速了（20 次/分钟），等一分钟再搜");
+    if(!r.ok) throw new Error("中转 HTTP " + r.status);
+    return r.text();
+  }).catch(function(e){
+    if(to) clearTimeout(to);
+    if(retry === false) throw e;
+    return jget(target, fmt, false);
+  });
 }
 function qsParse(str){
   var o={};
