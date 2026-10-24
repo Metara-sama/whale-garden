@@ -1,0 +1,1983 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🙇 功德点击器 · 股市飞升版</title>
+<meta name="theme-color" content="#05050f">
+<meta name="description" content="点一下是一拜，攒功德养寺庙，还能开户炒股再飞升。">
+<link rel="icon" href="../../assets/favicon.png">
+<style>
+*{box-sizing:border-box}html,body{min-height:100%}:root{--glow:0 0 16px #00fff9}
+body{margin:0;padding:0;min-height:100vh;overflow-x:hidden;font-size:16px;transition:background .8s,color .8s;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;-webkit-tap-highlight-color:transparent}
+#fx{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:1}
+.drop{position:absolute;top:-12vh;animation:fall linear infinite;will-change:transform}
+@keyframes fall{from{transform:translateY(-12vh) rotate(0)}to{transform:translateY(126vh) rotate(360deg)}}
+#hud{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:rgba(0,0,0,.35);backdrop-filter:blur(10px);border-bottom:2px solid currentColor;flex-wrap:wrap}
+#hud .mb{display:flex;flex-direction:column;line-height:1.15}
+#mn{font-size:clamp(24px,4.4vw,38px);font-weight:900;letter-spacing:1px;text-shadow:var(--glow)}
+#mc{font-size:13px;opacity:.72;font-weight:700;letter-spacing:.5px}
+#chips-badge{display:none;font-size:13px;font-weight:800;letter-spacing:.5px;padding:6px 12px;border-radius:999px;border:2px solid currentColor;background:rgba(150,200,255,.2)}
+#chips-badge.on{display:inline-block}
+#buff-badge{display:none;font-size:13px;font-weight:800;letter-spacing:.5px;padding:6px 12px;border-radius:999px;border:2px solid currentColor;background:rgba(255,215,0,.18);animation:pulseBuff .9s ease-in-out infinite}
+#buff-badge.on{display:inline-block}
+@keyframes pulseBuff{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+#ht{display:flex;gap:6px;flex-wrap:wrap}
+#reset,#zero-btn,#sound-toggle,#simple-toggle,#export-btn,#import-btn{font:inherit;font-size:12px;font-weight:700;letter-spacing:.5px;padding:6px 12px;border-radius:999px;border:2px solid currentColor;background:transparent;color:inherit;cursor:pointer;opacity:.6;transition:opacity .2s,background .2s}
+#reset:hover,#zero-btn:hover,#sound-toggle:hover,#simple-toggle:hover,#export-btn:hover,#import-btn:hover{opacity:1}
+#simple-toggle.on,#sound-toggle.on{opacity:1;background:rgba(128,128,128,.2)}
+#main{position:relative;z-index:2;display:flex;gap:18px;max-width:1180px;margin:0 auto;padding:18px 16px 90px;align-items:flex-start}
+#left{flex:1 1 auto;min-width:0;text-align:center}
+#shop{flex:0 0 380px;max-width:380px}
+#sect{display:inline-block;padding:5px 18px;border-radius:999px;border:2px solid currentColor;font-size:14px;letter-spacing:2px;opacity:.85;margin-bottom:16px;font-weight:700}
+#emoji-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;will-change:transform;cursor:pointer;user-select:none;line-height:1;padding:.06em .12em .16em}
+#emoji{
+  font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla","EmojiOne Color","Segoe UI Symbol",sans-serif;
+  font-size:clamp(88px,18vw,168px);line-height:1.35;display:inline-block;
+  padding:.10em .12em .18em;vertical-align:middle;
+  text-shadow:var(--glow);will-change:transform;transition:filter .15s
+}
+#emoji-wrap:active #emoji{filter:brightness(1.4)}
+#emoji-wrap.crit-pop{animation:critPop .55s cubic-bezier(.28,.84,.42,1)}
+@keyframes critPop{0%{transform:scale(1)}30%{transform:scale(1.4) rotate(-7deg)}60%{transform:scale(.9) rotate(5deg)}100%{transform:scale(1)}}
+.shock{position:absolute;left:50%;top:50%;width:0;height:0;border-radius:50%;border:2px solid currentColor;pointer-events:none;animation:shockOut .65s ease-out forwards}
+@keyframes shockOut{from{width:0;height:0;opacity:.9;transform:translate(-50%,-50%)}to{width:320px;height:320px;opacity:0;transform:translate(-50%,-50%)}}
+.burst{position:absolute;left:50%;top:50%;width:8px;height:8px;border-radius:50%;pointer-events:none;box-shadow:0 0 10px currentColor;animation:burstOut .75s ease-out forwards}
+@keyframes burstOut{from{transform:translate(-50%,-50%) scale(1.1);opacity:1}to{transform:translate(calc(-50% + var(--tx)),calc(-50% + var(--ty))) scale(0);opacity:0}}
+#way{font-size:clamp(24px,4.4vw,36px);margin:16px 0 6px;font-weight:900;letter-spacing:1.5px;line-height:1.2}
+#meta{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+#tag{display:inline-block;font-size:13px;letter-spacing:2px;padding:3px 12px;border-radius:8px;border:2px dashed currentColor;opacity:.75;font-weight:700}
+#target{display:inline-block;font-size:13px;letter-spacing:.5px;padding:4px 14px;border-radius:999px;border:2px solid currentColor;font-weight:800;background:rgba(128,128,128,.14)}
+#target .lbl{opacity:.6;font-weight:700;margin-right:5px;letter-spacing:1px}
+#chant{font-size:clamp(15px,2.6vw,19px);margin:0 0 18px;min-height:1.5em;opacity:.9;line-height:1.5;font-weight:600}
+#pray{padding:17px 46px;border-radius:999px;border:3px solid currentColor;background:transparent;color:inherit;font-size:20px;font-weight:800;font-family:inherit;letter-spacing:2px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;transition:transform .12s,background .25s,box-shadow .25s}
+#pray:hover{transform:scale(1.05);background:rgba(128,128,128,.12);box-shadow:var(--glow)}
+#pray:active{transform:scale(.93)}
+#clickinfo{margin-top:10px;font-size:13px;opacity:.7;font-weight:700;letter-spacing:.5px}
+#tabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
+.tab{flex:1;font:inherit;font-size:11.5px;font-weight:800;letter-spacing:.2px;padding:9px 4px;border-radius:10px;border:2px solid currentColor;background:transparent;color:inherit;cursor:pointer;opacity:.45;transition:opacity .2s,background .2s;min-width:0}
+.tab:hover{opacity:.8}
+.tab.on{opacity:1;background:rgba(128,128,128,.18)}
+.panel{display:none}
+.panel.on{display:block}
+.buy-row{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:8px;border-radius:12px;border:2px solid currentColor;background:rgba(128,128,128,.06);cursor:pointer;transition:background .15s,transform .1s,opacity .2s;opacity:.55}
+.buy-row.can{opacity:1}
+.buy-row.can:hover{background:rgba(128,128,128,.16)}
+.buy-row.can:active{transform:scale(.98)}
+.buy-row .ic{font-size:26px;flex:0 0 32px;text-align:center;line-height:1.3}
+.buy-row .info{flex:1;min-width:0}
+.buy-row .nm{font-size:14px;font-weight:800;letter-spacing:.5px;display:flex;justify-content:space-between;gap:8px}
+.buy-row .nm .owned{opacity:.6;font-weight:700;font-size:12px}
+.buy-row .sub{font-size:11.5px;opacity:.7;font-weight:600;margin-top:2px;line-height:1.35}
+.buy-row .price{font-size:12.5px;font-weight:800;margin-top:3px;letter-spacing:.5px}
+.buy-row .price.no{opacity:.5}
+.buy-row .lvl{font-size:11px;font-weight:800;color:gold;margin-left:4px}
+.lump-btn{flex:0 0 auto;font:inherit;font-size:12px;font-weight:800;padding:5px 9px;border-radius:8px;border:2px solid currentColor;background:rgba(150,220,255,.15);color:inherit;cursor:pointer;opacity:.9}
+.lump-btn:disabled{opacity:.3;cursor:not-allowed}
+#buyqty{display:flex;gap:6px;margin-bottom:10px;justify-content:flex-end}
+#buyqty button{font:inherit;font-size:12px;font-weight:800;padding:5px 11px;border-radius:8px;border:2px solid currentColor;background:transparent;color:inherit;cursor:pointer;opacity:.5;transition:opacity .2s,background .2s}
+#buyqty button.on{opacity:1;background:rgba(128,128,128,.2)}
+.up-row{padding:10px 12px;margin-bottom:8px;border-radius:12px;border:2px solid currentColor;background:rgba(128,128,128,.06);cursor:pointer;transition:background .15s,opacity .2s;opacity:.55}
+.up-row.can{opacity:1}
+.up-row.can:hover{background:rgba(128,128,128,.16)}
+.up-row .nm{font-size:14px;font-weight:800;letter-spacing:.5px}
+.up-row .sub{font-size:12px;opacity:.72;font-weight:600;margin-top:3px;line-height:1.35}
+.up-row .price{font-size:12.5px;font-weight:800;margin-top:4px}
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.ach{padding:8px 10px;border-radius:10px;border:2px solid currentColor;font-size:11.5px;font-weight:700;opacity:.32;transition:opacity .3s}
+.ach.got{opacity:1;background:rgba(255,215,0,.12)}
+.ach .an{font-size:12.5px;font-weight:800;margin-bottom:2px;display:block}
+.sect-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sect-btn{font:inherit;font-size:12.5px;font-weight:800;letter-spacing:.3px;padding:10px 6px;border-radius:10px;border:2px solid currentColor;background:transparent;color:inherit;cursor:pointer;opacity:.45;transition:opacity .2s,background .2s;text-align:center}
+.sect-btn:hover{opacity:.8}
+.sect-btn.on{opacity:1;background:rgba(128,128,128,.2)}
+.sect-btn .cc{display:block;font-size:11px;opacity:.75;margin-top:3px;font-weight:700}
+/* 股市 */
+.stock-sum{display:flex;justify-content:space-between;padding:10px 12px;margin-bottom:10px;border-radius:10px;border:2px solid currentColor;background:rgba(128,128,128,.08);font-size:11.5px;font-weight:800;gap:6px;flex-wrap:wrap}
+.stock-sum>div{flex:1;text-align:center;min-width:80px}
+#stock-qty{display:flex;gap:6px;margin-bottom:10px;justify-content:flex-end}
+#stock-qty button{font:inherit;font-size:12px;font-weight:800;padding:5px 11px;border-radius:8px;border:2px solid currentColor;background:transparent;color:inherit;cursor:pointer;opacity:.5;transition:opacity .2s,background .2s}
+#stock-qty button.on{opacity:1;background:rgba(128,128,128,.2)}
+.stock-row{padding:10px 12px;margin-bottom:8px;border-radius:12px;border:2px solid currentColor;background:rgba(128,128,128,.06)}
+.stock-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.stock-emoji{font-size:22px;line-height:1.3;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","EmojiOne Color","Segoe UI Symbol",sans-serif}
+.stock-name{flex:1;font-size:14px;font-weight:800;letter-spacing:.3px}
+.stock-mode{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:6px;background:rgba(128,128,128,.15);letter-spacing:.5px}
+.stock-price-row{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+.stock-price{font-size:18px;font-weight:900;letter-spacing:.5px}
+.stock-change{font-size:13px;font-weight:800}
+.stock-port{font-size:11.5px;opacity:.82;font-weight:700;margin-bottom:8px;line-height:1.4}
+.stock-actions{display:flex;gap:6px;flex-wrap:wrap}
+.stock-actions button{flex:1;min-width:60px;font:inherit;font-size:13px;font-weight:800;padding:8px;border-radius:8px;border:2px solid currentColor;background:rgba(128,128,128,.1);color:inherit;cursor:pointer;transition:background .15s,transform .1s}
+.stock-actions button:hover:not(:disabled){background:rgba(128,128,128,.22)}
+.stock-actions button:active:not(:disabled){transform:scale(.96)}
+.stock-actions button:disabled{opacity:.3;cursor:not-allowed}
+/* 中国股市习惯：买入/上涨用红，卖出/下跌用绿 */
+.stock-actions button[data-buy]:hover:not(:disabled){background:rgba(239,68,68,.2)}
+.stock-actions button[data-sell]:hover:not(:disabled){background:rgba(74,222,128,.2)}
+.stock-actions button[data-short]:hover:not(:disabled){background:rgba(74,222,128,.2)}
+.stock-actions button[data-close]:hover:not(:disabled){background:rgba(239,68,68,.2)}
+.stock-locked{text-align:center;padding:24px 16px;opacity:.65;font-weight:700;font-size:13px;line-height:1.7}
+.stock-locked .big{font-size:32px;margin-bottom:8px}
+/* 飞升 */
+.asc-card{padding:14px;margin-bottom:10px;border-radius:12px;border:2px solid currentColor;background:rgba(150,200,255,.08)}
+.asc-card .big{font-size:28px;font-weight:900;letter-spacing:1px;text-shadow:var(--glow);line-height:1.1}
+.asc-card .sub{font-size:12.5px;opacity:.75;font-weight:700;margin-top:4px;line-height:1.4}
+.asc-btn{margin-top:10px;width:100%;font:inherit;font-size:15px;font-weight:800;letter-spacing:1px;padding:13px;border-radius:10px;border:3px solid currentColor;background:rgba(150,200,255,.18);color:inherit;cursor:pointer;transition:transform .15s,background .2s}
+.asc-btn:hover:not(:disabled){transform:scale(1.02);background:rgba(150,200,255,.32)}
+.asc-btn:disabled{opacity:.4;cursor:not-allowed}
+.dragon-card{padding:12px;margin-bottom:10px;border-radius:12px;border:2px solid currentColor;background:rgba(255,180,80,.08)}
+.dragon-card .dn{font-size:16px;font-weight:900;display:flex;justify-content:space-between;line-height:1.3}
+.dragon-card .ds{font-size:12px;opacity:.75;font-weight:600;margin-top:3px;line-height:1.4}
+.dragon-train{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.dragon-train button{flex:1;font:inherit;font-size:12px;font-weight:800;padding:8px;border-radius:8px;border:2px solid currentColor;background:transparent;color:inherit;cursor:pointer;opacity:.85;min-width:80px}
+.dragon-train button:disabled{opacity:.3;cursor:not-allowed}
+.aura-list{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.aura{font:inherit;font-size:11.5px;font-weight:800;padding:7px 8px;border-radius:8px;border:2px solid currentColor;background:transparent;color:inherit;cursor:pointer;opacity:.4;text-align:left}
+.aura.on{opacity:1;background:rgba(150,200,255,.2)}
+.pan-slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.pan-slot{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:10px;border:2px dashed currentColor;background:rgba(128,128,128,.08);cursor:pointer;opacity:.55;font-size:11px;font-weight:700;text-align:center;padding:6px}
+.pan-slot.filled{opacity:1;border-style:solid;background:rgba(255,215,0,.12)}
+.pan-slot.sel{outline:3px solid gold;outline-offset:1px}
+.pan-slot .pi{font-size:28px;line-height:1.3;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","EmojiOne Color","Segoe UI Symbol",sans-serif}
+.god-row{padding:9px 11px;margin-bottom:7px;border-radius:10px;border:2px solid currentColor;background:rgba(128,128,128,.06);cursor:pointer;opacity:.55;transition:opacity .2s,background .2s}
+.god-row.unlocked{opacity:1}
+.god-row.unlocked:hover{background:rgba(128,128,128,.16)}
+.god-row .gn{font-size:13px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+.god-row .gd{font-size:11.5px;opacity:.72;font-weight:600;margin-top:2px;line-height:1.35}
+.god-row .gl{font-size:11px;opacity:.6;font-weight:700;margin-top:2px}
+/* 飞升树 / 自动化 */
+.tree-row{padding:9px 11px;margin-bottom:7px;border-radius:10px;border:2px solid currentColor;background:rgba(128,128,128,.06);cursor:pointer;opacity:.6;transition:opacity .2s,background .2s}
+.tree-row.can{opacity:1}
+.tree-row.can:hover{background:rgba(128,128,128,.16)}
+.tree-row.max{opacity:.45;cursor:default}
+.tree-row .tn{font-size:13px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+.tree-row .td{font-size:11.5px;opacity:.72;font-weight:600;margin-top:2px;line-height:1.35}
+.tree-row .tc{font-size:11px;font-weight:800;margin-top:3px;opacity:.85}
+.wrinkler{position:absolute;width:44px;height:44px;display:grid;place-items:center;font-size:30px;cursor:pointer;user-select:none;z-index:5;filter:drop-shadow(0 0 8px #7a0000);animation:wrWobble 2s ease-in-out infinite;transition:transform .1s;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","EmojiOne Color","Segoe UI Symbol",sans-serif;line-height:1.15}
+.wrinkler:hover{transform:scale(1.15)}
+@keyframes wrWobble{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-4px) rotate(4deg)}}
+.golden{position:fixed;z-index:50;width:72px;height:72px;display:grid;place-items:center;font-size:46px;cursor:pointer;user-select:none;filter:drop-shadow(0 0 18px gold);animation:goldenFloat 2.4s ease-in-out infinite;transition:transform .15s;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","EmojiOne Color","Segoe UI Symbol",sans-serif;line-height:1.15}
+.golden:hover{transform:scale(1.15)}
+@keyframes goldenFloat{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-14px) rotate(6deg)}}
+#float-layer{position:fixed;inset:0;pointer-events:none;z-index:40;overflow:hidden}
+/* 弹幕层（膜拜对象弹幕） */
+#danmaku-layer{position:fixed;inset:0;pointer-events:none;z-index:4;overflow:hidden}
+.danmaku{position:absolute;left:100vw;white-space:nowrap;font-weight:900;letter-spacing:1px;padding:5px 16px;border-radius:999px;border:2px solid currentColor;background:rgba(0,0,0,.42);backdrop-filter:blur(4px);text-shadow:0 0 10px currentColor;animation:danmakuFly linear forwards;will-change:transform}
+@keyframes danmakuFly{to{transform:translateX(calc(-100vw - 100%))}}
+/* 漂浮数字（已调大） */
+.float{position:absolute;white-space:nowrap;font-weight:900;font-size:30px;pointer-events:none;animation:floatUp 1.6s cubic-bezier(.22,.68,.35,1) forwards;text-shadow:0 0 14px currentColor;letter-spacing:.5px}
+.float.crit{font-size:44px;animation:critFloat 1.9s cubic-bezier(.22,.68,.35,1) forwards}
+@keyframes floatUp{0%{opacity:0;transform:translate(-50%,0) scale(.7)}18%{opacity:1;transform:translate(-50%,-16px) scale(1.12)}100%{opacity:0;transform:translate(-50%,-120px) scale(1)}}
+@keyframes critFloat{0%{opacity:0;transform:translate(-50%,0) scale(.5) rotate(-8deg)}15%{opacity:1;transform:translate(-50%,-18px) scale(1.4) rotate(4deg)}35%{opacity:1;transform:translate(-50%,-30px) scale(1.2) rotate(-2deg)}100%{opacity:0;transform:translate(-50%,-150px) scale(1.05)}}
+body.crit-shake{animation:bodyShake .4s ease}
+@keyframes bodyShake{0%,100%{transform:translate(0,0)}20%{transform:translate(-5px,3px)}40%{transform:translate(5px,-3px)}60%{transform:translate(-3px,-2px)}80%{transform:translate(3px,2px)}}
+#toast{position:fixed;left:50%;bottom:78px;transform:translate(-50%,14px);padding:10px 20px;border-radius:12px;border:2px solid rgba(255,255,255,.25);background:rgba(0,0,0,.82);color:#fff;font-size:14px;font-weight:700;letter-spacing:.5px;opacity:0;pointer-events:none;z-index:60;transition:opacity .25s,transform .25s;backdrop-filter:blur(6px);white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#stat{position:fixed;left:0;right:0;bottom:10px;z-index:2;text-align:center;font-size:11.5px;letter-spacing:.4px;font-weight:600;opacity:.55;pointer-events:none;padding:0 14px;line-height:1.4}
+.pose-orz{animation:p-orz 1s ease-in-out infinite}.pose-prostrate{animation:p-prostrate 1.5s ease-in-out infinite}.pose-koutou{animation:p-koutou 1.3s ease-in-out infinite}.pose-gongshou{animation:p-gongshou 1.1s ease-in-out infinite}.pose-hezhang{animation:p-hezhang 1.6s ease-in-out infinite}.pose-kneel{animation:p-kneel 1.4s ease-in-out infinite}.pose-twirl{animation:p-twirl 2s linear infinite}.pose-lie{animation:p-lie 2.2s ease-in-out infinite}.pose-backflip{animation:p-backflip 1.2s ease-in-out infinite}.pose-typing{animation:p-typing .28s steps(2) infinite}.pose-glitch{animation:p-glitch .36s steps(2) infinite}.pose-danmaku{animation:p-danmaku 2.4s ease-in-out infinite}.pose-cheers{animation:p-cheers 1.1s ease-in-out infinite}.pose-woodfish{animation:p-woodfish .7s ease-in-out infinite}.pose-dogeza{animation:p-dogeza 1.8s ease-in-out infinite}.pose-incense{animation:p-incense 2.6s ease-in-out infinite}.pose-handstand{animation:p-handstand 1.6s ease-in-out infinite}.pose-space{animation:p-space 3s ease-in-out infinite}.pose-clone{animation:p-clone 1.4s ease-in-out infinite}.pose-signal{animation:p-signal 1.2s ease-in-out infinite}.pose-gacha{animation:p-gacha 1.5s ease-in-out infinite}.pose-meditate{animation:p-meditate 3.5s ease-in-out infinite}.pose-dive{animation:p-dive 2.8s ease-in-out infinite}.pose-moon{animation:p-moon 2s cubic-bezier(.34,1.56,.64,1) infinite}.pose-snow{animation:p-snow 2.6s ease-in-out infinite}.pose-bath{animation:p-bath 2.2s ease-in-out infinite}.pose-fast{animation:p-fast .18s steps(2) infinite}
+@keyframes p-orz{0%,100%{transform:rotate(0) translateY(0)}45%{transform:rotate(42deg) translateY(8%)}}
+@keyframes p-prostrate{0%,100%{transform:translateY(0) scale(1,1)}50%{transform:translateY(30%) scale(1.3,.55)}}
+@keyframes p-koutou{0%{transform:translateY(-14%) rotate(-10deg)}40%{transform:translateY(26%) rotate(55deg)}70%{transform:translateY(-2%) rotate(-2deg)}100%{transform:translateY(-14%) rotate(-10deg)}}
+@keyframes p-gongshou{0%,100%{transform:rotate(0) translateY(0)}50%{transform:rotate(20deg) translateY(5%)}}
+@keyframes p-hezhang{0%,100%{transform:scale(1)}50%{transform:scale(1.15) translateY(-4%)}}
+@keyframes p-kneel{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(16%) rotate(-16deg)}}
+@keyframes p-twirl{to{transform:rotate(360deg)}}
+@keyframes p-lie{0%,100%{transform:rotate(0)}50%{transform:rotate(-86deg) translateY(12%)}}
+@keyframes p-backflip{0%{transform:translateY(0) rotate(0)}45%{transform:translateY(-30%) rotate(-180deg)}100%{transform:translateY(0) rotate(-360deg)}}
+@keyframes p-typing{0%,100%{transform:translate(0,0)}20%{transform:translate(-4px,2px)}40%{transform:translate(4px,-2px)}60%{transform:translate(-3px,-2px)}80%{transform:translate(3px,2px)}}
+@keyframes p-glitch{0%,100%{transform:translate(0)}20%{transform:translate(-3px,2px) skewX(-6deg)}40%{transform:translate(3px,-2px) skewX(6deg)}60%{transform:translate(-2px,-2px) skewX(-3deg)}80%{transform:translate(2px,2px) skewX(3deg)}}
+@keyframes p-danmaku{0%,100%{transform:translateX(-28%) rotate(-4deg)}50%{transform:translateX(28%) rotate(4deg)}}
+@keyframes p-cheers{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-22%) rotate(-10deg)}}
+@keyframes p-woodfish{0%,100%{transform:translateY(-10%) scale(1)}50%{transform:translateY(6%) scale(.88)}}
+@keyframes p-dogeza{0%,100%{transform:translateY(0) rotate(0) scale(1)}50%{transform:translateY(26%) rotate(-18deg) scale(.95)}}
+@keyframes p-incense{0%,100%{transform:translateY(0) scale(1);opacity:1}50%{transform:translateY(-16%) scale(.92);opacity:.5}}
+@keyframes p-handstand{0%,100%{transform:rotate(0)}50%{transform:rotate(178deg) translateY(-6%)}}
+@keyframes p-space{0%,100%{transform:translateY(0) rotate(-10deg)}50%{transform:translateY(-20%) rotate(10deg)}}
+@keyframes p-clone{0%,100%{transform:translateX(0)}33%{transform:translateX(-20%)}66%{transform:translateX(20%)}}
+@keyframes p-signal{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.22);opacity:.55}}
+@keyframes p-gacha{0%,100%{transform:rotate(0) scale(1)}10%{transform:rotate(-12deg) scale(1.1)}20%{transform:rotate(12deg) scale(1.1)}30%{transform:rotate(-12deg) scale(1.1)}40%{transform:rotate(12deg) scale(1.1)}50%{transform:rotate(0) scale(1.35)}65%{transform:rotate(0) scale(1.05)}}
+@keyframes p-meditate{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-9%) scale(1.06)}}
+@keyframes p-dive{0%{transform:translateY(-12%)}50%{transform:translateY(20%)}100%{transform:translateY(-12%)}}
+@keyframes p-moon{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-30%) scale(1.12)}}
+@keyframes p-snow{0%,100%{transform:translate(-6%,0) rotate(-6deg)}50%{transform:translate(6%,-8%) rotate(6deg)}}
+@keyframes p-bath{0%,100%{transform:translateY(0)}25%{transform:translateY(-11%)}50%{transform:translateY(-4%)}75%{transform:translateY(-15%)}}
+@keyframes p-fast{0%,100%{transform:translate(0,0)}25%{transform:translate(-2px,2px)}50%{transform:translate(2px,-2px)}75%{transform:translate(-2px,-2px)}}
+body.simple .drop{display:none!important}
+body.simple .pose-glitch,body.simple .pose-fast,body.simple .pose-gacha{animation:none!important}
+body.simple #emoji{text-shadow:none}
+body.simple .golden{filter:none}
+body.simple .danmaku{display:none!important}
+/* 杠杆选择器 */
+#stock-lev{display:flex;gap:6px;margin-bottom:10px;justify-content:flex-end;flex-wrap:wrap}
+#stock-lev button{font:inherit;font-size:12px;font-weight:800;padding:5px 11px;border-radius:8px;border:2px solid currentColor;background:transparent;color:inherit;cursor:pointer;opacity:.5;transition:opacity .2s,background .2s}
+#stock-lev button.on{opacity:1;background:rgba(128,128,128,.2)}
+#stock-lev button[data-lev="10"].on{background:rgba(239,68,68,.25);border-color:#ef4444;color:#ef4444}
+@media (max-width:860px){#main{flex-direction:column;padding:14px 12px 88px;gap:14px}#shop{flex:1 1 auto;width:100%;max-width:none}#emoji{font-size:clamp(80px,26vw,140px)}}
+@media (prefers-reduced-motion:reduce){.drop,.shock,.burst,.golden,.wrinkler{animation:none!important}}
+</style>
+</head>
+<body>
+<div id="fx"></div>
+<div id="float-layer"></div>
+<div id="danmaku-layer"></div>
+<header id="hud">
+  <div class="mb"><div id="mn">0</div><div id="mc">每秒 0 · 点击 1</div></div>
+  <div id="chips-badge">💠 天道 0</div>
+  <div id="buff-badge">🍀 幸运 ×7</div>
+  <div id="ht">
+    <button id="export-btn" title="导出存档">💾</button>
+    <button id="import-btn" title="导入存档">📥</button>
+    <button id="sound-toggle" title="音效">🔊</button>
+    <button id="simple-toggle" title="简约模式">🎨</button>
+    <button id="zero-btn" title="功德归零">💣</button>
+    <button id="reset" title="彻底归零">⟲</button>
+  </div>
+</header>
+<div id="main">
+  <section id="left">
+    <div id="sect">◈ 赛博朋克派 ◈</div>
+    <div id="emoji-wrap"><div id="emoji">🙇</div></div>
+    <h1 id="way">标准 Orz</h1>
+    <div id="meta"><span id="tag">经典</span><span id="target"><span class="lbl">膜拜</span><span class="who">—</span></span></div>
+    <p id="chant">「各位大佬，受我一拜！」</p>
+    <button id="pray">🙇 膜拜</button>
+    <div id="clickinfo">点击力 ×1 · 暴击率 10%</div>
+  </section>
+  <aside id="shop">
+    <div id="tabs">
+      <button class="tab on" data-tab="buildings">建筑</button>
+      <button class="tab" data-tab="upgrades">升级</button>
+      <button class="tab" data-tab="stocks">股市</button>
+      <button class="tab" data-tab="ascend">飞升</button>
+      <button class="tab" data-tab="achieve">成就</button>
+      <button class="tab" data-tab="sects">门派</button>
+    </div>
+    <div id="panel-buildings" class="panel on">
+      <div id="buyqty">
+        <button data-qty="1" class="on">×1</button>
+        <button data-qty="10">×10</button>
+        <button data-qty="100">×100</button>
+        <button data-qty="max">Max</button>
+      </div>
+      <div id="buildings-list"></div>
+    </div>
+    <div id="panel-upgrades" class="panel"><div id="upgrades-list"></div></div>
+    <div id="panel-stocks" class="panel"><div id="stocks-list"></div></div>
+    <div id="panel-ascend" class="panel"><div id="ascend-content"></div></div>
+    <div id="panel-achieve" class="panel"><div class="ach-grid" id="ach-list"></div></div>
+    <div id="panel-sects" class="panel"><div class="sect-grid" id="sect-list"></div></div>
+  </aside>
+</div>
+<footer id="stat"></footer>
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+/* ================= 数据 ================= */
+const TARGETS=['Tiger Owen','5endotrig','cgk','bianmu','zdq','裴坚坚'];
+const SECTS=[
+{n:'赛博朋克派',bg:'radial-gradient(circle at 50% 15%,#1b0a3a 0%,#05050f 70%)',c:'#00fff9',glow:'0 0 14px #00fff9,0 0 40px rgba(255,0,224,.5)',font:"'Courier New',monospace",parts:['⚡','💾','🌐','📡','🛰','💠']},
+{n:'极简禅院',bg:'linear-gradient(180deg,#fff,#f1f1f4)',c:'#111',glow:'0 4px 18px rgba(0,0,0,.22)',font:"system-ui,sans-serif",parts:['·','✦','·','∘']},
+{n:'樱花流',bg:'linear-gradient(160deg,#fff0f6,#ffd9e8 45%,#ffe8d6)',c:'#c2185b',glow:'0 4px 16px rgba(194,24,91,.35)',font:"'PingFang SC',sans-serif",parts:['🌸','🌺','💮','🌼','✨']},
+{n:'星河宗',bg:'radial-gradient(ellipse at 30% 20%,#1b2a5e 0%,#060818 62%,#01010a 100%)',c:'#c7d6ff',glow:'0 0 16px rgba(120,170,255,.85)',font:"system-ui,sans-serif",parts:['⭐','✨','🪐','☄','💫']},
+{n:'黄金圣殿',bg:'radial-gradient(circle at 50% 50%,#3a2a00 0%,#0b0800 75%)',c:'#ffd54a',glow:'0 0 18px #ffb300,0 0 50px rgba(255,179,0,.4)',font:"Georgia,serif",parts:['✨','⭐','🌟','💫','🪙']},
+{n:'幽冥殿',bg:'radial-gradient(circle at 50% 80%,#2a0000 0%,#060000 72%)',c:'#ff3b3b',glow:'0 0 16px #f00',font:"'Songti SC',serif",parts:['💀','🕯','🦇','🕷','👻']},
+{n:'猫猫神殿',bg:'linear-gradient(160deg,#fff8e7,#ffe0c2 50%,#ffd6e8)',c:'#b3550a',glow:'0 4px 16px rgba(179,85,10,.35)',font:"system-ui,sans-serif",parts:['🐾','🐟','🧶','🐱','✨']},
+{n:'深夜食堂',bg:'radial-gradient(circle at 50% 30%,#2a1a0a 0%,#0a0603 75%)',c:'#ffb347',glow:'0 0 16px #ff9800',font:"'Microsoft YaHei',sans-serif",parts:['🍜','🍢','🥟','🍶','🔥']}
+];
+const SECT_BONUS=[
+{click:1.15},
+{cps:1.10},
+{crit:0.03},
+{offline:1.30},
+{goldenFreq:1.20},
+{wrinklerDrain:0.70},
+{lump:1.25},
+{cost:0.95}
+];
+const WAYS=[
+{key:'orz',n:'标准 Orz',e:'🙇',tag:'经典',mult:1.0,chant:'{name} 大佬，受我一拜！'},
+{key:'prostrate',n:'五体投地',e:'🧎',tag:'虔诚',mult:1.6,chant:'五体投地，唯 {name} 独尊。'},
+{key:'koutou',n:'磕长头',e:'🛐',tag:'硬核',mult:2.2,chant:'一步一叩首，千里朝圣只为 {name}。'},
+{key:'gongshou',n:'抱拳作揖',e:'🤜',tag:'江湖',mult:1.0,chant:'江湖路远，{name} 在上，晚辈有礼了。'},
+{key:'hezhang',n:'双手合十',e:'🙏',tag:'佛系',mult:0.9,chant:'阿弥陀佛，{name} 保佑保佑。'},
+{key:'kneel',n:'单膝跪地',e:'🧎',tag:'骑士',mult:1.3,chant:'以骑士之名起誓，此生追随 {name}。'},
+{key:'twirl',n:'转圈膜拜',e:'🔄',tag:'迷惑',mult:1.5,chant:'转啊转啊，转到 {name} 面前。'},
+{key:'lie',n:'躺平膜拜',e:'🛌',tag:'摸鱼',mult:0.8,chant:'身体躺平，心意不减，{name} 我拜了。'},
+{key:'backflip',n:'后空翻膜拜',e:'🤸',tag:'炫技',mult:2.6,chant:'这一记后空翻，献给 {name}！'},
+{key:'typing',n:'键盘膜拜',e:'⌨',tag:'码农',mult:1.8,chant:'代码千行，不如 {name} 一句话。'},
+{key:'glitch',n:'赛博膜拜',e:'🤖',tag:'硬核',mult:2.0,chant:'HTTP 200，膜拜请求已被 {name} 接收。'},
+{key:'danmaku',n:'弹幕膜拜',e:'💬',tag:'二次元',mult:1.2,chant:'前方高能！全体起立，膜拜 {name}！'},
+{key:'cheers',n:'干杯膜拜',e:'🍻',tag:'豪迈',mult:1.6,chant:'敬 {name} 一杯，愿你我皆无 bug！'},
+{key:'woodfish',n:'木鱼膜拜',e:'🥁',tag:'禅意',mult:0.9,chant:'咚——功德 +1，再咚——功德再 +1。'},
+{key:'dogeza',n:'土下座',e:'🙇',tag:'日式',mult:2.2,chant:'土下座！请 {name} 务必收下这份诚意。'},
+{key:'incense',n:'焚香膜拜',e:'🕯',tag:'肃穆',mult:1.8,chant:'三炷清香敬 {name}，烟起处皆是我敬意。'},
+{key:'handstand',n:'倒立膜拜',e:'🤸',tag:'牛人',mult:2.3,chant:'倒立三十秒，诚意顶到天花板！'},
+{key:'space',n:'太空膜拜',e:'🚀',tag:'失重',mult:2.5,chant:'从太空看地球，{name} 依然值得我膜拜。'},
+{key:'clone',n:'影分身膜拜',e:'👥',tag:'忍术',mult:2.4,chant:'四个我一起拜 {name}，诚意直接乘四！'},
+{key:'signal',n:'电波膜拜',e:'📡',tag:'科幻',mult:1.9,chant:'哔——电波已发出，{name} 你收到了吗？'},
+{key:'gacha',n:'抽卡膜拜',e:'🎴',tag:'玄学',mult:1.4,chant:'欧气借我一点，{name} 保佑出金！'},
+{key:'meditate',n:'冥想膜拜',e:'🧘',tag:'禅修',mult:1.2,chant:'入定三小时，满脑子都是 {name}。'},
+{key:'dive',n:'潜水膜拜',e:'🤿',tag:'深海',mult:2.1,chant:'深海之下，我依然在拜 {name}。'},
+{key:'moon',n:'月球膜拜',e:'🌕',tag:'低重力',mult:2.5,chant:'月球重力小，但敬意一点也不轻。'},
+{key:'snow',n:'雪地膜拜',e:'❄',tag:'凛冬',mult:2.0,chant:'漫天飞雪皆敬语，跪地一拜给 {name}。'},
+{key:'bath',n:'泡澡膜拜',e:'🛁',tag:'松弛',mult:1.1,chant:'泡澡也不耽误拜 {name}，这就是信仰。'},
+{key:'fast',n:'极速膜拜',e:'⚡',tag:'闪电',mult:1.8,chant:'一秒三拜！{name} 你的手速我学到了！'}
+];
+const BUILDINGS=[
+{id:'woodfish',n:'木鱼',e:'🥁',base:15,cps:0.1,desc:'咚——功德 +0.1/秒'},
+{id:'cushion',n:'蒲团',e:'🧘',base:100,cps:1,desc:'盘腿一坐，功德自来'},
+{id:'incense',n:'香炉',e:'🕯',base:1100,cps:8,desc:'三炷清香，烟气化功德'},
+{id:'box',n:'功德箱',e:'📦',base:12000,cps:47,desc:'投币口已塞满'},
+{id:'pagoda',n:'舍利塔',e:'🗼',base:130000,cps:260,desc:'层层供奉，塔顶放光'},
+{id:'temple',n:'寺庙',e:'🏯',base:1.4e6,cps:1400,desc:'香火鼎盛，钟声悠远'},
+{id:'shrine',n:'大神殿',e:'⛩',base:2e7,cps:7800,desc:'万人朝拜，功德如潮'},
+{id:'altar',n:'天界祭坛',e:'☁',base:3.3e8,cps:44000,desc:'云端之上的膜拜'}
+];
+const UPGRADES=[
+{id:'click1',n:'虔诚之心 I',desc:'点击力 ×2',cost:100,type:'click',req:()=>S.clicks>=10},
+{id:'click2',n:'虔诚之心 II',desc:'点击力 ×2',cost:1000,type:'click',req:()=>S.upgrades.includes('click1')},
+{id:'click3',n:'虔诚之心 III',desc:'点击力 ×2',cost:12000,type:'click',req:()=>S.upgrades.includes('click2')},
+{id:'click4',n:'虔诚之心 IV',desc:'点击力 ×2',cost:200000,type:'click',req:()=>S.upgrades.includes('click3')},
+{id:'click5',n:'虔诚之心 V',desc:'点击力 ×3',cost:5e6,type:'click3',req:()=>S.upgrades.includes('click4')},
+{id:'crit1',n:'幸运符 I',desc:'暴击率 +5%',cost:500,type:'crit',req:()=>S.clicks>=50},
+{id:'crit2',n:'幸运符 II',desc:'暴击率 +5%',cost:8000,type:'crit',req:()=>S.upgrades.includes('crit1')},
+{id:'crit3',n:'幸运符 III',desc:'暴击率 +5%',cost:150000,type:'crit',req:()=>S.upgrades.includes('crit2')},
+{id:'crit4',n:'幸运符 IV',desc:'暴击率 +5%',cost:3e6,type:'crit',req:()=>S.upgrades.includes('crit3')},
+{id:'woodfish2',n:'木鱼开光',desc:'木鱼产出 ×2',cost:300,type:'building',target:'woodfish',req:()=>S.buildings[0]>=1},
+{id:'cushion2',n:'蒲团加持',desc:'蒲团产出 ×2',cost:2500,type:'building',target:'cushion',req:()=>S.buildings[1]>=1},
+{id:'incense2',n:'香炉生烟',desc:'香炉产出 ×2',cost:25000,type:'building',target:'incense',req:()=>S.buildings[2]>=1},
+{id:'box2',n:'功德箱扩容',desc:'功德箱产出 ×2',cost:250000,type:'building',target:'box',req:()=>S.buildings[3]>=1},
+{id:'pagoda2',n:'舍利放光',desc:'舍利塔产出 ×2',cost:2.5e6,type:'building',target:'pagoda',req:()=>S.buildings[4]>=1},
+{id:'temple2',n:'晨钟暮鼓',desc:'寺庙产出 ×2',cost:2.5e7,type:'building',target:'temple',req:()=>S.buildings[5]>=1},
+{id:'shrine2',n:'万民朝拜',desc:'大神殿产出 ×2',cost:4e8,type:'building',target:'shrine',req:()=>S.buildings[6]>=1},
+{id:'altar2',n:'天人合一',desc:'天界祭坛产出 ×2',cost:6e9,type:'building',target:'altar',req:()=>S.buildings[7]>=1},
+{id:'global1',n:'香火鼎盛',desc:'所有产出 ×1.5',cost:50000,type:'global',req:()=>S.buildings.reduce((a,b)=>a+b,0)>=20},
+{id:'global2',n:'信仰之跃',desc:'所有产出 ×1.5',cost:5e6,type:'global',req:()=>S.upgrades.includes('global1')},
+{id:'global3',n:'功德无量',desc:'所有产出 ×2',cost:5e8,type:'global',req:()=>S.upgrades.includes('global2')}
+];
+/* ================= 成就 ================= */
+const ACHIEVEMENTS=[
+{id:'first',n:'初次膜拜',d:'完成第一次膜拜',test:()=>S.allTimeClicks>=1},
+{id:'click100',n:'百次膜拜',d:'累计点击 100 次',test:()=>S.allTimeClicks>=100},
+{id:'click1k',n:'千次膜拜',d:'累计点击 1000 次',test:()=>S.allTimeClicks>=1000},
+{id:'click10k',n:'万次膜拜',d:'累计点击 10000 次',test:()=>S.allTimeClicks>=10000},
+{id:'click100k',n:'十万虔诚',d:'累计点击 100000 次',test:()=>S.allTimeClicks>=100000},
+{id:'combo5',n:'连击新星',d:'连续点击 5 次',test:()=>S.maxCombo>=5},
+{id:'combo20',n:'连击大师',d:'连续点击 20 次',test:()=>S.maxCombo>=20},
+{id:'combo50',n:'连击宗师',d:'连续点击 50 次',test:()=>S.maxCombo>=50},
+{id:'combo100',n:'连击之神',d:'连续点击 100 次',test:()=>S.maxCombo>=100},
+{id:'crit',n:'鸿运当头',d:'触发一次暴击',test:()=>S.critCount>=1},
+{id:'crit100',n:'暴击百次',d:'累计暴击 100 次',test:()=>S.critCount>=100},
+{id:'crit1k',n:'暴击狂人',d:'累计暴击 1000 次',test:()=>S.critCount>=1000},
+{id:'collect',n:'姿势收藏家',d:'收集 20 种不同姿势',test:()=>S.seen.length>=20},
+{id:'allpose',n:'姿势全收集',d:'收集全部 27 种姿势',test:()=>S.seen.length>=27},
+{id:'pose_master',n:'姿势宗师',d:'任意一种姿势使用满 500 次',test:()=>Object.values(S.wayUses).some(v=>v>=500)},
+{id:'build1',n:'第一桶金',d:'购买第一个建筑',test:()=>S.buildings.reduce((a,b)=>a+b,0)>=1},
+{id:'build50',n:'产业帝国',d:'拥有 50 个建筑',test:()=>S.buildings.reduce((a,b)=>a+b,0)>=50},
+{id:'build200',n:'膜拜集团',d:'拥有 200 个建筑',test:()=>S.buildings.reduce((a,b)=>a+b,0)>=200},
+{id:'woodfish100',n:'木鱼大师',d:'拥有 100 个木鱼',test:()=>S.buildings[0]>=100},
+{id:'temple100',n:'香火帝国',d:'拥有 100 座寺庙',test:()=>S.buildings[5]>=100},
+{id:'allbuild10',n:'均衡发展',d:'每种建筑至少 10 个',test:()=>S.buildings.every(x=>x>=10)},
+{id:'allbuild25',n:'全面开花',d:'每种建筑至少 25 个（全部触发协同）',test:()=>S.buildings.every(x=>x>=25)},
+{id:'allupgrades',n:'学无止境',d:'购买全部升级',test:()=>S.upgrades.length>=UPGRADES.length},
+{id:'cps100',n:'每秒百功',d:'每秒产出达到 100',heavy:true,test:()=>calcCps()>=100},
+{id:'cps10k',n:'功德如潮',d:'每秒产出达到 10000',heavy:true,test:()=>calcCps()>=10000},
+{id:'cps1m',n:'功德洪流',d:'每秒产出达到 100 万',heavy:true,test:()=>calcCps()>=1e6},
+{id:'golden',n:'金光闪闪',d:'点击一次金木鱼',test:()=>S.goldenCount>=1},
+{id:'golden10',n:'幸运星',d:'点击 10 次金木鱼',test:()=>S.goldenCount>=10},
+{id:'golden100',n:'锦鲤附体',d:'点击 100 次金木鱼',test:()=>S.goldenCount>=100},
+{id:'merit1m',n:'百万功德',d:'累计获得 100 万功德',test:()=>S.allTimeEarned>=1e6},
+{id:'merit1b',n:'十亿功德',d:'累计获得 10 亿功德',test:()=>S.allTimeEarned>=1e9},
+{id:'merit1t',n:'万亿功德',d:'累计获得 1 万亿功德',test:()=>S.allTimeEarned>=1e12},
+{id:'stock1',n:'第一支股',d:'买入第一支股票',test:()=>S.stockBuys>=1},
+{id:'stockprofit',n:'股神',d:'单周目股票交易累计盈利 100 万',test:()=>S.stockProfitThisRun>=1e6},
+{id:'stockhold1m',n:'股市新星',d:'持仓市值达到 100 万',heavy:true,test:()=>{let v=0;STOCK_DEFS.forEach(d=>{const p=S.portfolio[d.id];const st=S.stocks[d.id];if(p&&st)v+=p.qty*st.price});return v>=1e6}},
+{id:'stockhold1b',n:'股市巨鳄',d:'持仓市值达到 10 亿',heavy:true,test:()=>{let v=0;STOCK_DEFS.forEach(d=>{const p=S.portfolio[d.id];const st=S.stocks[d.id];if(p&&st)v+=p.qty*st.price});return v>=1e9}},
+{id:'lev5',n:'杠杆玩家',d:'使用 5x 杠杆买入',test:()=>S.maxLeverageUsed>=5},
+{id:'lev10',n:'刀尖舔血',d:'使用 10x 杠杆买入',test:()=>S.maxLeverageUsed>=10},
+{id:'liq1',n:'爆仓初体验',d:'第一次被强制平仓',test:()=>S.liquidationCount>=1},
+{id:'short1',n:'做空初体验',d:'第一次做空',test:()=>(S.shortCount||0)>=1},
+{id:'ascend1',n:'初次飞升',d:'完成第一次飞升',test:()=>S.ascensions>=1},
+{id:'ascend5',n:'轮回五次',d:'飞升 5 次',test:()=>S.ascensions>=5},
+{id:'ascend10',n:'十世轮回',d:'飞升 10 次',test:()=>S.ascensions>=10},
+{id:'ascend25',n:'超凡入圣',d:'飞升 25 次',test:()=>S.ascensions>=25},
+{id:'chips100',n:'天道百片',d:'拥有 100 天道碎片',test:()=>S.heavenlyChips>=100},
+{id:'chips500',n:'天道法则',d:'拥有 500 天道碎片',test:()=>S.heavenlyChips>=500},
+{id:'chips1k',n:'代天行罚',d:'拥有 1000 天道碎片',test:()=>S.heavenlyChips>=1000},
+{id:'lump10',n:'结晶初见',d:'拥有 10 功德结晶',test:()=>S.lumps>=10},
+{id:'lump50',n:'结晶矿主',d:'拥有 50 功德结晶',test:()=>S.lumps>=50},
+{id:'lump200',n:'结晶大亨',d:'拥有 200 功德结晶',test:()=>S.lumps>=200},
+{id:'dragon',n:'护法降临',d:'训练护法神龙到 Lv.1',test:()=>S.dragonLevel>=1},
+{id:'dragon5',n:'神龙觉醒',d:'护法神龙达到 Lv.5',test:()=>S.dragonLevel>=5},
+{id:'dragon10',n:'神龙天降',d:'护法神龙达到 Lv.10',test:()=>S.dragonLevel>=10},
+{id:'pantheon3',n:'三神齐聚',d:'神殿供奉 3 位神灵',test:()=>S.pantheon.filter(x=>x).length>=3},
+{id:'wrinkler',n:'杀心魔',d:'击杀一只业障',test:()=>S.wrinklerKills>=1},
+{id:'wrinkler10',n:'斩业十次',d:'击杀 10 只业障',test:()=>S.wrinklerKills>=10},
+{id:'offline',n:'躺赚',d:'领取一次离线收益',test:()=>(S.offlineClaimed||0)>=1},
+{id:'ach10',n:'略有小成',d:'累计解锁 10 个成就',test:()=>S.achievements.length>=10},
+{id:'ach20',n:'成就猎人',d:'累计解锁 20 个成就',test:()=>S.achievements.length>=20},
+{id:'ach30',n:'成就收藏家',d:'累计解锁 30 个成就',test:()=>S.achievements.length>=30},
+{id:'ach40',n:'成就宗师',d:'累计解锁 40 个成就',test:()=>S.achievements.length>=40}
+];
+const AURAS=[
+{id:'fire',n:'🔥 业火',desc:'CPS +10%',unlock:1},
+{id:'wind',n:'🌪 疾风',desc:'点击力 +25%',unlock:2},
+{id:'earth',n:'⛰ 厚土',desc:'功德结晶 +25%',unlock:3},
+{id:'water',n:'💧 流水',desc:'金木鱼频率 +30%',unlock:5},
+{id:'light',n:'✨ 圣光',desc:'暴击率 +5%',unlock:7},
+{id:'dark',n:'🌑 暗影',desc:'业障吸取 -50%',unlock:10}
+];
+const GODS=[
+{id:'caishen',n:'财神',e:'💰',desc:'CPS +15%',req:1},
+{id:'wenchang',n:'文昌帝君',e:'📚',desc:'点击力 +20%',req:2},
+{id:'yuelao',n:'月老',e:'💕',desc:'暴击率 +8%',req:3},
+{id:'guangong',n:'关公',e:'⚔',desc:'金木鱼奖励 +30%',req:5},
+{id:'zaowang',n:'灶王爷',e:'🍲',desc:'离线收益 +25%',req:8}
+];
+const HEAVEN=[
+{id:'eff',n:'效率',e:'⚙',max:10,cost:l=>1+l*2,desc:'全 CPS +20%/级'},
+{id:'fing',n:'指尖',e:'👆',max:10,cost:l=>1+l*2,desc:'点击力 +40%/级；3 级解锁自动点击'},
+{id:'luck',n:'福缘',e:'🍀',max:8,cost:l=>2+l*3,desc:'暴击率 +2%、暴击倍率 +0.5/级'},
+{id:'time',n:'时轮',e:'⏳',max:6,cost:l=>3+l*4,desc:'离线上限 +3h、效率 +10%/级'},
+{id:'trade',n:'交易',e:'📈',max:5,cost:l=>4+l*5,desc:'股票手续费 -20%/级'},
+{id:'ward',n:'镇业',e:'🛡',max:5,cost:l=>3+l*4,desc:'业障吸取 -15%/级'}
+];
+/* 股市 */
+const STOCK_DEFS=[
+{id:'TIGR',n:'Tiger 控股',e:'🐯',base:200,mode:'slow',growth:0.0000030,divYield:0.00002,impactCoef:0.00010},
+{id:'BUDD',n:'佛系科技',e:'🧘',base:5000,mode:'standard',growth:0.0000020,divYield:0.00003,impactCoef:0.00006},
+{id:'GOLD',n:'黄金圣殿',e:'💰',base:20000,mode:'fast',growth:0.0000015,divYield:0.00004,impactCoef:0.00008},
+{id:'DEMO',n:'幽冥矿业',e:'💀',base:8000,mode:'chaotic',growth:-0.0000020,divYield:0.00008,impactCoef:0.00012},
+{id:'MOON',n:'月球地产',e:'🌕',base:50000,mode:'slow',growth:0.0000010,divYield:0.000025,impactCoef:0.00003}
+];
+const STOCK_MODES={
+slow:{name:'慢速',interval:20000,vol:0.10,color:'#60a5fa'},
+standard:{name:'标准',interval:12000,vol:0.18,color:'#facc15'},
+fast:{name:'快速',interval:7000,vol:0.30,color:'#f97316'},
+chaotic:{name:'混乱',interval:4000,vol:0.50,color:'#ef4444'}
+};
+const STOCK_FEE=0.01;
+const STOCK_LEVERAGES=[1,2,3,5,10];
+const STOCK_CHANGE_LOOKBACK=60;
+const STOCK_UNLOCK=1e6;
+const STOCK_HIST_LEN=120;
+const STOCK_SIGMA={slow:0.0020,standard:0.0038,fast:0.0065,chaotic:0.011};
+const STOCK_LOG_MIN=Math.log(0.03),STOCK_LOG_MAX=Math.log(30);
+/* 股市机制常量 */
+const FIN_RATE_PER_SEC=0.00002/60;
+const LIQ_LOSS_RATIO=0.9;
+const PERM_RATIO=0.5;
+/* 连击超时（毫秒） */
+const COMBO_TIMEOUT=2000;
+/* ================= 状态 ================= */
+const STORAGE_KEY='tiger_clicker_v3';
+const S={
+v:4,
+merit:0,totalEarned:0,clicks:0,allTimeClicks:0,critCount:0,goldenCount:0,
+maxCombo:0,combo:0,lastWay:-1,
+buildings:[0,0,0,0,0,0,0,0],
+buildingLevels:[0,0,0,0,0,0,0,0],
+upgrades:[],seen:[],achievements:[],
+wayUses:{},
+sect:0,luck:0,buffUntil:0,clickBuffUntil:0,lastSave:Date.now(),lastTarget:'',
+lastClickTime:0,
+lastStyleShift:0,
+simple:false,muted:false,
+heavenlyChips:0,ascensions:0,allTimeEarned:0,
+heavenLevels:{eff:0,fing:0,luck:0,time:0,trade:0,ward:0},
+lumps:0,lumpProgress:0,
+dragonLevel:0,activeAuras:[],
+pantheon:[null,null,null],
+wrinklerKills:0,
+stocks:{},portfolio:{},
+stockBuys:0,stockProfit:0,stockProfitThisRun:0,
+stockLeverage:1,maxLeverageUsed:1,liquidationCount:0,
+shortCount:0,
+autoClick:false,autoBuy:false,
+offlineClaimed:0
+};
+let currentWay=WAYS[0],currentSect=SECTS[0],buyQty=1,stockQty=1,currentTab='buildings';
+let currentPoseClass='';
+let wrinklers=[];
+let nextWrinklerAt=Date.now()+60000;
+let selectedSlot=-1;
+let interacting=false;
+let suppressSave=false;
+let pendingLiquidation=[];
+/* ================= 存档 ================= */
+try{const raw=localStorage.getItem(STORAGE_KEY);if(raw){const d=JSON.parse(raw);Object.keys(d).forEach(k=>{if(k in S)S[k]=d[k]})}}catch(e){}
+if(!S.stocks||typeof S.stocks!=='object')S.stocks={};
+if(!S.portfolio||typeof S.portfolio!=='object')S.portfolio={};
+if(!STOCK_LEVERAGES.includes(S.stockLeverage))S.stockLeverage=1;
+if(typeof S.maxLeverageUsed!=='number'||S.maxLeverageUsed<1)S.maxLeverageUsed=1;
+if(typeof S.liquidationCount!=='number')S.liquidationCount=0;
+if(typeof S.shortCount!=='number')S.shortCount=0;
+if(typeof S.lastClickTime!=='number'||!isFinite(S.lastClickTime))S.lastClickTime=0;
+if(typeof S.allTimeClicks!=='number'||S.allTimeClicks<0)S.allTimeClicks=S.clicks||0;
+if(typeof S.stockProfitThisRun!=='number'||S.stockProfitThisRun<0)S.stockProfitThisRun=0;
+if(!S.wayUses||typeof S.wayUses!=='object')S.wayUses={};
+if(!S.heavenLevels||typeof S.heavenLevels!=='object')S.heavenLevels={};
+HEAVEN.forEach(h=>{if(typeof S.heavenLevels[h.id]!=='number'||!isFinite(S.heavenLevels[h.id])||S.heavenLevels[h.id]<0)S.heavenLevels[h.id]=0});
+if(S.sect<0||S.sect>=SECTS.length)S.sect=0;
+if(typeof S.offlineClaimed!=='number')S.offlineClaimed=0;
+STOCK_DEFS.forEach(def=>{
+  let st=S.stocks[def.id];
+  if(!st||typeof st!=='object'){
+    st={mult:1,price:def.base,logP:0,targetMult:1,nextChange:Date.now(),hist:[]};
+    S.stocks[def.id]=st;
+  }
+  if(typeof st.logP!=='number'||!isFinite(st.logP))
+    st.logP=Math.log(Math.max(0.02,(typeof st.mult==='number'&&st.mult>0)?st.mult:1));
+  if(typeof st.vol!=='number'||!isFinite(st.vol))st.vol=STOCK_SIGMA[def.mode]||0.0035;
+  if(typeof st.mom!=='number'||!isFinite(st.mom))st.mom=0;
+  if(typeof st.tempImpact!=='number'||!isFinite(st.tempImpact))st.tempImpact=0;
+  st.mult=Math.exp(st.logP);
+  if(typeof st.fv!=='number'||!isFinite(st.fv)||st.fv<=0){
+    st.fv=def.base*st.mult;
+  }
+  st.price=def.base*Math.exp(st.logP+st.tempImpact);
+  if(!Array.isArray(st.hist)||!st._mig5){
+    st.hist=[];
+    for(let i=0;i<STOCK_HIST_LEN;i++)st.hist.push(st.price);
+    st._mig5=true;
+  }
+  if(st.hist.length>STOCK_HIST_LEN)st.hist=st.hist.slice(-STOCK_HIST_LEN);
+  let p=S.portfolio[def.id];
+  if(!p||typeof p!=='object'){p={};S.portfolio[def.id]=p}
+  if(typeof p.qty!=='number'||p.qty<0)p.qty=0;
+  if(typeof p.cost!=='number'||p.cost<0)p.cost=0;
+  if(typeof p.leverage!=='number'||p.leverage<1)p.leverage=1;
+  if(typeof p.margin!=='number'||p.margin<0)p.margin=0;
+  if(typeof p.feePaid!=='number'||p.feePaid<0)p.feePaid=0;
+  if(typeof p.shortQty!=='number'||p.shortQty<0)p.shortQty=0;
+  if(typeof p.shortCost!=='number'||p.shortCost<0)p.shortCost=0;
+  if(typeof p.shortMargin!=='number'||p.shortMargin<0)p.shortMargin=0;
+  if(typeof p.shortLeverage!=='number'||p.shortLeverage<1)p.shortLeverage=1;
+  if(typeof p.shortFeePaid!=='number'||p.shortFeePaid<0)p.shortFeePaid=0;
+});
+if(!Array.isArray(S.buildings)||S.buildings.length!==8)S.buildings=[0,0,0,0,0,0,0,0];
+if(!Array.isArray(S.buildingLevels)||S.buildingLevels.length!==8)S.buildingLevels=[0,0,0,0,0,0,0,0];
+if(!Array.isArray(S.upgrades))S.upgrades=[];
+if(!Array.isArray(S.seen))S.seen=[];
+if(!Array.isArray(S.achievements))S.achievements=[];
+if(!Array.isArray(S.activeAuras))S.activeAuras=[];
+if(!Array.isArray(S.pantheon)||S.pantheon.length!==3)S.pantheon=[null,null,null];
+/* 离线收益 */
+(function(){
+  const now=Date.now();
+  const maxSecs=14400+(S.heavenLevels.time||0)*3*3600;
+  const secs=Math.min((now-(S.lastSave||now))/1000,maxSecs);
+  if(secs>60){
+    let rate=calcCps();
+    if(S.pantheon.includes('zaowang'))rate*=1.25;
+    rate*=(SECT_BONUS[S.sect].offline||1);
+    const eff=0.5+(S.heavenLevels.time||0)*0.10;
+    const gain=rate*secs*eff;
+    if(gain>0){
+      S.merit+=gain;S.totalEarned+=gain;S.allTimeEarned+=gain;
+      S.offlineClaimed=(S.offlineClaimed||0)+1;
+      setTimeout(()=>toast('🌙 离线收益 +'+fmt(gain)+' 功德'),800);
+    }
+  }
+  S.lastSave=now;
+})();
+/* ================= 元素 ================= */
+const $=id=>document.getElementById(id);
+const fxLayer=$('fx'),floatLayer=$('float-layer'),danmakuLayer=$('danmaku-layer');
+const meritNum=$('mn'),meritCps=$('mc'),chipsBadge=$('chips-badge'),buffBadge=$('buff-badge');
+const sectEl=$('sect'),emojiEl=$('emoji'),emojiWrap=$('emoji-wrap');
+const wayEl=$('way'),tagEl=$('tag'),targetEl=$('target'),chantEl=$('chant'),prayBtn=$('pray'),clickInfo=$('clickinfo');
+const buildingsList=$('buildings-list'),upgradesList=$('upgrades-list');
+const stocksList=$('stocks-list');
+const achList=$('ach-list'),sectList=$('sect-list'),ascendContent=$('ascend-content');
+const statEl=$('stat');
+const simpleBt=$('simple-toggle'),soundBt=$('sound-toggle'),resetBt=$('reset'),zeroBt=$('zero-btn');
+/* ================= 数值 ================= */
+function buildingMult(id){let m=1;UPGRADES.forEach(u=>{if(u.type==='building'&&u.target===id&&S.upgrades.includes(u.id))m*=2});return m}
+function buildingYield(i){
+  const b=BUILDINGS[i];
+  const lvl=1+S.buildingLevels[i]*0.10;
+  let m=buildingMult(b.id);
+  m*=Math.pow(2,Math.floor(S.buildings[i]/25));
+  if(S.buildings[i]>=25){
+    if(i>0&&S.buildings[i-1]>=25)m*=1.10;
+    if(i<7&&S.buildings[i+1]>=25)m*=1.10;
+  }
+  return b.cps*m*lvl;
+}
+function heavenSpent(){
+  let s=0;
+  HEAVEN.forEach(h=>{
+    const lv=S.heavenLevels[h.id]||0;
+    for(let i=0;i<lv;i++)s+=h.cost(i);
+  });
+  return s;
+}
+function globalMult(){
+  let m=1;
+  UPGRADES.forEach(u=>{if(u.type==='global'&&S.upgrades.includes(u.id))m*=(u.id==='global3'?2:1.5)});
+  m*=1+Math.max(0,S.heavenlyChips-heavenSpent())*0.01;
+  m*=1+S.dragonLevel*0.02;
+  m*=1+(S.heavenLevels.eff||0)*0.20;
+  m*=Math.pow(1.005,S.achievements.length);
+  return m;
+}
+function auraMult(){let m=1;if(S.activeAuras.includes('fire'))m*=1.10;return m}
+function wrinklerDrainPer(){
+  let drain=0.03;
+  if(S.activeAuras.includes('dark'))drain*=0.5;
+  drain*=(SECT_BONUS[S.sect].wrinklerDrain||1);
+  drain*=(1-(S.heavenLevels.ward||0)*0.15);
+  return drain;
+}
+function baseCps(){
+  let t=0;
+  for(let i=0;i<BUILDINGS.length;i++)t+=S.buildings[i]*buildingYield(i);
+  t*=globalMult()*auraMult();
+  if(S.pantheon.includes('caishen'))t*=1.15;
+  if(Date.now()<S.buffUntil)t*=7;
+  t*=(SECT_BONUS[S.sect].cps||1);
+  return t;
+}
+function calcCps(){
+  let t=baseCps();
+  const wc=wrinklers.length;
+  if(wc>0)t*=Math.max(0,1-wrinklerDrainPer()*wc);
+  return t;
+}
+function perBuildingCps(i){
+  let m=globalMult()*auraMult()*(SECT_BONUS[S.sect].cps||1);
+  if(S.pantheon.includes('caishen'))m*=1.15;
+  if(Date.now()<S.buffUntil)m*=7;
+  const wc=wrinklers.length;
+  if(wc>0)m*=Math.max(0,1-wrinklerDrainPer()*wc);
+  return buildingYield(i)*m;
+}
+function comboActive(){return (Date.now()-(S.lastClickTime||0))<COMBO_TIMEOUT}
+function calcClickPower(ignoreCombo){
+  let p=1;
+  UPGRADES.forEach(u=>{if(S.upgrades.includes(u.id)){if(u.type==='click')p*=2;if(u.type==='click3')p*=3}});
+  p*=globalMult();
+  if(S.activeAuras.includes('wind'))p*=1.25;
+  if(S.pantheon.includes('wenchang'))p*=1.20;
+  p*=currentWay.mult;
+  p*=(SECT_BONUS[S.sect].click||1);
+  p*=1+(S.heavenLevels.fing||0)*0.40;
+  p*=1+((!ignoreCombo&&comboActive())?Math.min(S.combo,30)*0.02:0);
+  let prof=0;
+  for(const k in S.wayUses)prof+=Math.floor((S.wayUses[k]||0)/100)*0.05;
+  p*=1+prof;
+  if(Date.now()<S.clickBuffUntil)p*=7;
+  return p;
+}
+function critRate(){
+  let r=0.10;
+  UPGRADES.forEach(u=>{if(u.type==='crit'&&S.upgrades.includes(u.id))r+=0.05});
+  if(S.activeAuras.includes('light'))r+=0.05;
+  if(S.pantheon.includes('yuelao'))r+=0.08;
+  r+=(SECT_BONUS[S.sect].crit||0);
+  r+=(S.heavenLevels.luck||0)*0.02;
+  return Math.min(r,0.75);
+}
+function critMult(){return 7+(S.heavenLevels.luck||0)*0.5}
+function buildingCost(b,owned,count){
+  const first=b.base*Math.pow(1.15,owned);
+  if(count<=0)return 0;
+  return first*(Math.pow(1.15,count)-1)/0.15*(SECT_BONUS[S.sect].cost||1);
+}
+function maxBuyable(b,owned,money){
+  if(!(money>0))return 0;
+  const first=b.base*Math.pow(1.15,owned);
+  let n=Math.floor(Math.log(1+money*0.15/first)/Math.log(1.15));
+  if(!isFinite(n)||n<0)n=0;
+  if(n>5000)n=5000;
+  while(n>0&&buildingCost(b,owned,n)>money)n--;
+  while(n<5000&&buildingCost(b,owned,n+1)<=money)n++;
+  return n;
+}
+function fmt(n){
+  if(!isFinite(n))return '∞';if(n<0)return '-'+fmt(-n);
+  if(n===0)return '0';
+  if(n<1)return n.toFixed(2);
+  if(n<1000){if(n<10&&n%1!==0)return n.toFixed(2);if(n<100&&n%1!==0)return n.toFixed(1);return Math.floor(n).toString()}
+  const u=['','K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc','Ud','Dd','Td','Qad'];
+  let i=0;while(n>=1000&&i<u.length-1){n/=1000;i++}
+  return (n<10?n.toFixed(2):n<100?n.toFixed(1):Math.floor(n))+u[i];
+}
+function pendingChips(){return Math.floor(Math.pow(S.allTimeEarned/1e9,1/3))}
+function availableChips(){return Math.max(0,pendingChips()-S.heavenlyChips)}
+function stockFee(){return STOCK_FEE*Math.max(0.1,1-(S.heavenLevels.trade||0)*0.2)}
+/* 价格冲击：不封顶，只受 exp 安全阈值约束（交易时检查） */
+function calcImpact(def, notional){
+  return def.impactCoef * Math.sqrt(Math.max(0, notional));
+}
+/* 刷新 st.price：logP + tempImpact 钳到市场边界，防止价格无限涨跌 */
+function refreshStockPrice(def, st){
+  st.logP = Math.max(STOCK_LOG_MIN, Math.min(STOCK_LOG_MAX, st.logP));
+  let total = st.logP + st.tempImpact;
+  if(!isFinite(total)) total = st.logP;
+  if(total > STOCK_LOG_MAX){ st.tempImpact = STOCK_LOG_MAX - st.logP; total = STOCK_LOG_MAX; }
+  else if(total < STOCK_LOG_MIN){ st.tempImpact = STOCK_LOG_MIN - st.logP; total = STOCK_LOG_MIN; }
+  st.mult = Math.exp(st.logP);
+  st.price = def.base * Math.exp(total);
+}
+/* 梭哈买入数量：二分法，无冲击封顶 */
+function maxBuyQtyStock(id, merit){
+  const def=STOCK_DEFS.find(d=>d.id===id);
+  const st=S.stocks[id];
+  if(!def||!st)return 0;
+  const port=S.portfolio[id];
+  let L;
+  if(port.qty>0){L=port.leverage;}else{L=S.stockLeverage||1;}
+  const f=stockFee();
+  const p0=st.price;
+  if(!(p0>0)||!(merit>0))return 0;
+  let hi=Math.floor(merit/(p0*(1/L+f)))+1;
+  if(hi<1)return 0;
+  let lo=0;
+  for(let i=0;i<80;i++){
+    if(hi-lo<=1)break;
+    const mid=Math.floor((lo+hi)/2);
+    const imp=calcImpact(def, p0*mid);
+    if(imp>700){ hi=mid; continue; }
+    const fillPrice=p0*Math.exp(imp);
+    const notional=fillPrice*mid;
+    const pay=notional*(1/L+f);
+    if(isFinite(pay)&&pay<=merit){ lo=mid; } else { hi=mid; }
+  }
+  return lo;
+}
+/* 梭哈做空数量：二分法 */
+function maxShortQtyStock(id, merit){
+  const def=STOCK_DEFS.find(d=>d.id===id);
+  const st=S.stocks[id];
+  if(!def||!st)return 0;
+  const port=S.portfolio[id];
+  let L;
+  if(port.shortQty>0){L=port.shortLeverage;}else{L=S.stockLeverage||1;}
+  const f=stockFee();
+  const p0=st.price;
+  if(!(p0>0)||!(merit>0))return 0;
+  let hi=Math.floor(merit/(p0*(1/L+f)))+1;
+  if(hi<1)return 0;
+  let lo=0;
+  for(let i=0;i<80;i++){
+    if(hi-lo<=1)break;
+    const mid=Math.floor((lo+hi)/2);
+    const imp=calcImpact(def, p0*mid);
+    if(imp>700){ hi=mid; continue; }
+    const fillPrice=p0*Math.exp(-imp);
+    const notional=fillPrice*mid;
+    const pay=notional*(1/L+f);
+    if(isFinite(pay)&&pay<=merit){ lo=mid; } else { hi=mid; }
+  }
+  return lo;
+}
+/* ================= 音效 ================= */
+let audioCtx=null;
+function initAudio(){if(audioCtx){if(audioCtx.state==='suspended')audioCtx.resume();return}try{audioCtx=new(window.AudioContext||window.webkitAudioContext)()}catch(e){audioCtx=null}}
+function tone(freq,dur,type,vol,slideTo){if(S.muted||!audioCtx)return;const now=audioCtx.currentTime;const osc=audioCtx.createOscillator();const g=audioCtx.createGain();osc.type=type||'sine';osc.frequency.setValueAtTime(freq,now);if(slideTo)osc.frequency.exponentialRampToValueAtTime(slideTo,now+dur);g.gain.setValueAtTime(vol||0.07,now);g.gain.exponentialRampToValueAtTime(0.0001,now+dur);osc.connect(g);g.connect(audioCtx.destination);osc.start(now);osc.stop(now+dur+0.02)}
+function sfxClick(){tone(220,0.08,'sine',0.06,110)}
+function sfxCrit(){tone(880,0.16,'triangle',0.09);setTimeout(()=>tone(1320,0.2,'triangle',0.07),60)}
+function sfxBuy(){tone(440,0.1,'square',0.05);setTimeout(()=>tone(660,0.14,'square',0.05),80)}
+function sfxGolden(){tone(660,0.1,'triangle',0.09);setTimeout(()=>tone(990,0.1,'triangle',0.09),80);setTimeout(()=>tone(1320,0.22,'triangle',0.1),160)}
+function sfxAch(){tone(523,0.1,'triangle',0.08);setTimeout(()=>tone(784,0.12,'triangle',0.08),90);setTimeout(()=>tone(1047,0.2,'triangle',0.09),190)}
+function sfxAscend(){tone(261,0.2,'sine',0.1);setTimeout(()=>tone(392,0.2,'sine',0.1),150);setTimeout(()=>tone(523,0.2,'sine',0.1),300);setTimeout(()=>tone(784,0.4,'sine',0.12),450)}
+function sfxLump(){tone(1047,0.15,'sine',0.08);setTimeout(()=>tone(1568,0.2,'sine',0.07),100)}
+function sfxStock(){tone(587,0.08,'square',0.05);setTimeout(()=>tone(880,0.12,'square',0.05),60)}
+function sfxStyle(){tone(392,0.12,'sine',0.06);setTimeout(()=>tone(587,0.12,'sine',0.06),100);setTimeout(()=>tone(784,0.25,'sine',0.07),200)}
+function vibrate(p){if(navigator.vibrate){try{navigator.vibrate(p)}catch(e){}}}
+/* ================= 渲染 ================= */
+function setPose(el,key){if(currentPoseClass)el.classList.remove(currentPoseClass);currentPoseClass='pose-'+key;void el.offsetWidth;el.classList.add(currentPoseClass)}
+function applySect(s){currentSect=s;document.body.style.background=s.bg;document.body.style.backgroundAttachment='fixed';document.body.style.color=s.c;document.body.style.fontFamily=s.font;document.documentElement.style.setProperty('--glow',s.glow);sectEl.textContent='◈ '+s.n+' ◈'}
+function buildRain(parts){fxLayer.innerHTML='';if(S.simple||!parts||!parts.length)return;const n=window.innerWidth<600?12:24;const frag=document.createDocumentFragment();for(let i=0;i<n;i++){const sp=document.createElement('span');sp.className='drop';sp.textContent=parts[Math.floor(Math.random()*parts.length)];sp.style.left=(Math.random()*100).toFixed(2)+'vw';sp.style.fontSize=(14+Math.random()*24).toFixed(0)+'px';sp.style.animationDuration=(5+Math.random()*7).toFixed(2)+'s';sp.style.animationDelay=(-Math.random()*10).toFixed(2)+'s';sp.style.opacity=(0.15+Math.random()*0.5).toFixed(2);frag.appendChild(sp)}fxLayer.appendChild(frag)}
+function renderTarget(name){targetEl.innerHTML='';const lbl=document.createElement('span');lbl.className='lbl';lbl.textContent='膜拜';const who=document.createElement('span');who.className='who';who.textContent=name;targetEl.appendChild(lbl);targetEl.appendChild(who)}
+function pickTarget(){if(TARGETS.length<=1)return TARGETS[0];let t;do{t=TARGETS[Math.floor(Math.random()*TARGETS.length)]}while(t===S.lastTarget);return t}
+function spawnDanmaku(text,color){
+  if(S.simple)return;
+  const el=document.createElement('div');
+  el.className='danmaku';
+  el.textContent=text;
+  el.style.color=color||currentSect.c;
+  el.style.top=(6+Math.random()*48)+'vh';
+  el.style.fontSize=(16+Math.random()*10).toFixed(0)+'px';
+  const dur=4+Math.random()*3.5;
+  el.style.animationDuration=dur+'s';
+  danmakuLayer.appendChild(el);
+  setTimeout(()=>el.remove(),dur*1000+300);
+  while(danmakuLayer.children.length>28)danmakuLayer.firstChild.remove();
+}
+function cycleStyle(reason){
+  if(SECTS.length<=1)return;
+  let i;do{i=Math.floor(Math.random()*SECTS.length)}while(i===S.sect);
+  S.sect=i;
+  applySect(SECTS[i]);
+  buildRain(SECTS[i].parts);
+  save();
+  if(currentTab==='sects')renderSects();
+  sfxStyle();
+  toast('🎨 '+reason+' → 风格切换：'+SECTS[i].n);
+}
+function tryStyleShift(reason){
+  const now=Date.now();
+  if(now-(S.lastStyleShift||0)<8000)return;
+  S.lastStyleShift=now;
+  cycleStyle(reason);
+}
+function refreshHud(){
+  meritNum.textContent=fmt(S.merit);
+  meritCps.textContent='每秒 '+fmt(calcCps())+' · 点击 '+fmt(calcClickPower());
+  const active=comboActive();
+  const dispCombo=active?S.combo:0;
+  clickInfo.textContent='点击力 ×'+fmt(calcClickPower())+' · 暴击率 '+Math.round(critRate()*100)+'%'+(dispCombo>1?' · 连击 ×'+dispCombo:'');
+  tagEl.textContent=currentWay.tag+(dispCombo>=2?' · 连击 ×'+dispCombo:'');
+  if(Date.now()<S.buffUntil){buffBadge.textContent='🍀 产出 ×7';buffBadge.classList.add('on')}
+  else if(Date.now()<S.clickBuffUntil){buffBadge.textContent='⚡ 点击 ×7';buffBadge.classList.add('on')}
+  else buffBadge.classList.remove('on');
+  chipsBadge.classList.toggle('on',S.heavenlyChips>0);
+  chipsBadge.textContent='💠 天道 '+fmt(S.heavenlyChips);
+}
+function renderBuildings(){
+  buildingsList.innerHTML='';
+  BUILDINGS.forEach((b,i)=>{
+    const owned=S.buildings[i];
+    const maxN=maxBuyable(b,owned,S.merit);
+    const count=buyQty==='max'?Math.max(1,maxN):buyQty;
+    const cost=buildingCost(b,owned,count);
+    const can=S.merit>=cost&&(buyQty!=='max'||maxN>0);
+    const per=perBuildingCps(i);
+    const lvl=S.buildingLevels[i];
+    const milestone=Math.floor(owned/25);
+    const row=document.createElement('div');
+    row.className='buy-row'+(can?' can':'');
+    row.innerHTML='<div class="ic">'+b.e+'</div><div class="info"><div class="nm"><span>'+b.n+'<span class="lvl">'+(lvl>0?'+'+lvl:'')+'</span></span><span class="owned">×'+owned+'</span></div><div class="sub">'+b.desc+' · 每个 '+fmt(per)+'/秒'+(milestone>0?' · 里程碑 ×'+fmt(Math.pow(2,milestone)):'')+'</div><div class="price'+(can?'':' no')+'">'+(buyQty==='max'?'买 '+Math.max(1,maxN)+' 个 · ':'×'+count+' · ')+fmt(cost)+' 功德</div></div>';
+    const lb=document.createElement('button');
+    lb.className='lump-btn';
+    lb.textContent='💎 '+S.lumps;
+    lb.title='投入 1 结晶，建筑 +10% 产出';
+    lb.disabled=S.lumps<1||lvl>=10;
+    lb.addEventListener('click',e=>{e.stopPropagation();if(S.lumps<1||lvl>=10)return;S.lumps-=1;S.buildingLevels[i]+=1;sfxLump();save();renderBuildings();refreshHud();toast('💎 '+b.n+' 升至 +'+(S.buildingLevels[i])+' 级')});
+    row.appendChild(lb);
+    row.addEventListener('click',()=>{let n=buyQty==='max'?maxBuyable(b,owned,S.merit):buyQty;if(n<=0){toast('功德不足');return}const c=buildingCost(b,owned,n);if(S.merit<c){toast('功德不足');return}S.merit-=c;S.buildings[i]+=n;sfxBuy();vibrate(8);save();renderBuildings();refreshHud()});
+    buildingsList.appendChild(row);
+  });
+}
+function renderUpgrades(){
+  upgradesList.innerHTML='';let any=false;
+  UPGRADES.forEach(u=>{
+    if(S.upgrades.includes(u.id))return;
+    if(!u.req())return;
+    any=true;
+    const can=S.merit>=u.cost;
+    const row=document.createElement('div');
+    row.className='up-row'+(can?' can':'');
+    row.innerHTML='<div class="nm">'+u.n+'</div><div class="sub">'+u.desc+'</div><div class="price">'+fmt(u.cost)+' 功德</div>';
+    row.addEventListener('click',()=>{if(S.merit<u.cost){toast('功德不足');return}S.merit-=u.cost;S.upgrades.push(u.id);sfxBuy();vibrate(10);save();renderUpgrades();renderBuildings();refreshHud();toast('🛠 已购买：'+u.n)});
+    upgradesList.appendChild(row);
+  });
+  if(!any)upgradesList.innerHTML='<div style="opacity:.5;font-size:13px;padding:16px;text-align:center;font-weight:700">暂无可购买的升级</div>';
+}
+/* ---------- 股市 ---------- */
+let sentiment={state:'normal',mult:1,target:1,until:0};
+function tickSentiment(now){
+  if(now>=sentiment.until){
+    const r=Math.random();
+    sentiment.state=r<0.3?'calm':r<0.75?'normal':'panic';
+    sentiment.target=sentiment.state==='calm'?0.6:sentiment.state==='normal'?1.0:1.8;
+    sentiment.until=now+120000+Math.random()*180000;
+  }
+  sentiment.mult += (sentiment.target-sentiment.mult)*0.015;
+}
+function stockIndex(){
+  let s=0;
+  STOCK_DEFS.forEach(d=>{const st=S.stocks[d.id];if(st&&st.price>0)s+=st.price/d.base});
+  return s/STOCK_DEFS.length;
+}
+function gaussRand(){
+  let u=0,v=0;
+  while(u===0)u=Math.random();
+  while(v===0)v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+let pendingStockEvents=[];
+function tickStocks(dt){
+  dt=dt||1;
+  const now=Date.now();
+  tickSentiment(now);
+  STOCK_DEFS.forEach(def=>{
+    const st=S.stocks[def.id];
+    if(!st)return;
+    const baseSigma=STOCK_SIGMA[def.mode]||0.0035;
+
+    if(def.growth) st.fv *= Math.exp(def.growth*dt);
+    if(st.fv<def.base*0.01) st.fv=def.base*0.01;
+    if(st.fv>def.base*1000) st.fv=def.base*1000;
+
+    st.tempImpact *= Math.pow(0.95, dt);
+    if(Math.abs(st.tempImpact)<1e-6) st.tempImpact=0;
+
+    if(typeof st.vol!=='number'||!isFinite(st.vol))st.vol=baseSigma;
+    const volTarget=baseSigma*(0.6+Math.random()*0.8);
+    st.vol += (volTarget-st.vol)*Math.min(0.05*dt,0.3);
+    if(st.vol<baseSigma*0.5)st.vol=baseSigma*0.5;
+    if(st.vol>baseSigma*2.0)st.vol=baseSigma*2.0;
+
+    if(typeof st.mom!=='number'||!isFinite(st.mom))st.mom=0;
+    st.mom = st.mom*Math.pow(0.975,dt) + (Math.random()-0.5)*baseSigma*0.10*Math.sqrt(dt);
+    if(st.mom>baseSigma*0.8)st.mom=baseSigma*0.8;
+    if(st.mom<-baseSigma*0.8)st.mom=-baseSigma*0.8;
+
+    const fvOffset = Math.log(st.fv/def.base);
+    const pull = -0.010*(st.logP - fvOffset)*dt;
+
+    const noise = st.vol*sentiment.mult*gaussRand()*Math.sqrt(dt);
+
+    let jump=0;
+    if(Math.random()<0.0003*dt){
+      const bullish=Math.random()<0.5;
+      const mag=0.04+Math.random()*0.18;
+      jump=(bullish?1:-1)*mag;
+      pendingStockEvents.push({name:def.n,emoji:def.e,bullish,mag});
+    }
+
+    st.logP = Math.max(STOCK_LOG_MIN, Math.min(STOCK_LOG_MAX, st.logP + st.mom*dt + pull + noise + jump));
+    refreshStockPrice(def, st);
+    st.hist.push(st.price);
+    if(st.hist.length>STOCK_HIST_LEN)st.hist.shift();
+
+    const port=S.portfolio[def.id];
+    if(port){
+      if(port.qty>0 && port.leverage>1){
+        const borrowed = port.cost - port.margin;
+        if(borrowed>0){
+          const interest = borrowed * FIN_RATE_PER_SEC * dt;
+          S.merit -= interest;
+          port.cost += interest;
+        }
+      }
+      if(port.shortQty>0 && port.shortLeverage>1){
+        const borrowedShort = port.shortCost - port.shortMargin;
+        if(borrowedShort>0){
+          const interest = borrowedShort * FIN_RATE_PER_SEC * dt;
+          S.merit -= interest;
+          port.shortCost += interest;
+        }
+      }
+    }
+
+    if(port && port.qty>0 && port.leverage>1){
+      const avgCost = port.cost/port.qty;
+      const lossRatio = (avgCost - st.price)/avgCost * port.leverage;
+      if(lossRatio > LIQ_LOSS_RATIO) liquidate(def, port);
+    }
+    if(port && port.shortQty>0 && port.shortLeverage>1){
+      const avgShort = port.shortCost/port.shortQty;
+      const lossRatio = (st.price - avgShort)/avgShort * port.shortLeverage;
+      if(lossRatio > LIQ_LOSS_RATIO) liquidateShort(def, port);
+    }
+  });
+}
+function liquidate(def, port){
+  const lost = port.margin;
+  port.qty=0;port.cost=0;port.margin=0;port.leverage=1;port.feePaid=0;
+  S.liquidationCount=(S.liquidationCount||0)+1;
+  pendingLiquidation.push({name:def.n, lost, type:'long'});
+}
+function liquidateShort(def, port){
+  const lost = port.shortMargin;
+  port.shortQty=0;port.shortCost=0;port.shortMargin=0;port.shortLeverage=1;port.shortFeePaid=0;
+  S.liquidationCount=(S.liquidationCount||0)+1;
+  pendingLiquidation.push({name:def.n, lost, type:'short'});
+}
+function flushLiquidations(){
+  if(!pendingLiquidation.length)return;
+  const arr=pendingLiquidation;pendingLiquidation=[];
+  arr.forEach(it=>{
+    const label = it.type==='short' ? '（空头）' : '（多头）';
+    spawnDanmaku('💥 '+it.name+label+' 被强平！保证金 '+fmt(it.lost)+' 归零','#ef4444');
+    toast('💥 '+it.name+label+' 触发强平，损失保证金 '+fmt(it.lost));
+  });
+  sfxCrit();vibrate([30,50,30]);
+  save();refreshHud();
+  if(currentTab==='stocks')renderStocks();
+  checkAchievements(true);
+}
+function flushStockEvents(){
+  if(!pendingStockEvents.length)return;
+  const arr=pendingStockEvents;pendingStockEvents=[];
+  arr.forEach(ev=>{
+    const pct=(ev.mag*100).toFixed(1);
+    spawnDanmaku((ev.bullish?'📰 利好 ':'📉 利空 ')+ev.name+' '+(ev.bullish?'+':'-')+pct+'%', ev.bullish?'#ef4444':'#4ade80');
+    toast((ev.bullish?'📰 利好：':'📉 利空：')+ev.name+(ev.bullish?' 拉升 +':' 跳水 -')+pct+'%');
+  });
+  if(currentTab==='stocks')renderStocks();
+}
+/* 买入：冲击不封顶，exp 溢出保护 */
+function buyStock(id, qty, isMax){
+  const def=STOCK_DEFS.find(d=>d.id===id);
+  const st=S.stocks[id];
+  if(!def||!st||qty<=0)return;
+  const port=S.portfolio[id];
+  if(port.shortQty>0){toast('请先平空 '+def.n+' 再做多');return}
+
+  let L;
+  if(port.qty>0){L=port.leverage;}else{L=S.stockLeverage||1;}
+
+  const fee=stockFee();
+  const p0=st.price;
+  if(!(p0>0)){toast('价格异常');return}
+
+  function calcPay(q){
+    const imp=calcImpact(def, p0*q);
+    if(imp>700) return {ok:false};
+    const fillPrice=p0*Math.exp(imp);
+    const notional=fillPrice*q;
+    const pay=notional*(1/L+fee);
+    return {ok:isFinite(pay), imp, fillPrice, notional, margin:notional/L, feeAmt:notional*fee, pay};
+  }
+
+  let r=calcPay(qty);
+  if(!r.ok){ toast('订单过大，市场无法承接'); return; }
+
+  if(isMax){
+    let guard=0;
+    while(r.pay>S.merit && qty>1 && guard<200){
+      qty--;
+      guard++;
+      r=calcPay(qty);
+      if(!r.ok) break;
+    }
+  }
+
+  if(!r.ok || qty<=0 || r.pay>S.merit){
+    toast('功德不足（需保证金 '+fmt(r.margin||0)+' + 手续费 '+fmt(r.feeAmt||0)+'）');
+    return;
+  }
+
+  st.logP += r.imp*PERM_RATIO;
+  st.tempImpact += r.imp*(1-PERM_RATIO);
+  st.logP = Math.max(STOCK_LOG_MIN, Math.min(STOCK_LOG_MAX, st.logP));
+  refreshStockPrice(def, st);
+
+  S.merit -= r.pay;
+  port.qty += qty;
+  port.cost += r.notional;
+  port.margin += r.margin;
+  port.feePaid += r.feeAmt;
+  port.leverage = L;
+  S.stockBuys += 1;
+  S.maxLeverageUsed = Math.max(S.maxLeverageUsed||1, L);
+  sfxStock();vibrate(8);
+  save();refreshHud();renderStocks();
+  toast('📈 买入 '+qty+' 股 '+def.n+'（'+L+'x），保证金 '+fmt(r.margin)+' · 手续费 '+fmt(r.feeAmt));
+}
+/* 卖出（平多） */
+function sellStock(id, qty){
+  const def=STOCK_DEFS.find(d=>d.id===id);
+  const st=S.stocks[id];
+  const port=S.portfolio[id];
+  if(!def||!st||!port||qty<=0)return;
+  if(port.qty<qty)return;
+
+  const fee=stockFee();
+  const p0=st.price;
+  const imp=calcImpact(def, p0*qty);
+  const fillPrice=p0*Math.exp(-imp);
+
+  const avgCost = port.cost/port.qty;
+  const ratio = qty/port.qty;
+  const marginOut = port.margin*ratio;
+  const feePaidOut = port.feePaid*ratio;
+  const notionalOut = fillPrice*qty;
+  const feeAmt = notionalOut*fee;
+  const pnl = qty*(fillPrice - avgCost);
+  let revenue = marginOut + pnl - feeAmt;
+  if(revenue<0)revenue=0;
+
+  S.merit += revenue;
+  S.totalEarned += revenue;
+  S.allTimeEarned += revenue;
+  const profit = revenue - marginOut - feePaidOut;
+  if(profit>0){S.stockProfit+=profit;S.stockProfitThisRun+=profit;}
+
+  port.cost -= avgCost*qty;
+  port.margin -= marginOut;
+  port.feePaid -= feePaidOut;
+  port.qty -= qty;
+  if(port.qty<=0){port.qty=0;port.cost=0;port.margin=0;port.leverage=1;port.feePaid=0}
+
+  st.logP -= imp*PERM_RATIO;
+  st.tempImpact -= imp*(1-PERM_RATIO);
+  st.logP = Math.max(STOCK_LOG_MIN, Math.min(STOCK_LOG_MAX, st.logP));
+  refreshStockPrice(def, st);
+
+  sfxStock();vibrate(8);
+  save();refreshHud();renderStocks();
+  toast('📉 卖出 '+qty+' 股 '+def.n+'，回收 '+fmt(revenue)+(profit>=0?' 盈利 +'+fmt(profit):' 亏损 '+fmt(profit)));
+}
+/* 做空：冲击不封顶 */
+function openShort(id, qty, isMax){
+  const def=STOCK_DEFS.find(d=>d.id===id);
+  const st=S.stocks[id];
+  if(!def||!st||qty<=0)return;
+  const port=S.portfolio[id];
+  if(port.qty>0){toast('请先平多 '+def.n+' 再做空');return}
+
+  let L;
+  if(port.shortQty>0){L=port.shortLeverage;}else{L=S.stockLeverage||1;}
+
+  const fee=stockFee();
+  const p0=st.price;
+  if(!(p0>0)){toast('价格异常');return}
+
+  function calcPay(q){
+    const imp=calcImpact(def, p0*q);
+    if(imp>700) return {ok:false};
+    const fillPrice=p0*Math.exp(-imp);
+    const notional=fillPrice*q;
+    const pay=notional*(1/L+fee);
+    return {ok:isFinite(pay), imp, fillPrice, notional, margin:notional/L, feeAmt:notional*fee, pay};
+  }
+
+  let r=calcPay(qty);
+  if(!r.ok){ toast('订单过大，市场无法承接'); return; }
+
+  if(isMax){
+    let guard=0;
+    while(r.pay>S.merit && qty>1 && guard<200){
+      qty--;
+      guard++;
+      r=calcPay(qty);
+      if(!r.ok) break;
+    }
+  }
+
+  if(!r.ok || qty<=0 || r.pay>S.merit){
+    toast('功德不足（需保证金 '+fmt(r.margin||0)+' + 手续费 '+fmt(r.feeAmt||0)+'）');
+    return;
+  }
+
+  st.logP -= r.imp*PERM_RATIO;
+  st.tempImpact -= r.imp*(1-PERM_RATIO);
+  st.logP = Math.max(STOCK_LOG_MIN, Math.min(STOCK_LOG_MAX, st.logP));
+  refreshStockPrice(def, st);
+
+  S.merit -= r.pay;
+  port.shortQty += qty;
+  port.shortCost += r.notional;
+  port.shortMargin += r.margin;
+  port.shortFeePaid += r.feeAmt;
+  port.shortLeverage = L;
+  S.stockBuys += 1;
+  S.shortCount = (S.shortCount||0)+1;
+  S.maxLeverageUsed = Math.max(S.maxLeverageUsed||1, L);
+  sfxStock();vibrate(8);
+  save();refreshHud();renderStocks();
+  toast('🩳 做空 '+qty+' 股 '+def.n+'（'+L+'x），保证金 '+fmt(r.margin)+' · 手续费 '+fmt(r.feeAmt));
+}
+/* 平空 */
+function closeShort(id, qty){
+  const def=STOCK_DEFS.find(d=>d.id===id);
+  const st=S.stocks[id];
+  const port=S.portfolio[id];
+  if(!def||!st||!port||qty<=0)return;
+  if(port.shortQty<qty)return;
+
+  const fee=stockFee();
+  const p0=st.price;
+  const imp=calcImpact(def, p0*qty);
+  const fillPrice=p0*Math.exp(imp);
+
+  const avgShort = port.shortCost/port.shortQty;
+  const ratio = qty/port.shortQty;
+  const marginOut = port.shortMargin*ratio;
+  const feePaidOut = port.shortFeePaid*ratio;
+  const notionalOut = fillPrice*qty;
+  const feeAmt = notionalOut*fee;
+  const pnl = qty*(avgShort - fillPrice);
+  let revenue = marginOut + pnl - feeAmt;
+  if(revenue<0)revenue=0;
+
+  S.merit += revenue;
+  S.totalEarned += revenue;
+  S.allTimeEarned += revenue;
+  const profit = revenue - marginOut - feePaidOut;
+  if(profit>0){S.stockProfit+=profit;S.stockProfitThisRun+=profit;}
+
+  port.shortCost -= avgShort*qty;
+  port.shortMargin -= marginOut;
+  port.shortFeePaid -= feePaidOut;
+  port.shortQty -= qty;
+  if(port.shortQty<=0){port.shortQty=0;port.shortCost=0;port.shortMargin=0;port.shortLeverage=1;port.shortFeePaid=0}
+
+  st.logP += imp*PERM_RATIO;
+  st.tempImpact += imp*(1-PERM_RATIO);
+  st.logP = Math.max(STOCK_LOG_MIN, Math.min(STOCK_LOG_MAX, st.logP));
+  refreshStockPrice(def, st);
+
+  sfxStock();vibrate(8);
+  save();refreshHud();renderStocks();
+  toast('📈 平空 '+qty+' 股 '+def.n+'，回收 '+fmt(revenue)+(profit>=0?' 盈利 +'+fmt(profit):' 亏损 '+fmt(profit)));
+}
+function addLongMargin(id){
+  const port=S.portfolio[id];
+  if(!port||port.qty<=0)return;
+  const add = port.margin*0.5;
+  if(S.merit < add){toast('功德不足（需 '+fmt(add)+'）');return}
+  S.merit -= add;
+  port.margin += add;
+  port.leverage = Math.max(1, port.cost/port.margin);
+  toast('✅ 追保 '+fmt(add)+'，实际杠杆降至 '+port.leverage.toFixed(2)+'x');
+  sfxLump();save();refreshHud();renderStocks();
+}
+function addShortMargin(id){
+  const port=S.portfolio[id];
+  if(!port||port.shortQty<=0)return;
+  const add = port.shortMargin*0.5;
+  if(S.merit < add){toast('功德不足（需 '+fmt(add)+'）');return}
+  S.merit -= add;
+  port.shortMargin += add;
+  port.shortLeverage = Math.max(1, port.shortCost/port.shortMargin);
+  toast('✅ 空头追保 '+fmt(add)+'，实际杠杆降至 '+port.shortLeverage.toFixed(2)+'x');
+  sfxLump();save();refreshHud();renderStocks();
+}
+function sparkline(hist){
+  if(!Array.isArray(hist)||hist.length<2)return '';
+  const w=300,h=40;
+  let min=Infinity,max=-Infinity;
+  for(let i=0;i<hist.length;i++){if(hist[i]<min)min=hist[i];if(hist[i]>max)max=hist[i]}
+  const span=(max-min)||1;
+  const pts=[];
+  for(let i=0;i<hist.length;i++){
+    const x=(i/(hist.length-1))*w;
+    const y=h-2-((hist[i]-min)/span)*(h-4);
+    pts.push([x,y]);
+  }
+  let segs='';
+  for(let i=1;i<pts.length;i++){
+    const col=hist[i]>=hist[i-1]?'#ef4444':'#4ade80';
+    segs+='<line x1="'+pts[i-1][0].toFixed(1)+'" y1="'+pts[i-1][1].toFixed(1)+'" x2="'+pts[i][0].toFixed(1)+'" y2="'+pts[i][1].toFixed(1)+'" stroke="'+col+'" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-linecap="round"/>';
+  }
+  const lp=pts[pts.length-1];
+  const lastCol=hist[hist.length-1]>=hist[hist.length-2]?'#ef4444':'#4ade80';
+  const mark='<line x1="'+lp[0].toFixed(1)+'" y1="0" x2="'+lp[0].toFixed(1)+'" y2="'+h+'" stroke="'+lastCol+'" stroke-width="0.8" stroke-dasharray="2 2" vector-effect="non-scaling-stroke" opacity="0.5"/>';
+  return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" style="width:100%;height:42px;display:block;margin:2px 0 6px">'+segs+mark+'</svg>';
+}
+function renderStocks(){
+  if(S.allTimeEarned<STOCK_UNLOCK){
+    stocksList.innerHTML='<div class="stock-locked"><div class="big">🔒</div>股市未解锁<br><br>累计获得 '+fmt(STOCK_UNLOCK)+' 功德后开启<br>当前累计：'+fmt(S.allTimeEarned)+'</div>';
+    return;
+  }
+  let totalMargin=0,totalNotional=0,totalValue=0;
+  let totalShortMargin=0,totalShortNotional=0,totalShortValue=0;
+  STOCK_DEFS.forEach(def=>{
+    const port=S.portfolio[def.id];
+    const st=S.stocks[def.id];
+    totalMargin+=port.margin;
+    totalNotional+=port.cost;
+    totalValue+=port.qty*st.price;
+    totalShortMargin+=port.shortMargin;
+    totalShortNotional+=port.shortCost;
+    totalShortValue+=port.shortQty*st.price;
+  });
+  const pl = totalValue-totalNotional;
+  const shortPl = totalShortNotional-totalShortValue;
+  const idx=stockIndex();
+  const idxPct=(idx-1)*100;
+  const sen=sentiment.state==='calm'?'平静':sentiment.state==='normal'?'常态':'恐慌';
+  const senColor=sentiment.state==='calm'?'#60a5fa':sentiment.state==='normal'?'#facc15':'#ef4444';
+  let html='';
+  html+='<div class="stock-sum"><div>多仓保证金<br>'+fmt(totalMargin)+'</div><div>名义市值<br>'+fmt(totalValue)+'</div><div style="color:'+(pl>=0?'#ef4444':'#4ade80')+'">多仓盈亏<br>'+(pl>=0?'+':'')+fmt(pl)+'</div></div>';
+  if(totalShortNotional>0){
+    html+='<div class="stock-sum"><div>空仓保证金<br>'+fmt(totalShortMargin)+'</div><div>空仓名义<br>'+fmt(totalShortNotional)+'</div><div style="color:'+(shortPl>=0?'#4ade80':'#ef4444')+'">空仓盈亏<br>'+(shortPl>=0?'+':'')+fmt(shortPl)+'</div></div>';
+  }
+  html+='<div class="stock-sum"><div>指数<br>'+idx.toFixed(3)+'</div><div style="color:'+(idxPct>=0?'#ef4444':'#4ade80')+'">指数涨跌<br>'+(idxPct>=0?'+':'')+idxPct.toFixed(1)+'%</div><div style="color:'+senColor+'">情绪<br>'+sen+'</div></div>';
+  html+='<div id="stock-lev">';
+  STOCK_LEVERAGES.forEach(L=>{html+='<button data-lev="'+L+'"'+(S.stockLeverage===L?' class="on"':'')+'>'+L+'x</button>'});
+  html+='</div>';
+  html+='<div id="stock-qty">';
+  [1,10,100,'max'].forEach(q=>{html+='<button data-sqty="'+q+'"'+(stockQty===q?' class="on"':'')+'>×'+q+'</button>'});
+  html+='</div>';
+  STOCK_DEFS.forEach(def=>{
+    const st=S.stocks[def.id];
+    const port=S.portfolio[def.id];
+    const mode=STOCK_MODES[def.mode];
+    const h=st.hist;
+    let pct=0;
+    if(h.length>=2){
+      const lb=Math.min(STOCK_CHANGE_LOOKBACK,h.length-1);
+      const oldP=h[h.length-1-lb];
+      if(oldP>0)pct=(st.price-oldP)/oldP*100;
+    }
+    const arrow=pct>0.5?'↑':pct<-0.5?'↓':'→';
+    const arrowColor=pct>0.5?'#ef4444':pct<-0.5?'#4ade80':'#999';
+
+    html+='<div class="stock-row">';
+    html+='<div class="stock-head"><span class="stock-emoji">'+def.e+'</span><span class="stock-name">'+def.n+'</span><span class="stock-mode" style="color:'+mode.color+'">'+mode.name+'</span></div>';
+    html+='<div class="stock-price-row"><span class="stock-price">'+fmt(st.price)+'</span><span class="stock-change" style="color:'+arrowColor+'">'+arrow+' '+Math.abs(pct).toFixed(1)+'%</span></div>';
+    html+=sparkline(h);
+
+    if(port.qty>0){
+      const avgCost=port.cost/port.qty;
+      const pnl=(st.price-avgCost)*port.qty;
+      const ret=port.margin>0?pnl/port.margin*100:0;
+      const liqPrice=port.leverage>1?avgCost*(1-LIQ_LOSS_RATIO/port.leverage):0;
+      const warnPrice=port.leverage>1?avgCost*(1-LIQ_LOSS_RATIO*0.8/port.leverage):0;
+      const nearLiq=port.leverage>1 && st.price<=warnPrice;
+      html+='<div class="stock-port">📈 多仓 '+port.qty+' · '+port.leverage.toFixed(2)+'x · 均价 '+fmt(avgCost)+'<br>保证金 '+fmt(port.margin)+' · <span style="color:'+(ret>=0?'#ef4444':'#4ade80')+'">收益率 '+(ret>=0?'+':'')+ret.toFixed(1)+'%</span>'+(port.leverage>1?' · 强平 '+fmt(liqPrice):'')+'</div>';
+      let actions='<button data-buy="'+def.id+'">加仓</button><button data-sell="'+def.id+'">卖出</button>';
+      if(nearLiq){
+        actions+='<button data-margin="'+def.id+'" style="background:rgba(255,215,0,.2);border-color:#ffd54a;color:#ffd54a">⚠ 追保</button>';
+      }
+      html+='<div class="stock-actions">'+actions+'</div>';
+    }
+    else if(port.shortQty>0){
+      const avgShort=port.shortCost/port.shortQty;
+      const pnl=(avgShort-st.price)*port.shortQty;
+      const ret=port.shortMargin>0?pnl/port.shortMargin*100:0;
+      const liqPrice=port.shortLeverage>1?avgShort*(1+LIQ_LOSS_RATIO/port.shortLeverage):0;
+      const warnPrice=port.shortLeverage>1?avgShort*(1+LIQ_LOSS_RATIO*0.8/port.shortLeverage):0;
+      const nearLiq=port.shortLeverage>1 && st.price>=warnPrice;
+      html+='<div class="stock-port">📉 空仓 '+port.shortQty+' · '+port.shortLeverage.toFixed(2)+'x · 均价 '+fmt(avgShort)+'<br>保证金 '+fmt(port.shortMargin)+' · <span style="color:'+(ret>=0?'#4ade80':'#ef4444')+'">收益率 '+(ret>=0?'+':'')+ret.toFixed(1)+'%</span>'+(port.shortLeverage>1?' · 强平 '+fmt(liqPrice):'')+'</div>';
+      let actions='<button data-short="'+def.id+'">加空</button><button data-close="'+def.id+'">平空</button>';
+      if(nearLiq){
+        actions+='<button data-shortmargin="'+def.id+'" style="background:rgba(255,215,0,.2);border-color:#ffd54a;color:#ffd54a">⚠ 追保</button>';
+      }
+      html+='<div class="stock-actions">'+actions+'</div>';
+    }
+    else{
+      html+='<div class="stock-port" style="opacity:.5">未持仓</div>';
+      html+='<div class="stock-actions"><button data-buy="'+def.id+'">买入</button><button data-short="'+def.id+'">做空</button></div>';
+    }
+    html+='</div>';
+  });
+  stocksList.innerHTML=html;
+
+  stocksList.querySelectorAll('#stock-qty button').forEach(btn=>{
+    btn.addEventListener('click',()=>{const v=btn.dataset.sqty;stockQty=v==='max'?'max':parseInt(v,10);renderStocks()});
+  });
+  stocksList.querySelectorAll('#stock-lev button').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const L=parseInt(btn.dataset.lev,10);
+      let conflict=null;
+      STOCK_DEFS.forEach(def=>{
+        const p=S.portfolio[def.id];
+        if(p&&p.qty>0&&p.leverage!==L)conflict=def.n+'（多仓实际 '+p.leverage.toFixed(2)+'x）';
+        if(p&&p.shortQty>0&&p.shortLeverage!==L)conflict=def.n+'（空仓实际 '+p.shortLeverage.toFixed(2)+'x）';
+      });
+      if(conflict){toast('持仓杠杆与所选不符：'+conflict+'. 请先清仓或追保后再调');return}
+      S.stockLeverage=L;save();renderStocks();
+    });
+  });
+  stocksList.querySelectorAll('[data-buy]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id=btn.dataset.buy;
+      if(stockQty==='max'){
+        const qty=maxBuyQtyStock(id,S.merit);
+        if(qty<=0){toast('功德不足');return}
+        buyStock(id,qty,true);
+      }else{
+        buyStock(id,stockQty,false);
+      }
+    });
+  });
+  stocksList.querySelectorAll('[data-sell]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id=btn.dataset.sell;
+      const port=S.portfolio[id];
+      let qty;
+      if(stockQty==='max'){qty=port.qty;}
+      else qty=Math.min(stockQty,port.qty);
+      if(qty<=0)return;
+      sellStock(id,qty);
+    });
+  });
+  stocksList.querySelectorAll('[data-short]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id=btn.dataset.short;
+      if(stockQty==='max'){
+        const qty=maxShortQtyStock(id,S.merit);
+        if(qty<=0){toast('功德不足');return}
+        openShort(id,qty,true);
+      }else{
+        openShort(id,stockQty,false);
+      }
+    });
+  });
+  stocksList.querySelectorAll('[data-close]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id=btn.dataset.close;
+      const port=S.portfolio[id];
+      let qty;
+      if(stockQty==='max'){qty=port.shortQty;}
+      else qty=Math.min(stockQty,port.shortQty);
+      if(qty<=0)return;
+      closeShort(id,qty);
+    });
+  });
+  stocksList.querySelectorAll('[data-margin]').forEach(btn=>{
+    btn.addEventListener('click',()=>addLongMargin(btn.dataset.margin));
+  });
+  stocksList.querySelectorAll('[data-shortmargin]').forEach(btn=>{
+    btn.addEventListener('click',()=>addShortMargin(btn.dataset.shortmargin));
+  });
+}
+let divAcc=0;
+function payDividends(){
+  let income=0;
+  let expense=0;
+  STOCK_DEFS.forEach(def=>{
+    const p=S.portfolio[def.id],st=S.stocks[def.id];
+    if(!p||!st)return;
+    const divPerShare = st.fv*def.divYield;
+    if(p.qty>0) income += p.qty*divPerShare;
+    if(p.shortQty>0) expense += p.shortQty*divPerShare;
+  });
+  if(sentiment.state==='panic'){income*=2;expense*=2;}
+  const net = income - expense;
+  if(net>0){
+    S.merit += net;
+    S.totalEarned += net;
+    S.allTimeEarned += net;
+  } else if(net<0){
+    S.merit += net;
+  }
+  if(Math.abs(net) >= Math.max(1,calcCps()*60)){
+    if(net>0) toast('💵 股息 +'+fmt(net)+(sentiment.state==='panic'?'（熊市 ×2）':''));
+    else toast('💸 融券股息 -'+fmt(-net));
+  }
+}
+/* ---------- 成就 / 门派 / 飞升 ---------- */
+function renderAchievements(){
+  achList.innerHTML='';
+  ACHIEVEMENTS.forEach(a=>{
+    const got=S.achievements.includes(a.id);
+    const el=document.createElement('div');
+    el.className='ach'+(got?' got':'');
+    el.innerHTML='<span class="an">'+(got?'🏅 ':'🔒 ')+a.n+'</span>'+a.d;
+    achList.appendChild(el);
+  });
+}
+function checkAchievements(heavy){
+  const newly=[];
+  ACHIEVEMENTS.forEach(a=>{
+    if(S.achievements.includes(a.id))return;
+    if(a.heavy&&!heavy)return;
+    if(a.test()){S.achievements.push(a.id);newly.push(a)}
+  });
+  if(newly.length){
+    save();
+    setTimeout(()=>{
+      newly.forEach(a=>toast('🏅 成就解锁：'+a.n));
+      sfxAch();vibrate([15,40,15]);renderAchievements();
+    },700);
+  }
+}
+function sectBonusText(i){
+  const b=SECT_BONUS[i];
+  if(b.click)return '点击 +15%';
+  if(b.cps)return 'CPS +10%';
+  if(b.crit)return '暴击 +3%';
+  if(b.offline)return '离线 +30%';
+  if(b.goldenFreq)return '金木鱼 +20%';
+  if(b.wrinklerDrain)return '业障吸取 -30%';
+  if(b.lump)return '结晶 +25%';
+  if(b.cost)return '建筑 -5%';
+  return '';
+}
+function renderSects(){
+  sectList.innerHTML='';
+  SECTS.forEach((s,i)=>{
+    const btn=document.createElement('button');
+    btn.className='sect-btn'+(i===S.sect?' on':'');
+    btn.innerHTML=s.n+'<span class="cc">'+(i===S.sect?'已选用':sectBonusText(i))+'</span>';
+    btn.addEventListener('click',()=>{S.sect=i;applySect(s);buildRain(s.parts);renderSects();save();sfxStyle();toast('已切换门派：'+s.n)});
+    sectList.appendChild(btn);
+  });
+}
+function renderAscend(){
+  const avail=availableChips();
+  const next=Math.floor(Math.pow(S.allTimeEarned/1e9,1/3));
+  const needForNext=Math.pow(next+1,3)*1e9;
+  ascendContent.innerHTML='';
+  const card=document.createElement('div');
+  card.className='asc-card';
+  card.innerHTML='<div class="big">💠 '+fmt(avail)+' 天道碎片</div><div class="sub">本周目累计功德：'+fmt(S.allTimeEarned)+'<br>下一片需要总功德：'+fmt(needForNext)+'<br>持有碎片：'+fmt(S.heavenlyChips)+' · 已用：'+fmt(heavenSpent())+' · 飞升次数 '+S.ascensions+'</div>';
+  const btn=document.createElement('button');
+  btn.className='asc-btn';
+  btn.textContent=avail>0?'🚀 飞升（获得 '+fmt(avail)+' 天道碎片）':'🚀 飞升（需累计功德 '+fmt(1e9)+'）';
+  btn.disabled=avail<=0;
+  btn.addEventListener('click',()=>{if(avail<=0)return;if(!confirm('飞升将重置本周目的功德、建筑、升级、点击次数、股市持仓，但保留天道碎片、成就、姿势、门派、护法、神殿、飞升树。确定飞升？'))return;doAscend(avail)});
+  card.appendChild(btn);
+  ascendContent.appendChild(card);
+
+  const tc=document.createElement('div');
+  tc.className='asc-card';
+  const treeAvail=Math.max(0,S.heavenlyChips-heavenSpent());
+  let th='<div style="font-size:13px;font-weight:800;margin-bottom:8px">🌳 飞升树 · 可用碎片 '+fmt(treeAvail)+'</div>';
+  HEAVEN.forEach(h=>{
+    const lv=S.heavenLevels[h.id]||0;
+    const maxed=lv>=h.max;
+    const cost=maxed?0:h.cost(lv);
+    const can=!maxed&&treeAvail>=cost;
+    th+='<div class="tree-row'+(maxed?' max':can?' can':'')+'" data-tree="'+h.id+'"><div class="tn"><span>'+h.e+' '+h.n+'</span><span>Lv.'+lv+'/'+h.max+'</span></div><div class="td">'+h.desc+'</div><div class="tc">'+(maxed?'已满级':'需要 💠 '+cost)+'</div></div>';
+  });
+  tc.innerHTML=th;
+  ascendContent.appendChild(tc);
+  tc.querySelectorAll('.tree-row').forEach(tr=>{
+    tr.addEventListener('click',()=>{
+      if(!tr.classList.contains('can'))return;
+      const id=tr.dataset.tree;
+      const h=HEAVEN.find(x=>x.id===id);
+      if(!h)return;
+      const lv=S.heavenLevels[id]||0;
+      if(lv>=h.max)return;
+      const cost=h.cost(lv);
+      if((S.heavenlyChips-heavenSpent())<cost){toast('天道碎片不足');return}
+      S.heavenLevels[id]=lv+1;
+      sfxLump();save();renderAscend();refreshHud();
+      toast('🌳 '+h.n+' 升至 Lv.'+(lv+1));
+    });
+  });
+
+  const fing=S.heavenLevels.fing||0;
+  const eff=S.heavenLevels.eff||0;
+  if(fing>=3||eff>=5){
+    const ac=document.createElement('div');
+    ac.className='asc-card';
+    let ah='<div style="font-size:13px;font-weight:800;margin-bottom:8px">🤖 自动化</div>';
+    if(fing>=3)ah+='<div class="tree-row can" id="auto-click-row"><div class="tn"><span>👆 自动点击</span><span>'+(S.autoClick?'开':'关')+'</span></div><div class="td">每秒自动膜拜 0.5 次（不吃连击加成）</div></div>';
+    if(eff>=5)ah+='<div class="tree-row can" id="auto-buy-row"><div class="tn"><span>🏗 自动购买</span><span>'+(S.autoBuy?'开':'关')+'</span></div><div class="td">每 2 秒买 CPS/价格比最高的建筑（不超过当前功德 10%）</div></div>';
+    ac.innerHTML=ah;
+    ascendContent.appendChild(ac);
+    const acr=ac.querySelector('#auto-click-row');
+    if(acr)acr.addEventListener('click',()=>{S.autoClick=!S.autoClick;save();renderAscend();toast(S.autoClick?'🤖 自动点击已开启':'自动点击已关闭')});
+    const abr=ac.querySelector('#auto-buy-row');
+    if(abr)abr.addEventListener('click',()=>{S.autoBuy=!S.autoBuy;save();renderAscend();toast(S.autoBuy?'🤖 自动购买已开启':'自动购买已关闭')});
+  }
+
+  const dc=document.createElement('div');
+  dc.className='dragon-card';
+  const nextLvl=S.dragonLevel+1;
+  const dcost=nextLvl;
+  dc.innerHTML='<div class="dn"><span>🐉 护法神龙</span><span>Lv.'+S.dragonLevel+'</span></div><div class="ds">全局 CPS +'+(S.dragonLevel*2)+'%<br>解锁光环：Lv.1 业火 · Lv.2 疾风 · Lv.3 厚土 · Lv.5 流水 · Lv.7 圣光 · Lv.10 暗影</div><div class="dragon-train"><button '+(S.lumps>=dcost?'':'disabled')+' id="train-btn">训练 Lv.'+nextLvl+' · 💎 '+dcost+'</button></div>';
+  ascendContent.appendChild(dc);
+  if(S.dragonLevel>0){
+    const auraWrap=document.createElement('div');
+    auraWrap.className='asc-card';
+    let html='<div style="font-size:13px;font-weight:800;margin-bottom:6px">激活光环（多选）</div><div class="aura-list">';
+    AURAS.forEach(a=>{const unlocked=S.dragonLevel>=a.unlock;const active=S.activeAuras.includes(a.id);html+='<button class="aura'+(active?' on':'')+'" data-aura="'+a.id+'" '+(unlocked?'':'disabled style="opacity:.15"')+'>'+a.n+'<br><span style="font-size:10px;opacity:.7">'+a.desc+'</span></button>'});
+    html+='</div>';
+    auraWrap.innerHTML=html;
+    ascendContent.appendChild(auraWrap);
+    auraWrap.querySelectorAll('.aura').forEach(ab=>{
+      ab.addEventListener('click',()=>{const id=ab.dataset.aura;const idx=S.activeAuras.indexOf(id);if(idx>=0)S.activeAuras.splice(idx,1);else S.activeAuras.push(id);save();renderAscend();refreshHud()});
+    });
+  }
+
+  const pc=document.createElement('div');
+  pc.className='asc-card';
+  let ph='<div style="font-size:13px;font-weight:800;margin-bottom:6px">🏛 神殿（飞升 '+S.ascensions+' 次）</div><div class="pan-slots">';
+  S.pantheon.forEach((gid,i)=>{
+    const g=GODS.find(x=>x.id===gid);
+    ph+='<div class="pan-slot'+(g?' filled':'')+(i===selectedSlot?' sel':'')+'" data-slot="'+i+'">'+(g?'<div class="pi">'+g.e+'</div>'+g.n:'空槽<br><span style="opacity:.6">点击放置</span>')+'</div>';
+  });
+  ph+='</div>';
+  GODS.forEach(g=>{const unlocked=S.ascensions>=g.req;const placed=S.pantheon.includes(g.id);ph+='<div class="god-row'+(unlocked?' unlocked':'')+'" data-god="'+g.id+'"><div class="gn"><span>'+g.e+' '+g.n+'</span><span style="font-size:11px;opacity:.7">'+(placed?'已供奉':'')+'</span></div><div class="gd">'+g.desc+'</div><div class="gl">需要飞升 '+g.req+' 次'+(unlocked?' ✓':'')+'</div></div>'});
+  pc.innerHTML=ph;
+  ascendContent.appendChild(pc);
+  pc.querySelectorAll('.pan-slot').forEach(sl=>{
+    sl.addEventListener('click',()=>{const i=parseInt(sl.dataset.slot,10);if(S.pantheon[i]){S.pantheon[i]=null;selectedSlot=-1;save();renderAscend();refreshHud();toast('已移除神灵')}else{selectedSlot=i;renderAscend();toast('请选择要放入槽位 '+(i+1)+' 的神灵')}});
+  });
+  pc.querySelectorAll('.god-row').forEach(gr=>{
+    gr.addEventListener('click',()=>{
+      if(!gr.classList.contains('unlocked')){toast('飞升次数不足');return}
+      const gid=gr.dataset.god;
+      if(S.pantheon.includes(gid)){toast('该神灵已在神殿中');return}
+      let slot=selectedSlot>=0?selectedSlot:S.pantheon.findIndex(x=>!x);
+      if(slot<0){toast('神殿已满，请先移除一位神灵');return}
+      S.pantheon[slot]=gid;selectedSlot=-1;save();renderAscend();refreshHud();
+      const g=GODS.find(x=>x.id===gid);
+      toast('🏛 已将 '+g.n+' 供奉至神殿');
+    });
+  });
+  const tb=ascendContent.querySelector('#train-btn');
+  if(tb){
+    tb.addEventListener('click',()=>{if(S.lumps<dcost){toast('功德结晶不足');return}S.lumps-=dcost;S.dragonLevel+=1;sfxLump();save();renderAscend();refreshHud();toast('🐉 护法神龙升至 Lv.'+S.dragonLevel)});
+  }
+}
+function doAscend(gain){
+  S.heavenlyChips+=gain;
+  S.ascensions+=1;
+  S.merit=0;S.totalEarned=0;S.clicks=0;S.critCount=0;
+  S.buildings=[0,0,0,0,0,0,0,0];
+  S.buildingLevels=[0,0,0,0,0,0,0,0];
+  S.upgrades=[];S.combo=0;S.maxCombo=0;S.buffUntil=0;S.clickBuffUntil=0;S.lastClickTime=0;
+  S.stockProfitThisRun=0;
+  STOCK_DEFS.forEach(def=>{
+    S.portfolio[def.id]={
+      qty:0,cost:0,margin:0,leverage:1,feePaid:0,
+      shortQty:0,shortCost:0,shortMargin:0,shortLeverage:1,shortFeePaid:0
+    };
+  });
+  wrinklers.forEach(w=>w.el&&w.el.remove());wrinklers=[];
+  pendingLiquidation=[];
+  selectedSlot=-1;
+  sfxAscend();vibrate([50,30,50,30,50]);
+  save();
+  renderBuildings();renderUpgrades();renderStocks();renderAscend();refreshHud();refreshStat();
+  toast('🚀 飞升成功！获得 '+fmt(gain)+' 天道碎片，总计 '+fmt(S.heavenlyChips));
+  checkAchievements(true);
+  tryStyleShift('飞升');
+}
+function refreshStat(){
+  const achBonus=(Math.pow(1.005,S.achievements.length)-1)*100;
+  statEl.textContent='点击 '+S.clicks+'（累计 '+S.allTimeClicks+'） · 累计 '+fmt(S.allTimeEarned)+' · 天道 '+fmt(S.heavenlyChips)+' · 飞升 '+S.ascensions+' · 结晶 '+S.lumps+' · 成就 '+S.achievements.length+'/'+ACHIEVEMENTS.length+'（+'+achBonus.toFixed(1)+'%）';
+}
+/* ================= Toast ================= */
+let toastTimer=null,toastQueue=[],toastBusy=false;
+function toast(msg){toastQueue.push(msg);if(!toastBusy)nextToast()}
+function nextToast(){if(!toastQueue.length){toastBusy=false;return}toastBusy=true;const msg=toastQueue.shift();const el=$('toast');el.textContent=msg;el.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>{el.classList.remove('on');setTimeout(nextToast,200)},1600)}
+/* ================= 点击 ================= */
+function doClick(silent){
+  initAudio();
+  S.clicks+=1;
+  S.allTimeClicks=(S.allTimeClicks||0)+1;
+  if(!silent){
+    const now=Date.now();
+    if(now-(S.lastClickTime||0)>COMBO_TIMEOUT)S.combo=0;
+    S.lastClickTime=now;
+    let wi;
+    if(WAYS.length>1&&Math.random()<0.88){do{wi=Math.floor(Math.random()*WAYS.length)}while(wi===S.lastWay)}else wi=Math.floor(Math.random()*WAYS.length);
+    S.lastWay=wi;currentWay=WAYS[wi];
+    S.combo+=1;
+    if(S.combo>S.maxCombo)S.maxCombo=S.combo;
+    const firstTime=!S.seen.includes(currentWay.key);
+    if(firstTime)S.seen.push(currentWay.key);
+    S.wayUses[currentWay.key]=(S.wayUses[currentWay.key]||0)+1;
+    const target=pickTarget();
+    S.lastTarget=target;
+    emojiEl.textContent=currentWay.e;
+    setPose(emojiEl,currentWay.key);
+    wayEl.textContent=currentWay.n;
+    tagEl.textContent=currentWay.tag+(S.combo>=2?' · 连击 ×'+S.combo:'');
+    renderTarget(target);
+    chantEl.textContent='「'+currentWay.chant.replace(/\{name\}/g,target)+'」';
+    spawnDanmaku('🙇 膜拜 '+target);
+    const base=calcClickPower();
+    const isCrit=Math.random()<critRate();
+    const gain=base*(isCrit?critMult():1);
+    S.merit+=gain;S.totalEarned+=gain;S.allTimeEarned+=gain;
+    if(isCrit)S.critCount+=1;
+    floatAt(gain,isCrit);
+    if(isCrit){
+      shockwave();burstParticles();critPop();critShake();sfxCrit();vibrate([20,40,20]);
+      spawnDanmaku('💥 '+target+' 被虔诚暴击 ×'+critMult(),'#ffd54a');
+    }else sfxClick();
+    if(firstTime)toast('🎖 新姿势：'+currentWay.n+'（点击倍率 ×'+currentWay.mult+'）');
+    if(S.combo>=10&&S.combo%10===0)tryStyleShift('连击 ×'+S.combo);
+    save();refreshHud();refreshStat();checkAchievements(false);
+  }else{
+    const base=calcClickPower(true);
+    const isCrit=Math.random()<critRate();
+    const gain=base*(isCrit?critMult():1);
+    S.merit+=gain;S.totalEarned+=gain;S.allTimeEarned+=gain;
+    if(isCrit)S.critCount+=1;
+  }
+}
+function floatAt(gain,isCrit){
+  const rect=emojiWrap.getBoundingClientRect();
+  const el=document.createElement('div');
+  el.className='float'+(isCrit?' crit':'');
+  el.textContent=(isCrit?'💥 暴击 +':'+')+fmt(gain);
+  el.style.color=currentSect.c;
+  el.style.left=(rect.left+rect.width/2+(Math.random()*80-40))+'px';
+  el.style.top=(rect.top+rect.height*0.35)+'px';
+  floatLayer.appendChild(el);
+  setTimeout(()=>el.remove(),isCrit?1950:1650);
+}
+function shockwave(){if(S.simple)return;const el=document.createElement('div');el.className='shock';emojiWrap.appendChild(el);setTimeout(()=>el.remove(),700)}
+function burstParticles(){if(S.simple)return;const colors=['#ffd54a','#ff6b6b','#00fff9','#ff2fd0','#fff'];for(let i=0;i<12;i++){const p=document.createElement('div');p.className='burst';const a=Math.random()*Math.PI*2;const d=60+Math.random()*90;p.style.setProperty('--tx',(Math.cos(a)*d).toFixed(1)+'px');p.style.setProperty('--ty',(Math.sin(a)*d).toFixed(1)+'px');const c=colors[Math.floor(Math.random()*colors.length)];p.style.background=c;p.style.color=c;emojiWrap.appendChild(p);setTimeout(()=>p.remove(),800)}}
+function critPop(){if(S.simple)return;emojiWrap.classList.remove('crit-pop');void emojiWrap.offsetWidth;emojiWrap.classList.add('crit-pop');setTimeout(()=>emojiWrap.classList.remove('crit-pop'),600)}
+function critShake(){if(S.simple)return;document.body.classList.remove('crit-shake');void document.body.offsetWidth;document.body.classList.add('crit-shake');setTimeout(()=>document.body.classList.remove('crit-shake'),450)}
+/* ================= 金木鱼 ================= */
+function goldenDelay(){
+  let base=45000+Math.random()*120000;
+  if(S.activeAuras.includes('water'))base*=0.7;
+  base/=(SECT_BONUS[S.sect].goldenFreq||1);
+  return base;
+}
+function scheduleGolden(){setTimeout(spawnGolden,goldenDelay())}
+function spawnGolden(){
+  if(document.querySelector('.golden')){scheduleGolden();return}
+  const el=document.createElement('div');
+  el.className='golden';el.textContent='💰';
+  el.style.left=(10+Math.random()*70)+'vw';
+  el.style.top=(18+Math.random()*55)+'vh';
+  el.addEventListener('click',e=>{e.stopPropagation();collectGolden();el.remove();scheduleGolden()});
+  document.body.appendChild(el);
+  setTimeout(()=>{if(el.parentNode){el.remove();scheduleGolden()}},15000);
+}
+function collectGolden(){
+  S.goldenCount+=1;
+  const roll=Math.random();
+  let mult=1;
+  if(S.pantheon.includes('guangong'))mult*=1.3;
+  if(roll<0.35){S.buffUntil=Date.now()+15000;toast('🍀 幸运降临！15 秒内产出 ×7')}
+  else if(roll<0.65){const gain=Math.max(calcCps()*15*13,calcClickPower()*77)*mult;S.merit+=gain;S.totalEarned+=gain;S.allTimeEarned+=gain;toast('💰 暴富！获得 '+fmt(gain)+' 功德')}
+  else if(roll<0.85){S.clickBuffUntil=Date.now()+10000;toast('⚡ 点击风暴！10 秒内点击 ×7')}
+  else{const i=Math.floor(Math.random()*BUILDINGS.length);const gain=BUILDINGS[i].cps*S.buildings[i]*60*mult;if(gain>0){S.merit+=gain;S.totalEarned+=gain;S.allTimeEarned+=gain;toast('🏗 '+BUILDINGS[i].n+' 爆发！+'+fmt(gain)+' 功德')}else{const g2=calcClickPower()*77*mult;S.merit+=g2;S.totalEarned+=g2;S.allTimeEarned+=g2;toast('💰 获得 '+fmt(g2)+' 功德')}}
+  sfxGolden();vibrate([30,50,30]);
+  spawnDanmaku('💰 金木鱼被 '+S.lastTarget+' 收下');
+  save();refreshHud();refreshStat();checkAchievements(true);
+  if(roll>=0.65&&roll<0.85)tryStyleShift('金木鱼');
+}
+/* ================= 业障 ================= */
+function spawnWrinkler(){
+  if(wrinklers.length>=10)return;
+  const el=document.createElement('div');
+  el.className='wrinkler';el.textContent='👹';
+  const angle=Math.random()*Math.PI*2;
+  const dist=90+Math.random()*40;
+  const w0=emojiWrap.offsetWidth,h0=emojiWrap.offsetHeight;
+  const cx=w0/2,cy=h0/2;
+  const px=Math.max(0,Math.min(Math.max(0,w0-44),cx+Math.cos(angle)*dist-22));
+  const py=Math.max(0,Math.min(Math.max(0,h0-44),cy+Math.sin(angle)*dist-22));
+  el.style.left=px+'px';
+  el.style.top=py+'px';
+  const w={el,absorbed:0,id:Date.now()+Math.random()};
+  el.addEventListener('click',e=>{e.stopPropagation();killWrinkler(w)});
+  emojiWrap.appendChild(el);
+  wrinklers.push(w);
+}
+function killWrinkler(w){
+  const reward=w.absorbed*0.9;
+  S.merit+=reward;S.totalEarned+=reward;S.allTimeEarned+=reward;
+  S.wrinklerKills+=1;
+  w.el.remove();
+  const idx=wrinklers.indexOf(w);
+  if(idx>=0)wrinklers.splice(idx,1);
+  if(reward>0)toast('⚔️ 击杀业障！返还 +'+fmt(reward)+' 功德');
+  sfxCrit();vibrate(15);
+  spawnDanmaku('⚔️ '+S.lastTarget+' 斩业障 +'+fmt(reward));
+  save();refreshHud();refreshStat();checkAchievements(false);
+  if(S.wrinklerKills%5===0)tryStyleShift('击杀业障 ×'+S.wrinklerKills);
+}
+function updateWrinklers(dt){
+  if(Date.now()>=nextWrinklerAt){
+    if(wrinklers.length<10)spawnWrinkler();
+    nextWrinklerAt=Date.now()+60000+Math.random()*120000;
+  }
+  const raw=baseCps();
+  const drainPer=wrinklerDrainPer();
+  wrinklers.forEach(w=>{w.absorbed+=raw*drainPer*dt});
+}
+function updateLumps(dt){
+  let rate=1/1200;
+  if(S.activeAuras.includes('earth'))rate*=1.25;
+  rate*=(SECT_BONUS[S.sect].lump||1);
+  S.lumpProgress+=dt*rate;
+  while(S.lumpProgress>=1){S.lumpProgress-=1;S.lumps+=1;sfxLump();toast('💎 功德结晶 +1（共 '+S.lumps+' 颗）');save()}
+}
+/* ================= 自动购买 ================= */
+function autoBuyTick(){
+  const budget=S.merit*0.1;
+  if(!(budget>0))return;
+  let best=-1,bestRatio=-1;
+  for(let i=0;i<BUILDINGS.length;i++){
+    const c=buildingCost(BUILDINGS[i],S.buildings[i],1);
+    if(c>budget)continue;
+    const ratio=buildingYield(i)/c;
+    if(ratio>bestRatio){bestRatio=ratio;best=i}
+  }
+  if(best>=0){
+    const c=buildingCost(BUILDINGS[best],S.buildings[best],1);
+    if(S.merit>=c){S.merit-=c;S.buildings[best]+=1}
+  }
+}
+/* ================= 存档 / 设置 ================= */
+function save(){
+  if(suppressSave)return;
+  S.lastSave=Date.now();
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S))}catch(e){}
+}
+function applySimple(){
+  document.body.classList.toggle('simple',S.simple);
+  simpleBt.classList.toggle('on',S.simple);
+  simpleBt.textContent=S.simple?'🎨 开':'🎨';
+  if(S.simple)fxLayer.innerHTML='';
+  else buildRain(currentSect.parts);
+}
+function applyMute(){
+  soundBt.classList.toggle('on',!S.muted);
+  soundBt.textContent=S.muted?'🔇':'🔊';
+}
+simpleBt.addEventListener('click',()=>{S.simple=!S.simple;save();applySimple();toast(S.simple?'已开启简约模式':'已关闭简约模式')});
+soundBt.addEventListener('click',()=>{S.muted=!S.muted;if(!S.muted)initAudio();save();applyMute();toast(S.muted?'已静音':'音效已开启')});
+function hardReset(){
+  if(!confirm('⚠️ 彻底归零：将删除所有存档（功德、建筑、升级、股票、成就、天道、飞升、结晶、门派、姿势），且无法恢复。确定？'))return;
+  if(!confirm('再次确认：真的要彻底归零吗？'))return;
+  suppressSave=true;
+  try{localStorage.removeItem(STORAGE_KEY)}catch(e){}
+  location.reload();
+}
+resetBt.addEventListener('click',hardReset);
+zeroBt.addEventListener('click',()=>{
+  if(!confirm('💣 功德归零：把当前功德和本周目累计清零（建筑、升级、股票持仓、成就、天道等保留）。确定？'))return;
+  S.merit=0;
+  S.totalEarned=0;
+  save();
+  refreshHud();
+  refreshStat();
+  if(currentTab==='buildings')renderBuildings();
+  if(currentTab==='upgrades')renderUpgrades();
+  if(currentTab==='stocks')renderStocks();
+  toast('💣 功德已归零');
+});
+$('export-btn').addEventListener('click',()=>{
+  try{
+    save();
+    const code=btoa(unescape(encodeURIComponent(JSON.stringify(S))));
+    prompt('存档码（复制保存）：',code);
+  }catch(e){toast('导出失败')}
+});
+$('import-btn').addEventListener('click',()=>{
+  const code=prompt('粘贴存档码：');
+  if(!code)return;
+  try{
+    const d=JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
+    if(!d||typeof d!=='object')throw new Error('bad');
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(d));
+    suppressSave=true;
+    location.reload();
+  }catch(e){toast('存档码无效')}
+});
+/* ================= 交互锁 ================= */
+document.addEventListener('pointerdown',()=>{interacting=true},{passive:true});
+document.addEventListener('pointerup',()=>{setTimeout(()=>{interacting=false},250)},{passive:true});
+document.addEventListener('pointercancel',()=>{setTimeout(()=>{interacting=false},250)},{passive:true});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)lastTick=Date.now()});
+/* ================= 标签 ================= */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    t.classList.add('on');
+    currentTab=t.dataset.tab;
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+    $('panel-'+currentTab).classList.add('on');
+    if(currentTab==='buildings')renderBuildings();
+    if(currentTab==='upgrades')renderUpgrades();
+    if(currentTab==='stocks')renderStocks();
+    if(currentTab==='ascend')renderAscend();
+    if(currentTab==='achieve')renderAchievements();
+    if(currentTab==='sects')renderSects();
+  });
+});
+document.querySelectorAll('#buyqty button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('#buyqty button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    buyQty=b.dataset.qty==='max'?'max':parseInt(b.dataset.qty,10);
+    renderBuildings();
+  });
+});
+/* ================= 主循环 ================= */
+let lastTick=Date.now();
+let uiAcc=0;
+let stockAcc=0;
+let stockUiAcc=0;
+let achAcc=0;
+let autoClickAcc=0;
+let autoBuyAcc=0;
+let lastMeritStr='',lastQtySnap=1;
+function tick(){
+  const now=Date.now();
+  const dt=Math.min((now-lastTick)/1000,1);
+  lastTick=now;
+  const cps=calcCps();
+  const gain=cps*dt;
+  if(gain>0){S.merit+=gain;S.totalEarned+=gain;S.allTimeEarned+=gain}
+  updateWrinklers(dt);
+  updateLumps(dt);
+
+  if(S.autoClick&&(S.heavenLevels.fing||0)>=3){
+    autoClickAcc+=dt*0.5;
+    let n=0;
+    while(autoClickAcc>=1&&n<10){autoClickAcc-=1;doClick(true);n++}
+  }
+  if(S.autoBuy&&(S.heavenLevels.eff||0)>=5){
+    autoBuyAcc+=dt;
+    if(autoBuyAcc>=2){autoBuyAcc-=2;autoBuyTick()}
+  }
+
+  stockAcc+=dt;
+  if(stockAcc>=1){
+    const steps=Math.min(Math.floor(stockAcc),5);
+    tickStocks(steps);
+    stockAcc-=steps;
+    flushLiquidations();
+    flushStockEvents();
+  }
+  divAcc+=dt;
+  if(divAcc>=60){divAcc-=60;payDividends()}
+
+  achAcc+=dt;
+  if(achAcc>=1){achAcc=0;checkAchievements(true)}
+
+  uiAcc+=dt;
+  if(uiAcc>=0.12){
+    uiAcc=0;
+    refreshHud();
+    refreshStat();
+    const mStr=fmt(S.merit);
+    if(!interacting&&(mStr!==lastMeritStr||buyQty!==lastQtySnap)){
+      lastMeritStr=mStr;lastQtySnap=buyQty;
+      if(currentTab==='buildings')renderBuildings();
+      if(currentTab==='upgrades')renderUpgrades();
+    }
+  }
+  stockUiAcc+=dt;
+  if(currentTab==='stocks'&&stockUiAcc>=1){stockUiAcc=0;if(!interacting)renderStocks()}
+}
+setInterval(tick,100);
+setInterval(save,10000);
+window.addEventListener('beforeunload',()=>{if(!suppressSave)save()});
+/* ================= 初始化 ================= */
+(function init(){
+  applySect(SECTS[S.sect]);
+  const wi=Math.floor(Math.random()*WAYS.length);
+  S.lastWay=wi;currentWay=WAYS[wi];
+  emojiEl.textContent=currentWay.e;
+  setPose(emojiEl,currentWay.key);
+  wayEl.textContent=currentWay.n;
+  tagEl.textContent=currentWay.tag;
+  const tgt=pickTarget();S.lastTarget=tgt;
+  renderTarget(tgt);
+  chantEl.textContent='「'+currentWay.chant.replace(/\{name\}/g,tgt)+'」';
+  applySimple();applyMute();
+  renderBuildings();renderUpgrades();renderStocks();renderAscend();renderAchievements();renderSects();
+  refreshHud();refreshStat();save();
+  tickSentiment(Date.now());
+  nextWrinklerAt=Date.now()+60000;
+  scheduleGolden();
+  setTimeout(()=>spawnDanmaku('🙇 欢迎来到功德点击器'),1200);
+  setTimeout(()=>checkAchievements(true),600);
+})();
+/* ================= 事件 ================= */
+prayBtn.addEventListener('click',()=>doClick(false));
+emojiWrap.addEventListener('click',e=>{if(e.target.closest('.wrinkler'))return;doClick(false)});
+document.addEventListener('keydown',e=>{
+  if((e.code==='Space'||e.key==='Enter')&&document.activeElement.tagName!=='BUTTON'&&document.activeElement.tagName!=='INPUT'){
+    e.preventDefault();doClick(false);
+  }
+});
+let rzT=null;
+window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{if(!S.simple)buildRain(currentSect.parts)},320)});
+})();
+</script>
+<script src="../../assets/fullscreen.js"></script>
+</body>
+</html>

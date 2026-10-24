@@ -153,6 +153,15 @@ const PROJECTS = [
     ]
   },
   {
+    name: "功德点击器 · 股市飞升版",
+    desc: "点一下是一拜，攒功德养寺庙，顺便开户炒股再飞升。",
+    status: "live",
+    year: "2026",
+    links: [
+      { label: "开始膜拜", url: "projects/merit-clicker/" }
+    ]
+  },
+  {
     name: "POCKET",
     desc: "一台能开机的拟物掌机，五张 GBA 卡带，也能塞自己的 ROM。",
     status: "live",
