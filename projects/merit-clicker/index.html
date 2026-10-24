@@ -447,25 +447,20 @@ const HEAVEN=[
 ];
 /* 股市 */
 const STOCK_DEFS=[
-{id:'TIGR',n:'Tiger 控股',e:'🐯',base:200,mode:'slow',growth:0.0000030,divYield:0.00002,impactCoef:0.00010},
-{id:'BUDD',n:'佛系科技',e:'🧘',base:5000,mode:'standard',growth:0.0000020,divYield:0.00003,impactCoef:0.00006},
-{id:'GOLD',n:'黄金圣殿',e:'💰',base:20000,mode:'fast',growth:0.0000015,divYield:0.00004,impactCoef:0.00008},
-{id:'DEMO',n:'幽冥矿业',e:'💀',base:8000,mode:'chaotic',growth:-0.0000020,divYield:0.00008,impactCoef:0.00012},
-{id:'MOON',n:'月球地产',e:'🌕',base:50000,mode:'slow',growth:0.0000010,divYield:0.000025,impactCoef:0.00003}
+{id:'BTC',n:'比特币',e:'₿',sym:'BTCUSDT',mult:1},
+{id:'ETH',n:'以太坊',e:'⟠',sym:'ETHUSDT',mult:1},
+{id:'SOL',n:'索拉纳',e:'◎',sym:'SOLUSDT',mult:1},
+{id:'BNB',n:'币安币',e:'🟡',sym:'BNBUSDT',mult:1},
+{id:'DOGE',n:'狗狗币',e:'🐕',sym:'DOGEUSDT',mult:1000}
 ];
-const STOCK_MODES={
-slow:{name:'慢速',interval:20000,vol:0.10,color:'#60a5fa'},
-standard:{name:'标准',interval:12000,vol:0.18,color:'#facc15'},
-fast:{name:'快速',interval:7000,vol:0.30,color:'#f97316'},
-chaotic:{name:'混乱',interval:4000,vol:0.50,color:'#ef4444'}
-};
 const STOCK_FEE=0.01;
 const STOCK_LEVERAGES=[1,2,3,5,10];
-const STOCK_CHANGE_LOOKBACK=60;
 const STOCK_UNLOCK=1e6;
 const STOCK_HIST_LEN=120;
-const STOCK_SIGMA={slow:0.0020,standard:0.0038,fast:0.0065,chaotic:0.011};
-const STOCK_LOG_MIN=Math.log(0.03),STOCK_LOG_MAX=Math.log(30);
+/* 行情：60 秒轮询，失败不造数据 */
+const MKT_POLL_MS=60000;
+const MKT_TIMEOUT_MS=8000;
+
 /* 股市机制常量 */
 const FIN_RATE_PER_SEC=0.00002/60;
 const LIQ_LOSS_RATIO=0.9;
@@ -523,28 +518,28 @@ if(!S.heavenLevels||typeof S.heavenLevels!=='object')S.heavenLevels={};
 HEAVEN.forEach(h=>{if(typeof S.heavenLevels[h.id]!=='number'||!isFinite(S.heavenLevels[h.id])||S.heavenLevels[h.id]<0)S.heavenLevels[h.id]=0});
 if(S.sect<0||S.sect>=SECTS.length)S.sect=0;
 if(typeof S.offlineClaimed!=='number')S.offlineClaimed=0;
+/* 存档迁移：旧虚拟股存档不再兼容，清空股市并按保证金退回功德 */
+if(typeof S.stockVer!=='number')S.stockVer=0;
+if(S.stockVer!==2){
+  let refund=0;
+  try{
+    Object.keys(S.portfolio||{}).forEach(k=>{const p=S.portfolio[k];if(p)refund+=(p.margin||0)+(p.shortMargin||0)});
+  }catch(e){}
+  if(refund>0)S.merit+=refund;
+  S.stocks={};S.portfolio={};
+  S.stockVer=2;
+  setTimeout(()=>toast('📡 股市已切换为实时行情，旧持仓按保证金退回 +'+fmt(refund)+' 功德'),1200);
+}
 STOCK_DEFS.forEach(def=>{
   let st=S.stocks[def.id];
-  if(!st||typeof st!=='object'){
-    st={mult:1,price:def.base,logP:0,targetMult:1,nextChange:Date.now(),hist:[]};
-    S.stocks[def.id]=st;
-  }
-  if(typeof st.logP!=='number'||!isFinite(st.logP))
-    st.logP=Math.log(Math.max(0.02,(typeof st.mult==='number'&&st.mult>0)?st.mult:1));
-  if(typeof st.vol!=='number'||!isFinite(st.vol))st.vol=STOCK_SIGMA[def.mode]||0.0035;
-  if(typeof st.mom!=='number'||!isFinite(st.mom))st.mom=0;
-  if(typeof st.tempImpact!=='number'||!isFinite(st.tempImpact))st.tempImpact=0;
-  st.mult=Math.exp(st.logP);
-  if(typeof st.fv!=='number'||!isFinite(st.fv)||st.fv<=0){
-    st.fv=def.base*st.mult;
-  }
-  st.price=def.base*Math.exp(st.logP+st.tempImpact);
-  if(!Array.isArray(st.hist)||!st._mig5){
-    st.hist=[];
-    for(let i=0;i<STOCK_HIST_LEN;i++)st.hist.push(st.price);
-    st._mig5=true;
-  }
+  if(!st||typeof st!=='object')st={};
+  if(typeof st.price!=='number'||!(st.price>0))st.price=0;
+  if(typeof st.live!=='number'||!(st.live>0))st.live=0;
+  if(typeof st.pct24!=='number'||!isFinite(st.pct24))st.pct24=0;
+  if(typeof st.ts!=='number'||!isFinite(st.ts))st.ts=0;
+  if(!Array.isArray(st.hist))st.hist=[];
   if(st.hist.length>STOCK_HIST_LEN)st.hist=st.hist.slice(-STOCK_HIST_LEN);
+  S.stocks[def.id]=st;
   let p=S.portfolio[def.id];
   if(!p||typeof p!=='object'){p={};S.portfolio[def.id]=p}
   if(typeof p.qty!=='number'||p.qty<0)p.qty=0;
@@ -710,20 +705,9 @@ function fmt(n){
 function pendingChips(){return Math.floor(Math.pow(S.allTimeEarned/1e9,1/3))}
 function availableChips(){return Math.max(0,pendingChips()-S.heavenlyChips)}
 function stockFee(){return STOCK_FEE*Math.max(0.1,1-(S.heavenLevels.trade||0)*0.2)}
-/* 价格冲击：不封顶，只受 exp 安全阈值约束（交易时检查） */
-function calcImpact(def, notional){
-  return def.impactCoef * Math.sqrt(Math.max(0, notional));
-}
-/* 刷新 st.price：logP + tempImpact 钳到市场边界，防止价格无限涨跌 */
-function refreshStockPrice(def, st){
-  st.logP = Math.max(STOCK_LOG_MIN, Math.min(STOCK_LOG_MAX, st.logP));
-  let total = st.logP + st.tempImpact;
-  if(!isFinite(total)) total = st.logP;
-  if(total > STOCK_LOG_MAX){ st.tempImpact = STOCK_LOG_MAX - st.logP; total = STOCK_LOG_MAX; }
-  else if(total < STOCK_LOG_MIN){ st.tempImpact = STOCK_LOG_MIN - st.logP; total = STOCK_LOG_MIN; }
-  st.mult = Math.exp(st.logP);
-  st.price = def.base * Math.exp(total);
-}
+/* 实时行情下没有“玩家冲击”：成交价就是交易所最新价 */
+function calcImpact(){return 0}
+
 /* 梭哈买入数量：二分法，无冲击封顶 */
 function maxBuyQtyStock(id, merit){
   const def=STOCK_DEFS.find(d=>d.id===id);
@@ -881,105 +865,139 @@ function renderUpgrades(){
   if(!any)upgradesList.innerHTML='<div style="opacity:.5;font-size:13px;padding:16px;text-align:center;font-weight:700">暂无可购买的升级</div>';
 }
 /* ---------- 股市 ---------- */
-let sentiment={state:'normal',mult:1,target:1,until:0};
-function tickSentiment(now){
-  if(now>=sentiment.until){
-    const r=Math.random();
-    sentiment.state=r<0.3?'calm':r<0.75?'normal':'panic';
-    sentiment.target=sentiment.state==='calm'?0.6:sentiment.state==='normal'?1.0:1.8;
-    sentiment.until=now+120000+Math.random()*180000;
+
+
+
+/* ---------- 实时行情层（双源竞速，失败绝不造数据） ---------- */
+const MARKET={ok:false,src:'—',at:0,fails:0,busy:false,err:''};
+const MKT_SYMBOLS=STOCK_DEFS.map(d=>d.sym);
+async function fetchJson(url){
+  const ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+  const to=ctl?setTimeout(()=>ctl.abort(),MKT_TIMEOUT_MS):null;
+  try{
+    const r=await fetch(url,ctl?{signal:ctl.signal,cache:'no-store'}:{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return await r.json();
+  }finally{ if(to)clearTimeout(to) }
+}
+/* 币安公开行情域名：一次批量拿全部币种，约 3KB */
+async function fetchBinance(){
+  const url='https://data-api.binance.vision/api/v3/ticker/24hr?symbols='+encodeURIComponent(JSON.stringify(MKT_SYMBOLS));
+  const arr=await fetchJson(url);
+  if(!Array.isArray(arr))throw new Error('bad payload');
+  const out=[];
+  arr.forEach(o=>{
+    const p=parseFloat(o.lastPrice);
+    if(isFinite(p)&&p>0)out.push({sym:o.symbol,price:p,pct:parseFloat(o.priceChangePercent)});
+  });
+  if(!out.length)throw new Error('empty');
+  return out;
+}
+/* Gate：逐币查询，做兜底 */
+async function fetchGate(){
+  const pairs=MKT_SYMBOLS.map(x=>x.replace('USDT','_USDT'));
+  const arr=await Promise.all(pairs.map(p=>fetchJson('https://api.gateio.ws/api/v4/spot/tickers?currency_pair='+p)));
+  const out=[];
+  arr.forEach((a,i)=>{
+    const row=a&&a[0];if(!row)return;
+    const p=parseFloat(row.last);
+    if(isFinite(p)&&p>0)out.push({sym:MKT_SYMBOLS[i],price:p,pct:parseFloat(row.change_percentage)});
+  });
+  if(!out.length)throw new Error('empty');
+  return out;
+}
+function checkLiquidation(def,st){
+  const port=S.portfolio[def.id];
+  if(!port)return;
+  if(port.qty>0&&port.leverage>1){
+    const avgCost=port.cost/port.qty;
+    const lossRatio=(avgCost-st.price)/avgCost*port.leverage;
+    if(lossRatio>LIQ_LOSS_RATIO)liquidate(def,port);
   }
-  sentiment.mult += (sentiment.target-sentiment.mult)*0.015;
+  if(port.shortQty>0&&port.shortLeverage>1){
+    const avgShort=port.shortCost/port.shortQty;
+    const lossRatio=(st.price-avgShort)/avgShort*port.shortLeverage;
+    if(lossRatio>LIQ_LOSS_RATIO)liquidateShort(def,port);
+  }
 }
-function stockIndex(){
-  let s=0;
-  STOCK_DEFS.forEach(d=>{const st=S.stocks[d.id];if(st&&st.price>0)s+=st.price/d.base});
-  return s/STOCK_DEFS.length;
-}
-function gaussRand(){
-  let u=0,v=0;
-  while(u===0)u=Math.random();
-  while(v===0)v=Math.random();
-  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
-}
-let pendingStockEvents=[];
-function tickStocks(dt){
-  dt=dt||1;
-  const now=Date.now();
-  tickSentiment(now);
-  STOCK_DEFS.forEach(def=>{
+function applyQuotes(list,src){
+  let got=0;
+  list.forEach(q=>{
+    if(!q||!isFinite(q.price)||q.price<=0)return;
+    const def=STOCK_DEFS.find(d=>d.sym===q.sym);
+    if(!def)return;
     const st=S.stocks[def.id];
     if(!st)return;
-    const baseSigma=STOCK_SIGMA[def.mode]||0.0035;
-
-    if(def.growth) st.fv *= Math.exp(def.growth*dt);
-    if(st.fv<def.base*0.01) st.fv=def.base*0.01;
-    if(st.fv>def.base*1000) st.fv=def.base*1000;
-
-    st.tempImpact *= Math.pow(0.95, dt);
-    if(Math.abs(st.tempImpact)<1e-6) st.tempImpact=0;
-
-    if(typeof st.vol!=='number'||!isFinite(st.vol))st.vol=baseSigma;
-    const volTarget=baseSigma*(0.6+Math.random()*0.8);
-    st.vol += (volTarget-st.vol)*Math.min(0.05*dt,0.3);
-    if(st.vol<baseSigma*0.5)st.vol=baseSigma*0.5;
-    if(st.vol>baseSigma*2.0)st.vol=baseSigma*2.0;
-
-    if(typeof st.mom!=='number'||!isFinite(st.mom))st.mom=0;
-    st.mom = st.mom*Math.pow(0.975,dt) + (Math.random()-0.5)*baseSigma*0.10*Math.sqrt(dt);
-    if(st.mom>baseSigma*0.8)st.mom=baseSigma*0.8;
-    if(st.mom<-baseSigma*0.8)st.mom=-baseSigma*0.8;
-
-    const fvOffset = Math.log(st.fv/def.base);
-    const pull = -0.010*(st.logP - fvOffset)*dt;
-
-    const noise = st.vol*sentiment.mult*gaussRand()*Math.sqrt(dt);
-
-    let jump=0;
-    if(Math.random()<0.0003*dt){
-      const bullish=Math.random()<0.5;
-      const mag=0.04+Math.random()*0.18;
-      jump=(bullish?1:-1)*mag;
-      pendingStockEvents.push({name:def.n,emoji:def.e,bullish,mag});
-    }
-
-    st.logP = Math.max(STOCK_LOG_MIN, Math.min(STOCK_LOG_MAX, st.logP + st.mom*dt + pull + noise + jump));
-    refreshStockPrice(def, st);
-    st.hist.push(st.price);
-    if(st.hist.length>STOCK_HIST_LEN)st.hist.shift();
-
+    const p=q.price*def.mult;
+    if(!isFinite(p)||p<=0)return;
+    st.live=q.price;
+    st.price=p;
+    st.pct24=isFinite(q.pct)?q.pct:0;
+    st.ts=Date.now();
+    st.hist.push(p);
+    if(st.hist.length>STOCK_HIST_LEN)st.hist=st.hist.slice(-STOCK_HIST_LEN);
+    checkLiquidation(def,st);
+    got++;
+  });
+  if(!got)throw new Error('no valid quote');
+  MARKET.ok=true;MARKET.src=src;MARKET.at=Date.now();MARKET.fails=0;MARKET.err='';
+  save();
+  if(currentTab==='stocks')renderStocks();
+  refreshHud();
+}
+function marketAgeText(){
+  if(!MARKET.at)return '—';
+  const s=Math.max(0,Math.round((Date.now()-MARKET.at)/1000));
+  if(s<5)return '刚刚';
+  if(s<60)return s+' 秒前';
+  return Math.round(s/60)+' 分钟前';
+}
+async function refreshMarket(force){
+  if(MARKET.busy)return;
+  if(!force&&typeof document!=='undefined'&&document.hidden)return;
+  MARKET.busy=true;
+  try{
+    const r=await Promise.any([
+      fetchBinance().then(v=>({v,src:'Binance'})),
+      fetchGate().then(v=>({v,src:'Gate'}))
+    ]);
+    applyQuotes(r.v,r.src);
+  }catch(e){
+    MARKET.fails++;
+    MARKET.ok=false;
+    MARKET.err=(e&&e.message)?String(e.message).slice(0,28):'网络异常';
+    if(currentTab==='stocks')renderStocks();
+  }finally{
+    MARKET.busy=false;
+  }
+}
+/* 每秒：只结算持仓资金费，价格完全交给交易所 */
+function tickMarket(dt){
+  STOCK_DEFS.forEach(def=>{
     const port=S.portfolio[def.id];
-    if(port){
-      if(port.qty>0 && port.leverage>1){
-        const borrowed = port.cost - port.margin;
-        if(borrowed>0){
-          const interest = borrowed * FIN_RATE_PER_SEC * dt;
-          S.merit -= interest;
-          port.cost += interest;
-        }
-      }
-      if(port.shortQty>0 && port.shortLeverage>1){
-        const borrowedShort = port.shortCost - port.shortMargin;
-        if(borrowedShort>0){
-          const interest = borrowedShort * FIN_RATE_PER_SEC * dt;
-          S.merit -= interest;
-          port.shortCost += interest;
-        }
+    if(!port)return;
+    if(port.qty>0&&port.leverage>1){
+      const borrowed=port.cost-port.margin;
+      if(borrowed>0){
+        const interest=borrowed*FIN_RATE_PER_SEC*dt;
+        S.merit-=interest;port.cost+=interest;
       }
     }
-
-    if(port && port.qty>0 && port.leverage>1){
-      const avgCost = port.cost/port.qty;
-      const lossRatio = (avgCost - st.price)/avgCost * port.leverage;
-      if(lossRatio > LIQ_LOSS_RATIO) liquidate(def, port);
-    }
-    if(port && port.shortQty>0 && port.shortLeverage>1){
-      const avgShort = port.shortCost/port.shortQty;
-      const lossRatio = (st.price - avgShort)/avgShort * port.shortLeverage;
-      if(lossRatio > LIQ_LOSS_RATIO) liquidateShort(def, port);
+    if(port.shortQty>0&&port.shortLeverage>1){
+      const borrowedShort=port.shortCost-port.shortMargin;
+      if(borrowedShort>0){
+        const interest=borrowedShort*FIN_RATE_PER_SEC*dt;
+        S.merit-=interest;port.shortCost+=interest;
+      }
     }
   });
 }
+function startMarket(){
+  refreshMarket(true);
+  setInterval(()=>refreshMarket(false),MKT_POLL_MS);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshMarket(true)});
+}
+
 function liquidate(def, port){
   const lost = port.margin;
   port.qty=0;port.cost=0;port.margin=0;port.leverage=1;port.feePaid=0;
@@ -1005,16 +1023,7 @@ function flushLiquidations(){
   if(currentTab==='stocks')renderStocks();
   checkAchievements(true);
 }
-function flushStockEvents(){
-  if(!pendingStockEvents.length)return;
-  const arr=pendingStockEvents;pendingStockEvents=[];
-  arr.forEach(ev=>{
-    const pct=(ev.mag*100).toFixed(1);
-    spawnDanmaku((ev.bullish?'📰 利好 ':'📉 利空 ')+ev.name+' '+(ev.bullish?'+':'-')+pct+'%', ev.bullish?'#ef4444':'#4ade80');
-    toast((ev.bullish?'📰 利好：':'📉 利空：')+ev.name+(ev.bullish?' 拉升 +':' 跳水 -')+pct+'%');
-  });
-  if(currentTab==='stocks')renderStocks();
-}
+
 /* 买入：冲击不封顶，exp 溢出保护 */
 function buyStock(id, qty, isMax){
   const def=STOCK_DEFS.find(d=>d.id===id);
@@ -1057,10 +1066,6 @@ function buyStock(id, qty, isMax){
     return;
   }
 
-  st.logP += r.imp*PERM_RATIO;
-  st.tempImpact += r.imp*(1-PERM_RATIO);
-  st.logP = Math.max(STOCK_LOG_MIN, Math.min(STOCK_LOG_MAX, st.logP));
-  refreshStockPrice(def, st);
 
   S.merit -= r.pay;
   port.qty += qty;
@@ -1109,10 +1114,6 @@ function sellStock(id, qty){
   port.qty -= qty;
   if(port.qty<=0){port.qty=0;port.cost=0;port.margin=0;port.leverage=1;port.feePaid=0}
 
-  st.logP -= imp*PERM_RATIO;
-  st.tempImpact -= imp*(1-PERM_RATIO);
-  st.logP = Math.max(STOCK_LOG_MIN, Math.min(STOCK_LOG_MAX, st.logP));
-  refreshStockPrice(def, st);
 
   sfxStock();vibrate(8);
   save();refreshHud();renderStocks();
@@ -1160,10 +1161,6 @@ function openShort(id, qty, isMax){
     return;
   }
 
-  st.logP -= r.imp*PERM_RATIO;
-  st.tempImpact -= r.imp*(1-PERM_RATIO);
-  st.logP = Math.max(STOCK_LOG_MIN, Math.min(STOCK_LOG_MAX, st.logP));
-  refreshStockPrice(def, st);
 
   S.merit -= r.pay;
   port.shortQty += qty;
@@ -1213,10 +1210,6 @@ function closeShort(id, qty){
   port.shortQty -= qty;
   if(port.shortQty<=0){port.shortQty=0;port.shortCost=0;port.shortMargin=0;port.shortLeverage=1;port.shortFeePaid=0}
 
-  st.logP += imp*PERM_RATIO;
-  st.tempImpact += imp*(1-PERM_RATIO);
-  st.logP = Math.max(STOCK_LOG_MIN, Math.min(STOCK_LOG_MAX, st.logP));
-  refreshStockPrice(def, st);
 
   sfxStock();vibrate(8);
   save();refreshHud();renderStocks();
@@ -1273,6 +1266,7 @@ function renderStocks(){
   }
   let totalMargin=0,totalNotional=0,totalValue=0;
   let totalShortMargin=0,totalShortNotional=0,totalShortValue=0;
+  let sumPct=0,cntPct=0;
   STOCK_DEFS.forEach(def=>{
     const port=S.portfolio[def.id];
     const st=S.stocks[def.id];
@@ -1282,19 +1276,23 @@ function renderStocks(){
     totalShortMargin+=port.shortMargin;
     totalShortNotional+=port.shortCost;
     totalShortValue+=port.shortQty*st.price;
+    if(st.price>0){sumPct+=st.pct24;cntPct++}
   });
   const pl = totalValue-totalNotional;
   const shortPl = totalShortNotional-totalShortValue;
-  const idx=stockIndex();
-  const idxPct=(idx-1)*100;
-  const sen=sentiment.state==='calm'?'平静':sentiment.state==='normal'?'常态':'恐慌';
-  const senColor=sentiment.state==='calm'?'#60a5fa':sentiment.state==='normal'?'#facc15':'#ef4444';
+  const avgPct = cntPct?sumPct/cntPct:0;
+  const srcTxt = MARKET.ok?MARKET.src:(MARKET.at?'离线':'连接中');
+  const srcColor = MARKET.ok?'#4ade80':(MARKET.at?'#facc15':'#999');
   let html='';
   html+='<div class="stock-sum"><div>多仓保证金<br>'+fmt(totalMargin)+'</div><div>名义市值<br>'+fmt(totalValue)+'</div><div style="color:'+(pl>=0?'#ef4444':'#4ade80')+'">多仓盈亏<br>'+(pl>=0?'+':'')+fmt(pl)+'</div></div>';
   if(totalShortNotional>0){
     html+='<div class="stock-sum"><div>空仓保证金<br>'+fmt(totalShortMargin)+'</div><div>空仓名义<br>'+fmt(totalShortNotional)+'</div><div style="color:'+(shortPl>=0?'#4ade80':'#ef4444')+'">空仓盈亏<br>'+(shortPl>=0?'+':'')+fmt(shortPl)+'</div></div>';
   }
-  html+='<div class="stock-sum"><div>指数<br>'+idx.toFixed(3)+'</div><div style="color:'+(idxPct>=0?'#ef4444':'#4ade80')+'">指数涨跌<br>'+(idxPct>=0?'+':'')+idxPct.toFixed(1)+'%</div><div style="color:'+senColor+'">情绪<br>'+sen+'</div></div>';
+  html+='<div class="stock-sum"><div>24h 均涨跌<br><span style="color:'+(avgPct>=0?'#ef4444':'#4ade80')+'">'+(cntPct?(avgPct>=0?'+':'')+avgPct.toFixed(2)+'%':'—')+'</span></div><div>数据源<br><span style="color:'+srcColor+'">'+srcTxt+'</span></div><div>更新 '+marketAgeText()+'<br><button data-mkt="1" style="font:inherit;font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:6px;border:1.5px solid currentColor;background:transparent;color:inherit;cursor:pointer;opacity:.85">刷新</button></div></div>';
+  if(!MARKET.ok){
+    const msg = MARKET.at ? ('实时行情中断（'+(MARKET.err||'网络异常')+'），下面显示的是上次成功拉取的价格，正在自动重试') : '正在从 Binance / Gate 拉取最新价…';
+    html+='<div style="padding:9px 12px;margin-bottom:10px;border-radius:10px;border:2px solid #facc15;background:rgba(250,204,21,.13);font-size:11.5px;font-weight:700;line-height:1.5;color:#facc15">⚠ '+msg+'</div>';
+  }
   html+='<div id="stock-lev">';
   STOCK_LEVERAGES.forEach(L=>{html+='<button data-lev="'+L+'"'+(S.stockLeverage===L?' class="on"':'')+'>'+L+'x</button>'});
   html+='</div>';
@@ -1304,22 +1302,21 @@ function renderStocks(){
   STOCK_DEFS.forEach(def=>{
     const st=S.stocks[def.id];
     const port=S.portfolio[def.id];
-    const mode=STOCK_MODES[def.mode];
-    const h=st.hist;
-    let pct=0;
-    if(h.length>=2){
-      const lb=Math.min(STOCK_CHANGE_LOOKBACK,h.length-1);
-      const oldP=h[h.length-1-lb];
-      if(oldP>0)pct=(st.price-oldP)/oldP*100;
-    }
-    const arrow=pct>0.5?'↑':pct<-0.5?'↓':'→';
-    const arrowColor=pct>0.5?'#ef4444':pct<-0.5?'#4ade80':'#999';
-
+    const ready=st.price>0;
+    const pct=st.pct24;
+    const arrow=pct>0.05?'↑':pct<-0.05?'↓':'→';
+    const arrowColor=pct>0.05?'#ef4444':pct<-0.05?'#4ade80':'#999';
+    const unit=def.mult>1?('（1手='+def.mult+' 枚）'):'';
     html+='<div class="stock-row">';
-    html+='<div class="stock-head"><span class="stock-emoji">'+def.e+'</span><span class="stock-name">'+def.n+'</span><span class="stock-mode" style="color:'+mode.color+'">'+mode.name+'</span></div>';
-    html+='<div class="stock-price-row"><span class="stock-price">'+fmt(st.price)+'</span><span class="stock-change" style="color:'+arrowColor+'">'+arrow+' '+Math.abs(pct).toFixed(1)+'%</span></div>';
-    html+=sparkline(h);
-
+    html+='<div class="stock-head"><span class="stock-emoji">'+def.e+'</span><span class="stock-name">'+def.n+'<span style="font-size:10.5px;opacity:.55;font-weight:700">'+unit+'</span></span><span class="stock-mode" style="color:#7fd4ff">'+def.sym.replace('USDT','/USDT')+'</span></div>';
+    html+='<div class="stock-price-row"><span class="stock-price">'+(ready?fmt(st.price):'—')+'</span><span class="stock-change" style="color:'+arrowColor+'">'+(ready?arrow+' '+Math.abs(pct).toFixed(2)+'%':'等待行情')+'</span></div>';
+    html+=sparkline(st.hist);
+    if(!ready){
+      html+='<div class="stock-port" style="opacity:.5">价格未就绪，暂不可交易</div>';
+      html+='<div class="stock-actions"><button disabled>买入</button><button disabled>做空</button></div>';
+      html+='</div>';
+      return;
+    }
     if(port.qty>0){
       const avgCost=port.cost/port.qty;
       const pnl=(st.price-avgCost)*port.qty;
@@ -1372,6 +1369,8 @@ function renderStocks(){
       S.stockLeverage=L;save();renderStocks();
     });
   });
+  const mktBtn=stocksList.querySelector('[data-mkt]');
+  if(mktBtn)mktBtn.addEventListener('click',()=>{toast('🔄 正在拉取最新行情…');refreshMarket(true)});
   stocksList.querySelectorAll('[data-buy]').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const id=btn.dataset.buy;
@@ -1425,31 +1424,7 @@ function renderStocks(){
     btn.addEventListener('click',()=>addShortMargin(btn.dataset.shortmargin));
   });
 }
-let divAcc=0;
-function payDividends(){
-  let income=0;
-  let expense=0;
-  STOCK_DEFS.forEach(def=>{
-    const p=S.portfolio[def.id],st=S.stocks[def.id];
-    if(!p||!st)return;
-    const divPerShare = st.fv*def.divYield;
-    if(p.qty>0) income += p.qty*divPerShare;
-    if(p.shortQty>0) expense += p.shortQty*divPerShare;
-  });
-  if(sentiment.state==='panic'){income*=2;expense*=2;}
-  const net = income - expense;
-  if(net>0){
-    S.merit += net;
-    S.totalEarned += net;
-    S.allTimeEarned += net;
-  } else if(net<0){
-    S.merit += net;
-  }
-  if(Math.abs(net) >= Math.max(1,calcCps()*60)){
-    if(net>0) toast('💵 股息 +'+fmt(net)+(sentiment.state==='panic'?'（熊市 ×2）':''));
-    else toast('💸 融券股息 -'+fmt(-net));
-  }
-}
+
 /* ---------- 成就 / 门派 / 飞升 ---------- */
 function renderAchievements(){
   achList.innerHTML='';
@@ -1916,13 +1891,10 @@ function tick(){
   stockAcc+=dt;
   if(stockAcc>=1){
     const steps=Math.min(Math.floor(stockAcc),5);
-    tickStocks(steps);
+    tickMarket(steps);
     stockAcc-=steps;
     flushLiquidations();
-    flushStockEvents();
   }
-  divAcc+=dt;
-  if(divAcc>=60){divAcc-=60;payDividends()}
 
   achAcc+=dt;
   if(achAcc>=1){achAcc=0;checkAchievements(true)}
@@ -1960,7 +1932,7 @@ window.addEventListener('beforeunload',()=>{if(!suppressSave)save()});
   applySimple();applyMute();
   renderBuildings();renderUpgrades();renderStocks();renderAscend();renderAchievements();renderSects();
   refreshHud();refreshStat();save();
-  tickSentiment(Date.now());
+  startMarket();
   nextWrinklerAt=Date.now()+60000;
   scheduleGolden();
   setTimeout(()=>spawnDanmaku('🙇 欢迎来到功德点击器'),1200);
