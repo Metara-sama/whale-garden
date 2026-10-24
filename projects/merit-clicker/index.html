@@ -215,6 +215,15 @@ body.simple .danmaku{display:none!important}
 #stock-lev button[data-lev="10"].on{background:rgba(239,68,68,.25);border-color:#ef4444;color:#ef4444}
 @media (max-width:860px){#main{flex-direction:column;padding:14px 12px 88px;gap:14px}#shop{flex:1 1 auto;width:100%;max-width:none}#emoji{font-size:clamp(80px,26vw,140px)}}
 @media (prefers-reduced-motion:reduce){.drop,.shock,.burst,.golden,.wrinkler{animation:none!important}}
+/* ===== 实时跳动 ===== */
+@keyframes pxUp{0%{color:#ff7a7a;text-shadow:0 0 14px rgba(239,68,68,.95)}100%{color:inherit;text-shadow:none}}
+@keyframes pxDown{0%{color:#5ee89b;text-shadow:0 0 14px rgba(74,222,128,.95)}100%{color:inherit;text-shadow:none}}
+.px-up{animation:pxUp .85s ease-out}
+.px-down{animation:pxDown .85s ease-out}
+@keyframes dotPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.28;transform:scale(.72)}}
+.live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#4ade80;margin:0 4px 1px 0;vertical-align:middle;animation:dotPulse 1s ease-in-out infinite}
+.px-dot{animation:dotPulse 1s ease-in-out infinite}
+.stock-ds{font-size:10.5px;font-weight:800;opacity:.85;margin:-2px 0 2px;letter-spacing:.3px;min-height:14px}
 </style>
 </head>
 <body>
@@ -462,6 +471,7 @@ const TICK_POLL_MS=1000;
 const DAY_POLL_MS=60000;
 const KLINE_POLL_MS=300000;
 const KLINE_LIMIT=120;
+const TICK_HIST=120;
 const MKT_TIMEOUT_MS=8000;
 
 /* 股市机制常量 */
@@ -705,6 +715,13 @@ function fmt(n){
   let i=0;while(n>=1000&&i<u.length-1){n/=1000;i++}
   return (n<10?n.toFixed(2):n<100?n.toFixed(1):Math.floor(n))+u[i];
 }
+/* 价格专用格式：不做 K/M 缩写，秒级跳动才看得见 */
+function fmtPrice(n){
+  if(!isFinite(n)||n<=0)return '—';
+  if(n>=1000)return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(n>=1)return n.toFixed(3);
+  return n.toFixed(5);
+}
 function pendingChips(){return Math.floor(Math.pow(S.allTimeEarned/1e9,1/3))}
 function availableChips(){return Math.max(0,pendingChips()-S.heavenlyChips)}
 function stockFee(){return STOCK_FEE*Math.max(0.1,1-(S.heavenLevels.trade||0)*0.2)}
@@ -877,6 +894,8 @@ const MARKET={ok:false,src:'—',at:0,fails:0,busy:false,err:''};
 const MKT_SYMBOLS=STOCK_DEFS.map(d=>d.sym);
 /* 每分钟收盘序列：CHARTS[def.id] = [[ts, price], ...]（不写进存档） */
 const CHARTS={};
+/* 秒级价格序列：TICKS[def.id] = [price, ...]（最近 120 秒，不写进存档） */
+const TICKS={};
 let mktBusy=false, mktFail=0;
 
 async function fetchJson(url){
@@ -969,8 +988,12 @@ function applyTicks(list,src){
     const p=q.price*def.mult;
     if(!isFinite(p)||p<=0)return;
     st.live=q.price;
+    if(st.price>0)st.prevPrice=st.price; else st.prevPrice=0;
     st.price=p;
     st.ts=now;
+    const tarr=TICKS[def.id]||(TICKS[def.id]=[]);
+    tarr.push(p);
+    if(tarr.length>TICK_HIST)tarr.shift();
     if(isFinite(q.pct))st.pct24=q.pct;
     const arr=CHARTS[def.id]||(CHARTS[def.id]=[]);
     if(arr.length&&arr[arr.length-1][0]===bucket)arr[arr.length-1][1]=p;
@@ -1057,7 +1080,17 @@ function mktTickUI(){
     const st=S.stocks[def.id];
     if(!st)return;
     const pxEl=stocksList.querySelector('[data-px="'+def.id+'"]');
-    if(pxEl)pxEl.textContent=st.price>0?fmt(st.price):'—';
+    if(pxEl){
+      pxEl.textContent=st.price>0?fmtPrice(st.price):'—';
+      const d=(st.prevPrice>0&&st.price>0)?(st.price-st.prevPrice):0;
+      pxEl.classList.remove('px-up','px-down');
+      if(d!==0){
+        void pxEl.offsetWidth;
+        pxEl.classList.add(d>0?'px-up':'px-down');
+      }
+    }
+    const dsEl=stocksList.querySelector('[data-ds="'+def.id+'"]');
+    if(dsEl)dsEl.innerHTML=tickDeltaText(def,st);
     const chEl=stocksList.querySelector('[data-ch="'+def.id+'"]');
     if(chEl){
       const pct=st.pct24;
@@ -1067,6 +1100,8 @@ function mktTickUI(){
     }
     const cEl=stocksList.querySelector('[data-chart="'+def.id+'"]');
     if(cEl)cEl.innerHTML=chartSvg(def,st);
+    const tEl=stocksList.querySelector('[data-tick="'+def.id+'"]');
+    if(tEl)tEl.innerHTML=tickSvg(def,st);
   });
   const ageEl=stocksList.querySelector('[data-age]');
   if(ageEl)ageEl.textContent=marketAgeText();
@@ -1105,10 +1140,45 @@ function chartSvg(def, st){
   svg+=grid;
   svg+='<path d="'+area+'" fill="url(#'+gid+')"/>';
   svg+='<path d="'+line+'" fill="none" stroke="'+col+'" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
-  svg+='<circle cx="'+lastX.toFixed(1)+'" cy="'+lastY.toFixed(1)+'" r="2.8" fill="'+col+'"/>';
+  svg+='<line x1="'+pad+'" y1="'+lastY.toFixed(1)+'" x2="'+(w-pad)+'" y2="'+lastY.toFixed(1)+'" stroke="'+col+'" stroke-width="0.8" stroke-dasharray="3 3" opacity="0.45" vector-effect="non-scaling-stroke"/>';
+  svg+='<circle class="px-dot" cx="'+lastX.toFixed(1)+'" cy="'+lastY.toFixed(1)+'" r="3.2" fill="'+col+'"/>';
   svg+='</svg>';
-  svg+='<div style="display:flex;justify-content:space-between;font-size:10px;opacity:.5;font-weight:700;margin:-2px 0 7px"><span>近 '+spanMin+' 分钟 · 1m</span><span>'+fmt(mn)+' – '+fmt(mx)+'</span></div>';
+  svg+='<div style="display:flex;justify-content:space-between;font-size:10px;opacity:.5;font-weight:700;margin:-2px 0 7px"><span>近 '+spanMin+' 分钟 · 1 分钟K</span><span>'+fmtPrice(mn)+' – '+fmtPrice(mx)+'</span></div>';
   return svg;
+}
+/* 秒级微图：最近 120 秒，每秒 1 点，波动被放大，肉眼能看见在动 */
+function tickSvg(def, st){
+  const arr=TICKS[def.id]||[];
+  if(arr.length<2)return '<div style="height:34px"></div>';
+  const w=320,h=34,pad=3;
+  let mn=Infinity,mx=-Infinity;
+  for(let i=0;i<arr.length;i++){const v=arr[i];if(v<mn)mn=v;if(v>mx)mx=v}
+  if(!(mx>mn)){mx=mn+1e-9}
+  const span=mx-mn;
+  const px=i=>pad+(i/(arr.length-1))*(w-pad*2);
+  const py=v=>h-pad-((v-mn)/span)*(h-pad*2);
+  let line='';
+  for(let i=0;i<arr.length;i++)line+=(i?'L':'M')+px(i).toFixed(1)+' '+py(arr[i]).toFixed(1);
+  const up=arr[arr.length-1]>=arr[0];
+  const col=up?'#ef4444':'#4ade80';
+  const lx=px(arr.length-1), ly=py(arr[arr.length-1]);
+  let g='<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" style="width:100%;height:34px;display:block;margin:0 0 2px">';
+  g+='<line x1="'+pad+'" y1="'+(h/2).toFixed(1)+'" x2="'+(w-pad)+'" y2="'+(h/2).toFixed(1)+'" stroke="currentColor" stroke-width="0.5" opacity="0.12"/>';
+  g+='<path d="'+line+'" fill="none" stroke="'+col+'" stroke-width="1.4" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
+  g+='<circle class="px-dot" cx="'+lx.toFixed(1)+'" cy="'+ly.toFixed(1)+'" r="2.4" fill="'+col+'"/>';
+  g+='</svg>';
+  g+='<div style="display:flex;justify-content:space-between;font-size:9.5px;opacity:.45;font-weight:700;margin:0 0 7px"><span>近 '+arr.length+' 秒 · 每秒</span><span>'+fmtPrice(mn)+' – '+fmtPrice(mx)+'</span></div>';
+  return g;
+}
+function tickDeltaText(def, st){
+  if(!(st.price>0))return '';
+  if(!(st.prevPrice>0))return '等待下一次刷新…';
+  const d=st.price-st.prevPrice;
+  if(Math.abs(d)<1e-12)return '与上一秒持平';
+  const pctv=(d/st.prevPrice*100);
+  const arrow=d>0?'▲':'▼';
+  const col=d>0?'#ef4444':'#4ade80';
+  return '<span style="color:'+col+'">'+arrow+' '+fmtPrice(Math.abs(d))+'（'+(pctv>0?'+':'')+pctv.toFixed(4)+'%）</span> <span style="opacity:.55">较上一秒</span>';
 }
 /* 每秒：只结算持仓资金费，价格完全交给交易所 */
 function tickMarket(dt){
@@ -1430,7 +1500,7 @@ function renderStocks(){
   if(totalShortNotional>0){
     html+='<div class="stock-sum"><div>空仓保证金<br>'+fmt(totalShortMargin)+'</div><div>空仓名义<br>'+fmt(totalShortNotional)+'</div><div style="color:'+(shortPl>=0?'#4ade80':'#ef4444')+'">空仓盈亏<br>'+(shortPl>=0?'+':'')+fmt(shortPl)+'</div></div>';
   }
-  html+='<div class="stock-sum"><div>24h 均涨跌<br><span style="color:'+(avgPct>=0?'#ef4444':'#4ade80')+'">'+(cntPct?(avgPct>=0?'+':'')+avgPct.toFixed(2)+'%':'—')+'</span></div><div>数据源<br><span style="color:'+srcColor+'">'+srcTxt+'</span></div><div>更新 <span data-age>'+marketAgeText()+'</span><span style="font-size:9.5px;opacity:.6"> · 每秒</span><br><button data-mkt="1" style="font:inherit;font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:6px;border:1.5px solid currentColor;background:transparent;color:inherit;cursor:pointer;opacity:.85">刷新</button></div></div>';
+  html+='<div class="stock-sum"><div>24h 均涨跌<br><span style="color:'+(avgPct>=0?'#ef4444':'#4ade80')+'">'+(cntPct?(avgPct>=0?'+':'')+avgPct.toFixed(2)+'%':'—')+'</span></div><div>数据源<br><span style="color:'+srcColor+'">'+srcTxt+'</span></div><div><span class="live-dot"></span>每秒刷新<br><span data-age>'+marketAgeText()+'</span><br><button data-mkt="1" style="font:inherit;font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:6px;border:1.5px solid currentColor;background:transparent;color:inherit;cursor:pointer;opacity:.85">刷新</button></div></div>';
   if(!MARKET.ok){
     const msg = MARKET.at ? ('实时行情中断（'+(MARKET.err||'网络异常')+'），下面显示的是上次成功拉取的价格，正在自动重试') : '正在从 Binance / Gate 拉取最新价…';
     html+='<div style="padding:9px 12px;margin-bottom:10px;border-radius:10px;border:2px solid #facc15;background:rgba(250,204,21,.13);font-size:11.5px;font-weight:700;line-height:1.5;color:#facc15">⚠ '+msg+'</div>';
@@ -1451,8 +1521,10 @@ function renderStocks(){
     const unit=def.mult>1?('（1手='+def.mult+' 枚）'):'';
     html+='<div class="stock-row">';
     html+='<div class="stock-head"><span class="stock-emoji">'+def.e+'</span><span class="stock-name">'+def.n+'<span style="font-size:10.5px;opacity:.55;font-weight:700">'+unit+'</span></span><span class="stock-mode" style="color:#7fd4ff">'+def.sym.replace('USDT','/USDT')+'</span></div>';
-    html+='<div class="stock-price-row"><span class="stock-price" data-px="'+def.id+'">'+(ready?fmt(st.price):'—')+'</span><span class="stock-change" data-ch="'+def.id+'" style="color:'+arrowColor+'">'+(ready?arrow+' '+Math.abs(pct).toFixed(2)+'%':'等待行情')+'</span></div>';
+    html+='<div class="stock-price-row"><span class="stock-price" data-px="'+def.id+'">'+(ready?fmtPrice(st.price):'—')+'</span><span class="stock-change" data-ch="'+def.id+'" style="color:'+arrowColor+'">'+(ready?arrow+' '+Math.abs(pct).toFixed(2)+'%':'等待行情')+'</span></div>';
+    html+='<div class="stock-ds" data-ds="'+def.id+'">'+tickDeltaText(def,st)+'</div>';
     html+='<div data-chart="'+def.id+'">'+chartSvg(def,st)+'</div>';
+    html+='<div data-tick="'+def.id+'">'+tickSvg(def,st)+'</div>';
     if(!ready){
       html+='<div class="stock-port" style="opacity:.5">价格未就绪，暂不可交易</div>';
       html+='<div class="stock-actions"><button disabled>买入</button><button disabled>做空</button></div>';
