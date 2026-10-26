@@ -213,6 +213,13 @@ body.simple .danmaku{display:none!important}
 #stock-lev button{font:inherit;font-size:12px;font-weight:800;padding:5px 11px;border-radius:8px;border:2px solid currentColor;background:transparent;color:inherit;cursor:pointer;opacity:.5;transition:opacity .2s,background .2s}
 #stock-lev button.on{opacity:1;background:rgba(128,128,128,.2)}
 #stock-lev button[data-lev="10"].on{background:rgba(239,68,68,.25);border-color:#ef4444;color:#ef4444}
+#stock-lev button[data-lev="100"]{color:#fb923c}
+#stock-lev button[data-lev="100"].on{background:rgba(251,146,60,.28);border-color:#fb923c;color:#fb923c}
+#stock-lev button[data-lev="1000"]{color:#ef4444}
+#stock-lev button[data-lev="1000"].on{background:rgba(239,68,68,.35);border-color:#ef4444;color:#fff;box-shadow:0 0 12px rgba(239,68,68,.7)}
+#stock-lev button[data-lev="1000"]{animation:lev1000 1.6s ease-in-out infinite}
+@keyframes lev1000{0%,100%{opacity:.62}50%{opacity:1}}
+.lev-warn{font-size:10.5px;font-weight:800;line-height:1.45;color:#fb923c;background:rgba(251,146,60,.12);border:1.5px solid rgba(251,146,60,.5);border-radius:8px;padding:6px 9px;margin:0 0 10px}
 @media (max-width:860px){#main{flex-direction:column;padding:14px 12px 88px;gap:14px}#shop{flex:1 1 auto;width:100%;max-width:none}#emoji{font-size:clamp(80px,26vw,140px)}}
 @media (prefers-reduced-motion:reduce){.drop,.shock,.burst,.golden,.wrinkler{animation:none!important}}
 /* ===== 实时跳动 ===== */
@@ -451,7 +458,7 @@ const HEAVEN=[
 {id:'fing',n:'指尖',e:'👆',max:10,cost:l=>1+l*2,desc:'点击力 +40%/级；3 级解锁自动点击'},
 {id:'luck',n:'福缘',e:'🍀',max:8,cost:l=>2+l*3,desc:'暴击率 +2%、暴击倍率 +0.5/级'},
 {id:'time',n:'时轮',e:'⏳',max:6,cost:l=>3+l*4,desc:'离线上限 +3h、效率 +10%/级'},
-{id:'trade',n:'交易',e:'📈',max:5,cost:l=>4+l*5,desc:'股票手续费 -20%/级'},
+{id:'trade',n:'交易',e:'📈',max:5,cost:l=>4+l*5,desc:'强平阈值 +2%/级（手续费已全免）'},
 {id:'ward',n:'镇业',e:'🛡',max:5,cost:l=>3+l*4,desc:'业障吸取 -15%/级'}
 ];
 /* 股市 */
@@ -462,8 +469,8 @@ const STOCK_DEFS=[
 {id:'BNB',n:'币安币',e:'🟡',sym:'BNBUSDT',mult:1},
 {id:'DOGE',n:'狗狗币',e:'🐕',sym:'DOGEUSDT',mult:1000}
 ];
-const STOCK_FEE=0.01;
-const STOCK_LEVERAGES=[1,2,3,5,10];
+const STOCK_FEE=0;   /* 手续费全免 */
+const STOCK_LEVERAGES=[1,2,3,5,10,100,1000];
 const STOCK_UNLOCK=1e6;
 const STOCK_HIST_LEN=120;
 /* 行情：价格 1 秒一次，24h 涨跌 60 秒，K 线 5 分钟回填 */
@@ -476,7 +483,9 @@ const MKT_TIMEOUT_MS=8000;
 
 /* 股市机制常量 */
 const FIN_RATE_PER_SEC=0.00002/60;
-const LIQ_LOSS_RATIO=0.9;
+const LIQ_BASE=0.9;
+/* 强平阈值：基础 90%，天道「交易」每级 +2%（更耐爆，上限 98%） */
+function liqRatio(){return Math.min(0.98, LIQ_BASE+(S.heavenLevels.trade||0)*0.02)}
 const PERM_RATIO=0.5;
 /* 连击超时（毫秒） */
 const COMBO_TIMEOUT=2000;
@@ -966,12 +975,12 @@ function checkLiquidation(def,st){
   if(port.qty>0&&port.leverage>1){
     const avgCost=port.cost/port.qty;
     const lossRatio=(avgCost-st.price)/avgCost*port.leverage;
-    if(lossRatio>LIQ_LOSS_RATIO)liquidate(def,port);
+    if(lossRatio>liqRatio())liquidate(def,port);
   }
   if(port.shortQty>0&&port.shortLeverage>1){
     const avgShort=port.shortCost/port.shortQty;
     const lossRatio=(st.price-avgShort)/avgShort*port.shortLeverage;
-    if(lossRatio>LIQ_LOSS_RATIO)liquidateShort(def,port);
+    if(lossRatio>liqRatio())liquidateShort(def,port);
   }
 }
 /* 把最新价写进状态与分钟序列 */
@@ -1274,7 +1283,7 @@ function buyStock(id, qty, isMax){
   }
 
   if(!r.ok || qty<=0 || r.pay>S.merit){
-    toast('功德不足（需保证金 '+fmt(r.margin||0)+' + 手续费 '+fmt(r.feeAmt||0)+'）');
+    toast('功德不足（需保证金 '+fmt(r.margin||0)+'）');
     return;
   }
 
@@ -1289,7 +1298,7 @@ function buyStock(id, qty, isMax){
   S.maxLeverageUsed = Math.max(S.maxLeverageUsed||1, L);
   sfxStock();vibrate(8);
   save();refreshHud();renderStocks();
-  toast('📈 买入 '+qty+' 股 '+def.n+'（'+L+'x），保证金 '+fmt(r.margin)+' · 手续费 '+fmt(r.feeAmt));
+  toast('📈 买入 '+qty+' 股 '+def.n+'（'+L+'x），保证金 '+fmt(r.margin));
 }
 /* 卖出（平多） */
 function sellStock(id, qty){
@@ -1369,7 +1378,7 @@ function openShort(id, qty, isMax){
   }
 
   if(!r.ok || qty<=0 || r.pay>S.merit){
-    toast('功德不足（需保证金 '+fmt(r.margin||0)+' + 手续费 '+fmt(r.feeAmt||0)+'）');
+    toast('功德不足（需保证金 '+fmt(r.margin||0)+'）');
     return;
   }
 
@@ -1385,7 +1394,7 @@ function openShort(id, qty, isMax){
   S.maxLeverageUsed = Math.max(S.maxLeverageUsed||1, L);
   sfxStock();vibrate(8);
   save();refreshHud();renderStocks();
-  toast('🩳 做空 '+qty+' 股 '+def.n+'（'+L+'x），保证金 '+fmt(r.margin)+' · 手续费 '+fmt(r.feeAmt));
+  toast('🩳 做空 '+qty+' 股 '+def.n+'（'+L+'x），保证金 '+fmt(r.margin));
 }
 /* 平空 */
 function closeShort(id, qty){
@@ -1508,6 +1517,9 @@ function renderStocks(){
   html+='<div id="stock-lev">';
   STOCK_LEVERAGES.forEach(L=>{html+='<button data-lev="'+L+'"'+(S.stockLeverage===L?' class="on"':'')+'>'+L+'x</button>'});
   html+='</div>';
+  if(S.stockLeverage>=100){
+    html+='<div class="lev-warn">⚡ '+S.stockLeverage+'x 极限杠杆：价格反向 '+(liqRatio()*100/S.stockLeverage).toFixed(2)+'% 立即强平 —— 一个跳针就清仓</div>';
+  }
   html+='<div id="stock-qty">';
   [1,10,100,'max'].forEach(q=>{html+='<button data-sqty="'+q+'"'+(stockQty===q?' class="on"':'')+'>×'+q+'</button>'});
   html+='</div>';
@@ -1535,8 +1547,8 @@ function renderStocks(){
       const avgCost=port.cost/port.qty;
       const pnl=(st.price-avgCost)*port.qty;
       const ret=port.margin>0?pnl/port.margin*100:0;
-      const liqPrice=port.leverage>1?avgCost*(1-LIQ_LOSS_RATIO/port.leverage):0;
-      const warnPrice=port.leverage>1?avgCost*(1-LIQ_LOSS_RATIO*0.8/port.leverage):0;
+      const liqPrice=port.leverage>1?avgCost*(1-liqRatio()/port.leverage):0;
+      const warnPrice=port.leverage>1?avgCost*(1-liqRatio()*0.8/port.leverage):0;
       const nearLiq=port.leverage>1 && st.price<=warnPrice;
       html+='<div class="stock-port">📈 多仓 '+port.qty+' · '+port.leverage.toFixed(2)+'x · 均价 '+fmt(avgCost)+'<br>保证金 '+fmt(port.margin)+' · <span style="color:'+(ret>=0?'#ef4444':'#4ade80')+'">收益率 '+(ret>=0?'+':'')+ret.toFixed(1)+'%</span>'+(port.leverage>1?' · 强平 '+fmt(liqPrice):'')+'</div>';
       let actions='<button data-buy="'+def.id+'">加仓</button><button data-sell="'+def.id+'">卖出</button>';
@@ -1549,8 +1561,8 @@ function renderStocks(){
       const avgShort=port.shortCost/port.shortQty;
       const pnl=(avgShort-st.price)*port.shortQty;
       const ret=port.shortMargin>0?pnl/port.shortMargin*100:0;
-      const liqPrice=port.shortLeverage>1?avgShort*(1+LIQ_LOSS_RATIO/port.shortLeverage):0;
-      const warnPrice=port.shortLeverage>1?avgShort*(1+LIQ_LOSS_RATIO*0.8/port.shortLeverage):0;
+      const liqPrice=port.shortLeverage>1?avgShort*(1+liqRatio()/port.shortLeverage):0;
+      const warnPrice=port.shortLeverage>1?avgShort*(1+liqRatio()*0.8/port.shortLeverage):0;
       const nearLiq=port.shortLeverage>1 && st.price>=warnPrice;
       html+='<div class="stock-port">📉 空仓 '+port.shortQty+' · '+port.shortLeverage.toFixed(2)+'x · 均价 '+fmt(avgShort)+'<br>保证金 '+fmt(port.shortMargin)+' · <span style="color:'+(ret>=0?'#4ade80':'#ef4444')+'">收益率 '+(ret>=0?'+':'')+ret.toFixed(1)+'%</span>'+(port.shortLeverage>1?' · 强平 '+fmt(liqPrice):'')+'</div>';
       let actions='<button data-short="'+def.id+'">加空</button><button data-close="'+def.id+'">平空</button>';
