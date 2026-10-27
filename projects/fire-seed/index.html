@@ -235,7 +235,6 @@
       $('mSeed').textContent = 'seed ' + fmt(b.length);
       say('seed.bin ' + fmt(b.length) + '  sha256 ' + (await sha256(b)).slice(0, 16) + '...', 'd');
       $('btnDown').disabled = false;
-      $('btnUp').disabled = !lsToken();
     } catch (e) {
       $('mSeed').textContent = 'seed ERR';
       say('seed.bin 读取失败：' + (e.message || e), 'e');
@@ -246,7 +245,7 @@
   function refreshTok() {
     var t = lsToken();
     $('mTok').textContent = t ? 'token on' : 'token off';
-    $('btnUp').disabled = !t || busy;
+    $('btnUp').disabled = busy;
   }
 
   /* FSD1 */
@@ -316,6 +315,7 @@
   /* UPLOAD */
   $('btnUp').addEventListener('click', function () {
     if (!pw.value) { say('先填 passphrase。', 'e'); pw.focus(); return; }
+    if (!lsToken()) { say('token 未配置：命令行输入  token <PAT>  后再点。', 'e'); cmd.focus(); return; }
     $('file').value = '';
     $('file').click();
   });
