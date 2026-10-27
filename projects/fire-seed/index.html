@@ -9,218 +9,106 @@
 <style>
   :root{
     color-scheme:dark;
-    --bg:#03070a;
-    --fg:#35ff85;
-    --dim:#1d7a45;
-    --dim2:#0f3d24;
-    --warn:#ff6a6a;
-    --line:#0c2a1a;
+    --bg:#03070a; --fg:#35ff85; --dim:#1d7a45; --dim2:#123f27;
+    --warn:#ff6a6a; --line:#0c2a1a;
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);
-    font:13px/1.62 ui-monospace,SFMono-Regular,Menlo,Consolas,"Noto Sans Mono CJK SC",monospace;
+    font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,"Noto Sans Mono CJK SC",monospace;
     -webkit-text-size-adjust:100%;overscroll-behavior:none;overflow:hidden}
-  /* 扫描线 + 轻微 CRT 呼吸 */
   #scan{position:fixed;inset:0;pointer-events:none;z-index:90;
-    background:repeating-linear-gradient(180deg,rgba(53,255,133,.045) 0 1px,transparent 1px 3px);
+    background:repeating-linear-gradient(180deg,rgba(53,255,133,.04) 0 1px,transparent 1px 3px);
     mix-blend-mode:screen;animation:breathe 5.5s ease-in-out infinite}
-  @keyframes breathe{0%,100%{opacity:.45}50%{opacity:.75}}
+  @keyframes breathe{0%,100%{opacity:.4}50%{opacity:.72}}
   #vig{position:fixed;inset:0;pointer-events:none;z-index:91;
-    background:radial-gradient(120% 90% at 50% 45%,transparent 45%,rgba(0,0,0,.85) 100%)}
+    background:radial-gradient(120% 90% at 50% 45%,transparent 48%,rgba(0,0,0,.86) 100%)}
 
-  /* 隐形暗语输入区 */
-  #probe{position:fixed;inset:0;width:100%;height:100%;opacity:0;
-    border:0;outline:0;background:transparent;color:transparent;
-    caret-color:transparent;font-size:16px;z-index:2;resize:none}
-  #probe.off{display:none}
+  #shell{position:relative;z-index:5;height:100%;display:flex;flex-direction:column;
+    padding:max(10px,env(safe-area-inset-top)) 0 calc(8px + env(safe-area-inset-bottom))}
 
-  /* 未唤起：一块像废弃终端的空屏 */
-  #idle{position:fixed;inset:0;z-index:1;display:flex;flex-direction:column;
-    justify-content:flex-end;padding:18px 16px calc(18px + env(safe-area-inset-bottom));
-    pointer-events:none}
-  #idle .ln{color:var(--dim);font-size:12px;white-space:nowrap;overflow:hidden}
-  #idle .cur{display:inline-block;width:.62em;height:1.05em;vertical-align:-.18em;
-    background:var(--fg);animation:blink 1.15s steps(1) infinite;margin-left:2px}
-  @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+  /* 左上角命令行：常驻，输入文字可见 */
+  #term{display:flex;align-items:baseline;gap:7px;padding:2px 12px 8px;
+    border-bottom:1px solid transparent;transition:border-color .25s}
+  body.awake #term{border-bottom-color:var(--line)}
+  #ps1{color:var(--dim);white-space:nowrap;font-size:12.5px;flex:0 0 auto}
+  #cmd{flex:1 1 auto;min-width:0;background:transparent;border:0;outline:0;
+    color:var(--fg);font:inherit;font-size:14px;padding:1px 0;caret-color:var(--fg)}
+  #cmd::placeholder{color:var(--dim2)}
 
-  /* 面板 */
-  #panel{position:fixed;inset:0;z-index:60;display:none;overflow-y:auto;
-    padding:0 0 calc(70px + env(safe-area-inset-bottom));
-    background:linear-gradient(180deg,#03070a 0%,#020506 100%)}
-  #panel.on{display:block;animation:up .28s ease both}
-  @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-  #panel::-webkit-scrollbar{width:6px}
-  #panel::-webkit-scrollbar-thumb{background:#124a2b}
+  #idle{flex:1;display:flex;flex-direction:column;justify-content:flex-end;
+    padding:0 12px 6px;pointer-events:none}
+  #idle .ln{color:var(--dim2);font-size:11.5px;white-space:nowrap;overflow:hidden}
 
-  .wrap{max-width:760px;margin:0 auto;padding:0 14px}
-  .bar{position:sticky;top:0;z-index:70;background:rgba(3,7,10,.94);
-    border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
-  .bar .row{max-width:760px;margin:0 auto;padding:9px 14px;display:flex;
-    align-items:center;gap:10px;font-size:11.5px;color:var(--dim)}
-  .dot{width:7px;height:7px;border-radius:50%;background:var(--fg);
-    box-shadow:0 0 8px var(--fg);animation:pulse 2s infinite}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-  .spacer{flex:1}
-  .bar b{color:var(--fg);font-weight:500}
+  #deck{flex:1;display:none;flex-direction:column;min-height:0;padding:8px 12px 0}
+  body.awake #deck{display:flex}
+  body.awake #idle{display:none}
+  #out{flex:1 1 auto;min-height:0;overflow-y:auto;font-size:11.5px;line-height:1.72;
+    color:#57c98a;white-space:pre-wrap;word-break:break-all;padding:4px 0 10px}
+  #out .e{color:var(--warn)}
+  #out .g{color:#8dffc0}
+  #out .d{color:#276b48}
+  #out .t{color:#7fe0ae}
 
-  h2{font-size:12px;color:var(--dim);font-weight:500;letter-spacing:.18em;
-    margin:26px 0 8px;text-transform:uppercase}
-  h2::before{content:"# ";color:var(--dim2)}
-
-  pre.block{margin:0;padding:12px 14px;background:#010403;border:1px solid #0d2f1d;
-    border-left:2px solid var(--dim);color:#8dffc0;font-size:11.5px;line-height:1.7;
-    white-space:pre-wrap;word-break:break-all;overflow-x:auto;
-    box-shadow:inset 0 0 24px rgba(30,255,120,.05)}
-  pre.block .k{color:var(--dim)}
-  pre.block .v{color:#b9ffd6}
-
-  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
-  button{flex:1 1 auto;min-width:132px;padding:10px 13px;border-radius:2px;
-    border:1px solid #175c37;background:#04120b;color:#7dffb4;
-    font:inherit;font-size:12.5px;cursor:pointer;transition:.14s;letter-spacing:.04em}
-  button:hover:not(:disabled){background:#072b18;border-color:#2ea86a;color:#c6ffdd;
-    box-shadow:0 0 16px rgba(46,168,106,.25)}
-  button:disabled{opacity:.35;cursor:not-allowed}
-  button.pri{background:#073d22;border-color:#2ea86a;color:#d9ffe9}
-  button.pri:hover:not(:disabled){background:#0a5330}
-  button.danger{border-color:#4a1f1f;color:#ff9c9c;background:#160808}
-  button.danger:hover:not(:disabled){background:#2a0d0d;border-color:#a33}
-
-  input[type=password],input[type=text],input[type=file]{width:100%;padding:10px 11px;
-    border-radius:2px;border:1px solid #175c37;background:#010503;color:#c9ffdf;
-    font:inherit;font-size:14px;outline:0}
-  input[type=password]:focus,input[type=text]:focus{border-color:#2ea86a;
-    box-shadow:0 0 0 1px rgba(46,168,106,.3)}
-  label.f{display:block;margin-top:12px;font-size:11.5px;color:var(--dim);letter-spacing:.06em}
-  label.f span{display:block;margin-bottom:5px}
-  .filebox{position:relative;overflow:hidden;display:block}
-  .filebox input{position:absolute;inset:0;opacity:0;cursor:pointer}
-  .filebox i{display:block;padding:11px;border:1px dashed #1c6440;border-radius:2px;
-    text-align:center;color:#5fcf92;font-style:normal;font-size:12.5px}
-  .hint{font-size:11.5px;color:#2f6f4c;margin:8px 0 0;line-height:1.65}
-  .hint b{color:#4fa77a;font-weight:500}
-  code{background:#082014;color:#8bffc2;padding:1px 5px;border-radius:2px;font-size:11.5px}
-  a{color:#4fd08b}
-
-  #log{max-height:38vh;overflow-y:auto}
-  #log .e{color:var(--warn)}
-  #log .g{color:#7effb8}
-  #log .d{color:#2f6f4c}
-  #log div{white-space:pre-wrap;word-break:break-all}
-
-  .files{max-height:34vh;overflow-y:auto;border:1px solid #0d2f1d;background:#010403}
-  .files div{display:flex;gap:8px;padding:4px 10px;font-size:11.5px;
-    border-bottom:1px solid #061a10;cursor:pointer}
-  .files div:hover{background:#07281a}
-  .files .nm{flex:1;color:#8dffc0;word-break:break-all}
-  .files .sz{color:#2f6f4c;flex:0 0 auto}
-
-  .tag{display:inline-block;padding:0 6px;border:1px solid #1c6440;color:#5fcf92;
-    font-size:10.5px;border-radius:2px;margin-left:6px}
-  .tag.off{border-color:#4a2b2b;color:#a86a6a}
-  .tag.on{border-color:#2ea86a;color:#8bffc2}
-  @media (prefers-reduced-motion:reduce){#scan{animation:none}#panel.on{animation:none}}
+  #acts{flex:0 0 auto;padding:10px 0 4px;border-top:1px solid var(--line)}
+  .pw{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
+  #pw{flex:1;background:transparent;border:0;border-bottom:1px solid #1a5c39;
+    outline:0;color:#c9ffdf;font:inherit;font-size:14px;padding:6px 2px 7px}
+  #pw:focus{border-bottom-color:#2ea86a}
+  .btns{display:flex;gap:10px}
+  button{flex:1 1 0;padding:15px 10px;border-radius:2px;border:1px solid #1a5c39;
+    background:#04120b;color:#7dffb4;font:inherit;font-size:13px;letter-spacing:.1em;
+    cursor:pointer;transition:.15s}
+  button:hover:not(:disabled){background:#072b18;border-color:#2ea86a;color:#d6ffe7;
+    box-shadow:0 0 18px rgba(46,168,106,.22)}
+  button:active:not(:disabled){transform:translateY(1px)}
+  button:disabled{opacity:.32;cursor:not-allowed}
+  button.up{background:#0a2216;border-color:#1f7a4a;color:#c8ffde}
+  button.up:hover:not(:disabled){background:#0d3320;border-color:#35b16b}
+  #meta{font-size:10.5px;color:var(--dim2);padding:2px 12px 0;letter-spacing:.04em}
 </style>
 </head>
 <body>
-<textarea id="probe" autocomplete="off" autocorrect="off" autocapitalize="off"
-  spellcheck="false" aria-label="" tabindex="0"></textarea>
+<div id="shell">
+  <div id="term">
+    <span id="ps1">root@fs:~$</span>
+    <input id="cmd" type="text" autocomplete="off" autocorrect="off" autocapitalize="off"
+      spellcheck="false" enterkeyhint="send" placeholder="">
+  </div>
 
-<div id="idle">
-  <div class="ln">Last login: —  from 127.0.0.1</div>
-  <div class="ln">0 jobs running · 0 queued · link idle</div>
-  <div class="ln">root@fs:~$ <span class="cur"></span></div>
-</div>
+  <div id="idle">
+    <div class="ln">last login: — from 127.0.0.1</div>
+  </div>
 
-<div id="panel" aria-hidden="true">
-  <div class="bar">
-    <div class="row">
-      <span class="dot"></span>
-      <span>fire-seed</span>
-      <span class="tag" id="tgSeed">seed ?</span>
-      <span class="tag off" id="tgTok">token off</span>
-      <span class="spacer"></span>
-      <b id="btnClose" style="cursor:pointer">[exit]</b>
+  <div id="deck">
+    <pre id="out"></pre>
+    <div id="acts">
+      <div class="pw">
+        <span style="color:var(--dim);font-size:12px">pass</span>
+        <input id="pw" type="password" autocomplete="off" placeholder="passphrase">
+      </div>
+      <div class="btns">
+        <button id="btnDown" type="button" disabled>↓ DOWNLOAD</button>
+        <button id="btnUp" type="button" class="up" disabled>↑ UPLOAD</button>
+      </div>
     </div>
   </div>
 
-  <div class="wrap">
-    <h2>status</h2>
-    <pre class="block" id="stat"><span class="k">cipher </span><span class="v">assets/seed.bin</span>
-<span class="k">size   </span><span class="v" id="stSize">…</span>
-<span class="k">sha256 </span><span class="v" id="stHash">…</span>
-<span class="k">format </span><span class="v">FSD1 · PBKDF2-SHA256/200000 · AES-256-GCM</span></pre>
-
-    <h2>unlock</h2>
-    <input id="pw" type="password" autocomplete="off" placeholder="passphrase">
-    <div class="row">
-      <button id="btnDec" class="pri" type="button">解锁并挂载</button>
-      <button id="btnRaw" type="button" disabled>导出原始 zip</button>
-    </div>
-    <p class="hint">passphrase 只在本地参与 PBKDF2 派生，不出浏览器。
-      挂载后可读包内文件、重新加密、推送至花园。</p>
-
-    <h2>vault</h2>
-    <pre class="block" id="vaultInfo"><span class="k">state  </span><span class="v">未挂载</span></pre>
-    <div class="files" id="fileList" style="display:none"></div>
-    <div class="row">
-      <button id="btnTree" type="button" disabled>列出全部文件</button>
-      <button id="btnSave" type="button" disabled>保存选中</button>
-    </div>
-
-    <h2>upload / re-encrypt</h2>
-    <label class="f"><span>选择新的 zip（将用同一 passphrase 重新加密）</span>
-      <span class="filebox"><input id="file" type="file" accept=".zip,application/zip">
-      <i>choose file…</i></span>
-    </label>
-    <div class="row">
-      <button id="btnEnc" type="button" disabled>加密 → 下载 seed.bin</button>
-      <button id="btnPushSeed" class="danger" type="button" disabled>直接推送到花园（覆盖 seed.bin）</button>
-    </div>
-    <p class="hint">推送走 GitHub Contents API，需要已配置 token。覆盖后 Pages 约 10 分钟生效。</p>
-
-    <h2>garden write</h2>
-    <label class="f"><span>目标路径（默认 <code id="baseDir">projects/fire-seed/uploads/</code>）</span>
-      <input id="upPath" type="text" value="projects/fire-seed/uploads/README.txt" autocomplete="off">
-    </label>
-    <label class="f"><span>文件</span>
-      <span class="filebox"><input id="upFile" type="file">
-      <i>choose file…</i></span>
-    </label>
-    <div class="row"><button id="btnPushAny" class="danger" type="button" disabled>推送文件到花园</button></div>
-
-    <h2>token</h2>
-    <input id="tok" type="password" autocomplete="off" placeholder="ghp_… / github_pat_…（仅存本机 localStorage）">
-    <div class="row">
-      <button id="btnTok" type="button">保存 token</button>
-      <button id="btnTokDel" type="button">清除</button>
-    </div>
-    <p class="hint">建议用 fine-grained token，仅授权 <b>whale-garden</b> 一个仓库的
-      <b>Contents: Read and write</b>。token 不写入站点文件、不进密文包。</p>
-
-    <h2>console</h2>
-    <pre class="block" id="log"><div class="d">待命。输入暗语可唤醒。</div></pre>
-
-    <h2>api</h2>
-    <pre class="block" id="api" style="display:none"></pre>
-    <div class="row"><button id="btnCopy" type="button">复制接口摘要</button></div>
-    <p class="hint">命令行：<code>python3 tools/fetch_seed.py &lt;url&gt; &lt;passphrase&gt; -o out.zip</code></p>
-    <div style="height:26px"></div>
-  </div>
+  <div id="meta"><span id="mSeed">seed --</span> · <span id="mTok">token off</span></div>
 </div>
 
 <div id="scan"></div><div id="vig"></div>
+
+<input type="file" id="file" accept=".zip,application/zip" style="display:none">
 
 <script>
 (function () {
   'use strict';
 
-  /* ================= 唤醒暗语（只存 sha256） ================= */
   var AWAKEN = [
     '0fefc36b9f3ef7cab2b42187091823ae5ba72b4036d349a6a1e6b84163c563e4',
     '61203c92afff6dd018f82fedf796433b22625d6ad407f05b5b2e26bcde90d0ac'
   ];
-  var MAGIC = new Uint8Array([0x46, 0x53, 0x44, 0x31]); // 'FSD1'
+  var MAGIC = new Uint8Array([0x46, 0x53, 0x44, 0x31]);
   var ITER = 200000;
   var SEED_URL = 'assets/seed.bin';
   var REPO = 'Metara-sama/whale-garden';
@@ -228,26 +116,19 @@
   var SEED_PATH = 'projects/fire-seed/assets/seed.bin';
   var enc = new TextEncoder();
 
-  /* ================= DOM ================= */
   var $ = function (id) { return document.getElementById(id); };
-  var probe = $('probe'), panel = $('panel'), logEl = $('log');
-  var awakened = false;
+  var cmd = $('cmd'), out = $('out'), pw = $('pw');
+  var awake = false, busy = false;
 
-  function esc(s) {
-    return String(s).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '"' }[c];
-    });
+  function say(text, cls) {
+    var span = document.createElement('span');
+    if (cls) span.className = cls;
+    span.textContent = text + '\n';
+    out.appendChild(span);
+    while (out.childNodes.length > 600) out.removeChild(out.firstChild);
+    out.scrollTop = out.scrollHeight;
   }
-  function log(msg, cls) {
-    var d = document.createElement('div');
-    if (cls) d.className = cls;
-    var t = new Date().toTimeString().slice(0, 8);
-    d.textContent = '[' + t + '] ' + msg;
-    logEl.appendChild(d);
-    while (logEl.childNodes.length > 400) logEl.removeChild(logEl.firstChild);
-    logEl.scrollTop = logEl.scrollHeight;
-  }
-  function fmtBytes(n) {
+  function fmt(n) {
     if (n < 1024) return n + ' B';
     if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
     return (n / 1048576).toFixed(2) + ' MB';
@@ -257,273 +138,226 @@
       return ('0' + b.toString(16)).slice(-2);
     }).join('');
   }
-  async function sha256Hex(data) {
-    return hex(await crypto.subtle.digest('SHA-256', data));
+  async function sha256(data) { return hex(await crypto.subtle.digest('SHA-256', data)); }
+  function stamp() {
+    var d = new Date(), p = function (n) { return ('0' + n).slice(-2); };
+    return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes());
   }
 
-  /* ================= 唤起 ================= */
+  /* 暗语 */
   function canon(s) {
     return s.replace(/\s+/g, '').replace(/,/g, '，').replace(/\./g, '。');
   }
-  async function check() {
-    var raw = probe.value;
+  async function tryAwaken() {
+    var raw = cmd.value;
     if (!raw) return;
     var c = canon(raw);
-    var min = 4, max = Math.min(c.length, 16);
-    for (var len = max; len >= min; len--) {
+    var max = Math.min(c.length, 16);
+    for (var len = max; len >= 4; len--) {
       var tail = c.slice(c.length - len);
-      var h = await sha256Hex(enc.encode(tail));
+      var h = await sha256(enc.encode(tail));
       if (AWAKEN.indexOf(h) !== -1) { awaken(); return; }
     }
-    if (probe.value.length > 64) probe.value = probe.value.slice(-32);
+    if (cmd.value.length > 64) cmd.value = cmd.value.slice(-32);
   }
-  probe.addEventListener('input', check);
-  probe.addEventListener('compositionend', check);
-  probe.addEventListener('paste', function () { setTimeout(check, 0); });
-
-  function focusProbe() {
-    if (awakened) return;
-    try { probe.focus({ preventScroll: true }); } catch (e) { probe.focus(); }
-  }
-  document.addEventListener('pointerdown', focusProbe);
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && awakened) { sleep(); return; }
-    if (!awakened && e.key && e.key.length === 1 && document.activeElement !== probe) focusProbe();
-  });
-  window.addEventListener('load', focusProbe);
+  cmd.addEventListener('input', function () { if (!awake) tryAwaken(); });
+  cmd.addEventListener('compositionend', function () { if (!awake) tryAwaken(); });
+  cmd.addEventListener('paste', function () { if (!awake) setTimeout(tryAwaken, 0); });
 
   function awaken() {
-    if (awakened) return;
-    awakened = true;
-    probe.value = '';
-    probe.classList.add('off');
-    panel.classList.add('on');
-    panel.setAttribute('aria-hidden', 'false');
-    buildApi();
+    if (awake) return;
+    awake = true;
+    cmd.value = '';
+    document.body.classList.add('awake');
+    say('link established. seed ' + SEED_URL, 'd');
+    say('type "help" for commands.', 'd');
     loadStat();
-    refreshTokenTag();
-    log('link established. vault mounted: none.', 'g');
+    refreshTok();
+    cmd.focus();
   }
-  function sleep() {
-    awakened = false;
-    panel.classList.remove('on');
-    panel.setAttribute('aria-hidden', 'true');
-    probe.classList.remove('off');
-    $('pw').value = '';
-    focusProbe();
+  function sleepBack() {
+    awake = false;
+    document.body.classList.remove('awake');
+    out.textContent = '';
+    pw.value = '';
+    cmd.value = '';
+    cmd.focus();
   }
-  $('btnClose').addEventListener('click', sleep);
 
-  /* ================= 状态 ================= */
+  /* 命令 */
+  cmd.addEventListener('keydown', async function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    var line = cmd.value.trim();
+    cmd.value = '';
+    if (!awake || !line) return;
+    say('root@fs:~$ ' + line, 'd');
+    var sp = line.indexOf(' ');
+    var c = sp < 0 ? line : line.slice(0, sp);
+    var arg = sp < 0 ? '' : line.slice(sp + 1).trim();
+    if (busy) { say('busy…', 'e'); return; }
+    switch (c) {
+      case 'help':
+        say('commands:', 't');
+        say('  token <PAT>   save github token (localStorage)');
+        say('  token         show token state');
+        say('  seed          re-read seed.bin info');
+        say('  api           machine interface summary');
+        say('  clear         clear console');
+        say('  exit          close panel');
+        break;
+      case 'token':
+        if (!arg) say('token: ' + (lsToken() ? 'on (' + lsToken().slice(0, 7) + '...)' : 'off'), lsToken() ? 'g' : 'd');
+        else { localStorage.setItem('fs_gh_token', arg); refreshTok(); say('token saved.', 'g'); }
+        break;
+      case 'seed': await loadStat(); break;
+      case 'api': printApi(); break;
+      case 'clear': out.textContent = ''; break;
+      case 'exit': sleepBack(); break;
+      default: say('unknown command: ' + c + ' (try help)', 'e');
+    }
+  });
+
+  function focusCmd() {
+    if (document.activeElement !== pw) { try { cmd.focus({ preventScroll: true }); } catch (e) { cmd.focus(); } }
+  }
+  document.addEventListener('pointerdown', function (e) {
+    if (e.target.tagName === 'BUTTON' || e.target === pw) return;
+    setTimeout(focusCmd, 0);
+  });
+  window.addEventListener('load', focusCmd);
+
   async function loadStat() {
     try {
       var res = await fetch(SEED_URL, { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      var buf = new Uint8Array(await res.arrayBuffer());
-      $('stSize').textContent = fmtBytes(buf.byteLength);
-      $('stHash').textContent = await sha256Hex(buf);
-      $('tgSeed').textContent = 'seed ' + fmtBytes(buf.byteLength);
-      $('tgSeed').className = 'tag on';
+      var b = new Uint8Array(await res.arrayBuffer());
+      $('mSeed').textContent = 'seed ' + fmt(b.length);
+      say('seed.bin ' + fmt(b.length) + '  sha256 ' + (await sha256(b)).slice(0, 16) + '...', 'd');
+      $('btnDown').disabled = false;
+      $('btnUp').disabled = !lsToken();
     } catch (e) {
-      $('stSize').textContent = '读取失败';
-      $('stHash').textContent = String(e.message || e);
-      $('tgSeed').textContent = 'seed err';
-      $('tgSeed').className = 'tag off';
-      log('读取 seed.bin 失败：' + (e.message || e), 'e');
+      $('mSeed').textContent = 'seed ERR';
+      say('seed.bin 读取失败：' + (e.message || e), 'e');
     }
   }
 
-  /* ================= 加解密 ================= */
+  function lsToken() { return localStorage.getItem('fs_gh_token') || ''; }
+  function refreshTok() {
+    var t = lsToken();
+    $('mTok').textContent = t ? 'token on' : 'token off';
+    $('btnUp').disabled = !t || busy;
+  }
+
+  /* FSD1 */
   async function deriveKey(password, salt, iter) {
     var base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
     return crypto.subtle.deriveKey(
       { name: 'PBKDF2', salt: salt, iterations: iter, hash: 'SHA-256' },
       base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
   }
-  function parseHeader(bytes) {
-    if (bytes.length < 36) throw new Error('密文长度不足');
-    for (var i = 0; i < 4; i++) if (bytes[i] !== MAGIC[i]) throw new Error('magic 不匹配，不是 FSD1 密文');
-    var iter = ((bytes[4] << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7]) >>> 0;
-    return { iter: iter, salt: bytes.slice(8, 24), iv: bytes.slice(24, 36) };
+  function parseHeader(b) {
+    if (b.length < 36) throw new Error('密文长度不足');
+    for (var i = 0; i < 4; i++) if (b[i] !== MAGIC[i]) throw new Error('magic 不匹配');
+    var iter = ((b[4] << 24) | (b[5] << 16) | (b[6] << 8) | b[7]) >>> 0;
+    return { iter: iter, salt: b.slice(8, 24), iv: b.slice(24, 36) };
   }
-  async function decryptSeed(bytes, password) {
-    var h = parseHeader(bytes);
+  async function decryptSeed(b, password) {
+    var h = parseHeader(b);
     var key = await deriveKey(password, h.salt, h.iter);
     var plain = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: h.iv, additionalData: MAGIC, tagLength: 128 }, key, bytes.slice(36));
+      { name: 'AES-GCM', iv: h.iv, additionalData: MAGIC, tagLength: 128 }, key, b.slice(36));
     return new Uint8Array(plain);
   }
-  async function encryptSeed(plain, password, iter) {
-    iter = iter || ITER;
+  async function encryptSeed(plain, password) {
     var salt = crypto.getRandomValues(new Uint8Array(16));
     var iv = crypto.getRandomValues(new Uint8Array(12));
-    var key = await deriveKey(password, salt, iter);
+    var key = await deriveKey(password, salt, ITER);
     var ct = new Uint8Array(await crypto.subtle.encrypt(
       { name: 'AES-GCM', iv: iv, additionalData: MAGIC, tagLength: 128 }, key, plain));
-    var out = new Uint8Array(36 + ct.length);
-    out.set(MAGIC, 0);
-    out[4] = (iter >>> 24) & 255; out[5] = (iter >>> 16) & 255;
-    out[6] = (iter >>> 8) & 255; out[7] = iter & 255;
-    out.set(salt, 8); out.set(iv, 24); out.set(ct, 36);
-    return out;
+    var o = new Uint8Array(36 + ct.length);
+    o.set(MAGIC, 0);
+    o[4] = (ITER >>> 24) & 255; o[5] = (ITER >>> 16) & 255;
+    o[6] = (ITER >>> 8) & 255; o[7] = ITER & 255;
+    o.set(salt, 8); o.set(iv, 24); o.set(ct, 36);
+    return o;
   }
 
-  /* ================= 最小 zip 读取器 ================= */
   function u16(b, o) { return b[o] | (b[o + 1] << 8); }
-  function u32(b, o) { return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0; }
-  function readZip(buf) {
-    var eocd = -1;
-    for (var i = buf.length - 22; i >= 0 && i > buf.length - 66000; i--) {
-      if (buf[i] === 0x50 && buf[i + 1] === 0x4b && buf[i + 2] === 0x05 && buf[i + 3] === 0x06) { eocd = i; break; }
+  function zipCount(b) {
+    for (var i = b.length - 22; i >= 0 && i > b.length - 66000; i--) {
+      if (b[i] === 0x50 && b[i + 1] === 0x4b && b[i + 2] === 0x05 && b[i + 3] === 0x06) return u16(b, i + 10);
     }
-    if (eocd < 0) throw new Error('不是有效 zip：找不到 EOCD');
-    var count = u16(buf, eocd + 10);
-    var cdOff = u32(buf, eocd + 16);
-    var p = cdOff, entries = [];
-    for (var k = 0; k < count; k++) {
-      if (u32(buf, p) !== 0x02014b50) throw new Error('中央目录损坏 @' + p);
-      var method = u16(buf, p + 10);
-      var csize = u32(buf, p + 20);
-      var usize = u32(buf, p + 24);
-      var nlen = u16(buf, p + 28);
-      var elen = u16(buf, p + 30);
-      var clen = u16(buf, p + 32);
-      var loff = u32(buf, p + 42);
-      var name = new TextDecoder('utf-8').decode(buf.slice(p + 46, p + 46 + nlen));
-      entries.push({ name: name, method: method, csize: csize, usize: usize, off: loff });
-      p += 46 + nlen + elen + clen;
-    }
-    return entries;
-  }
-  async function readEntry(buf, e) {
-    if (u32(buf, e.off) !== 0x04034b50) throw new Error('本地头损坏：' + e.name);
-    var nlen = u16(buf, e.off + 26), elen = u16(buf, e.off + 28);
-    var start = e.off + 30 + nlen + elen;
-    var data = buf.slice(start, start + e.csize);
-    if (e.method === 0) return data;
-    if (e.method !== 8) throw new Error('不支持的压缩方式 ' + e.method + '：' + e.name);
-    if (typeof DecompressionStream === 'undefined') throw new Error('此浏览器不支持 DecompressionStream');
-    var ds = new DecompressionStream('deflate-raw');
-    var stream = new Blob([data]).stream().pipeThrough(ds);
-    return new Uint8Array(await new Response(stream).arrayBuffer());
+    return -1;
   }
 
-  /* ================= 会话状态 ================= */
-  var S = { zip: null, entries: [], picked: null, newSeed: null };
-
-  function setMounted(info) {
-    $('vaultInfo').innerHTML = info;
-    var ok = !!S.entries.length;
-    $('btnTree').disabled = !ok;
-    $('btnRaw').disabled = !S.zip;
-    $('btnSave').disabled = true;
-  }
-  function renderFiles(list) {
-    var box = $('fileList');
-    box.style.display = 'block';
-    box.innerHTML = '';
-    list.forEach(function (e) {
-      var d = document.createElement('div');
-      d.innerHTML = '<span class="nm">' + esc(e.name) + '</span><span class="sz">' +
-        (e.usize ? fmtBytes(e.usize) : 'dir') + '</span>';
-      d.addEventListener('click', function () {
-        S.picked = e;
-        Array.prototype.forEach.call(box.children, function (c) { c.style.background = ''; });
-        d.style.background = '#07281a';
-        $('btnSave').disabled = false;
-        log('selected: ' + e.name, 'd');
-      });
-      box.appendChild(d);
-    });
-  }
-
-  /* 解锁 */
-  $('btnDec').addEventListener('click', async function () {
-    var password = $('pw').value;
-    if (!password) { log('passphrase 为空。', 'e'); return; }
-    this.disabled = true;
+  /* DOWNLOAD */
+  $('btnDown').addEventListener('click', async function () {
+    var password = pw.value;
+    if (!password) { say('passphrase 为空。', 'e'); pw.focus(); return; }
+    busy = true; this.disabled = true; $('btnUp').disabled = true;
     try {
-      log('fetch ' + SEED_URL + ' …');
+      say('fetch ' + SEED_URL + ' ...');
       var res = await fetch(SEED_URL, { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      var bytes = new Uint8Array(await res.arrayBuffer());
-      log('cipher ' + fmtBytes(bytes.length) + '；PBKDF2 200k …');
-      var zip = await decryptSeed(bytes, password);
-      log('解密成功，明文 zip ' + fmtBytes(zip.length), 'g');
-      S.zip = zip;
-      S.entries = readZip(zip);
-      var total = 0, files = 0;
-      S.entries.forEach(function (e) { total += e.usize; if (!/\/$/.test(e.name)) files++; });
-      setMounted('<span class="k">state  </span><span class="v">mounted</span>\n' +
-        '<span class="k">entries</span><span class="v"> ' + files + ' files / ' + S.entries.length + ' entries</span>\n' +
-        '<span class="k">unpack </span><span class="v">' + fmtBytes(total) + '</span>');
-      log('挂载完成：' + files + ' 个文件。', 'g');
-      $('btnEnc').disabled = false;
-      $('btnPushSeed').disabled = !localStorage.getItem('fs_gh_token');
+      var cipher = new Uint8Array(await res.arrayBuffer());
+      say('cipher ' + fmt(cipher.length) + ' -> PBKDF2 200k ...');
+      var zip = await decryptSeed(cipher, password);
+      say('decrypt ok, plain zip ' + fmt(zip.length), 'g');
+      say('entries ' + zipCount(zip) + '  sha256 ' + (await sha256(zip)).slice(0, 16) + '...', 'd');
+      var name = 'fire-seed-' + stamp() + '.zip';
+      saveBlob(zip, name, 'application/zip');
+      say('downloaded: ' + name, 'g');
     } catch (e) {
-      log('解密失败：' + (e.message || e), 'e');
-      setMounted('<span class="k">state  </span><span class="v">failed</span>');
-    } finally { this.disabled = false; }
+      say('解密失败：password 错误或密文被改动（' + (e.message || e) + '）', 'e');
+    } finally { busy = false; this.disabled = false; refreshTok(); }
   });
 
-  /* 导出原始 zip */
-  $('btnRaw').addEventListener('click', function () {
-    if (!S.zip) return;
-    saveBlob(S.zip, 'fire-seed-' + stamp() + '.zip', 'application/zip');
-    log('已导出明文 zip。', 'g');
+  /* UPLOAD */
+  $('btnUp').addEventListener('click', function () {
+    if (!pw.value) { say('先填 passphrase。', 'e'); pw.focus(); return; }
+    $('file').value = '';
+    $('file').click();
   });
-
-  /* 列出全部 */
-  $('btnTree').addEventListener('click', function () { renderFiles(S.entries); });
-  $('btnSave').addEventListener('click', async function () {
-    if (!S.picked) return;
-    try {
-      var data = await readEntry(S.zip, S.picked);
-      saveBlob(data, S.picked.name.split('/').pop() || 'file', 'application/octet-stream');
-      log('已保存 ' + S.picked.name + '（' + fmtBytes(data.length) + '）', 'g');
-    } catch (e) { log('读取条目失败：' + (e.message || e), 'e'); }
-  });
-
-  /* ================= re-encrypt ================= */
   $('file').addEventListener('change', async function () {
     var f = this.files && this.files[0];
-    this.value = '';
     if (!f) return;
-    var password = $('pw').value;
-    if (!password) { log('先输入 passphrase。', 'e'); return; }
+    var password = pw.value;
+    if (!password) { say('passphrase 为空。', 'e'); return; }
+    if (!lsToken()) { say('token 未配置：命令行输入 token <PAT> 后重试。', 'e'); return; }
+    busy = true; $('btnDown').disabled = true; $('btnUp').disabled = true;
     try {
-      log('read ' + f.name + '（' + fmtBytes(f.size) + '）…');
+      say('read ' + f.name + '（' + fmt(f.size) + '）...');
       var plain = new Uint8Array(await f.arrayBuffer());
-      log('加密中（PBKDF2 200k）…');
+      var n = zipCount(plain);
+      if (n < 0) throw new Error('不是有效 zip');
+      say('entries ' + n + ' -> encrypting ...');
       var seed = await encryptSeed(plain, password);
-      S.newSeed = seed;
-      var h = await sha256Hex(seed);
-      log('新密文 ' + fmtBytes(seed.length) + ' sha256=' + h.slice(0, 16) + '…', 'g');
-      saveBlob(seed, 'seed.bin', 'application/octet-stream');
-      log('已下载 seed.bin；也可点「直接推送到花园」。', 'g');
-      $('btnPushSeed').disabled = !localStorage.getItem('fs_gh_token');
-    } catch (e) { log('加密失败：' + (e.message || e), 'e'); }
+      say('cipher ' + fmt(seed.length) + ' sha256 ' + (await sha256(seed)).slice(0, 16) + '...', 'd');
+      say('push ' + SEED_PATH + ' ...');
+      var s = await ghPut(SEED_PATH, seed, 'fire-seed: update seed.bin');
+      say('pushed, content sha ' + s + '（Pages 约 10 分钟生效）', 'g');
+    } catch (e) {
+      say('上传失败：' + (e.message || e), 'e');
+    } finally { busy = false; $('btnDown').disabled = false; refreshTok(); }
   });
 
-  /* ================= GitHub API ================= */
-  function tok() { return localStorage.getItem('fs_gh_token') || ''; }
+  /* GitHub */
   function b64(bytes) {
     var s = '', CH = 0x8000;
-    for (var i = 0; i < bytes.length; i += CH) {
-      s += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
-    }
+    for (var i = 0; i < bytes.length; i += CH) s += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
     return btoa(s);
   }
   async function ghPut(path, bytes, message) {
-    var t = tok();
+    var t = lsToken();
     if (!t) throw new Error('未配置 token');
     var api = 'https://api.github.com/repos/' + REPO + '/contents/' + path;
-    var sha = null;
     var g = await fetch(api + '?ref=' + BRANCH, {
       headers: { Authorization: 'Bearer ' + t, Accept: 'application/vnd.github+json' }
     });
+    var sha = null;
     if (g.status === 200) { var j = await g.json(); sha = j.sha; }
-    else if (g.status !== 404) throw new Error('GET ' + path + ' → ' + g.status + '（token 权限不足？）');
+    else if (g.status !== 404) throw new Error('GET -> ' + g.status + '（token 权限不足？）');
     var body = { message: message, content: b64(bytes), branch: BRANCH };
     if (sha) body.sha = sha;
     var r = await fetch(api, {
@@ -531,102 +365,25 @@
       headers: { Authorization: 'Bearer ' + t, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    if (!r.ok) { var txt = await r.text(); throw new Error('PUT ' + r.status + ' ' + txt.slice(0, 160)); }
-    var out = await r.json();
-    return out.content && out.content.sha ? out.content.sha.slice(0, 10) : 'ok';
+    if (!r.ok) throw new Error('PUT ' + r.status + ' ' + (await r.text()).slice(0, 140));
+    var o = await r.json();
+    return o.content && o.content.sha ? o.content.sha.slice(0, 10) : 'ok';
   }
 
-  $('btnPushSeed').addEventListener('click', async function () {
-    if (!S.newSeed) { log('先加密一个 zip。', 'e'); return; }
-    this.disabled = true;
-    try {
-      log('push ' + SEED_PATH + ' …');
-      var s = await ghPut(SEED_PATH, S.newSeed, 'fire-seed: update seed.bin');
-      log('推送成功 sha=' + s + '（Pages 约 10 分钟生效）', 'g');
-    } catch (e) { log('推送失败：' + (e.message || e), 'e'); }
-    finally { this.disabled = false; }
-  });
-
-  $('btnPushAny').addEventListener('click', async function () {
-    var f = $('upFile').files && $('upFile').files[0];
-    var p = ($('upPath').value || '').replace(/^\/+/, '');
-    if (!f) { log('未选文件。', 'e'); return; }
-    if (!p) { log('目标路径为空。', 'e'); return; }
-    this.disabled = true;
-    try {
-      var bytes = new Uint8Array(await f.arrayBuffer());
-      log('push ' + p + '（' + fmtBytes(bytes.length) + '）…');
-      var s = await ghPut(p, bytes, 'upload ' + p.split('/').pop());
-      log('推送成功 sha=' + s, 'g');
-    } catch (e) { log('推送失败：' + (e.message || e), 'e'); }
-    finally { this.disabled = false; }
-  });
-
-  /* ================= token ================= */
-  function refreshTokenTag() {
-    var on = !!tok();
-    $('tgTok').textContent = on ? 'token on' : 'token off';
-    $('tgTok').className = 'tag ' + (on ? 'on' : 'off');
-    $('btnPushAny').disabled = !on;
-    $('btnPushSeed').disabled = !on || !S.newSeed;
-  }
-  $('btnTok').addEventListener('click', function () {
-    var v = $('tok').value.trim();
-    if (!v) { log('token 为空。', 'e'); return; }
-    localStorage.setItem('fs_gh_token', v);
-    $('tok').value = '';
-    refreshTokenTag();
-    log('token 已存本机。', 'g');
-  });
-  $('btnTokDel').addEventListener('click', function () {
-    localStorage.removeItem('fs_gh_token');
-    refreshTokenTag();
-    log('token 已清除。', 'd');
-  });
-
-  /* ================= 杂项 ================= */
-  function stamp() {
-    var d = new Date(), p = function (n) { return ('0' + n).slice(-2); };
-    return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes());
-  }
   function saveBlob(data, name, mime) {
-    var blob = new Blob([data], { type: mime || 'application/octet-stream' });
-    var url = URL.createObjectURL(blob);
+    var url = URL.createObjectURL(new Blob([data], { type: mime || 'application/octet-stream' }));
     var a = document.createElement('a');
     a.href = url; a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
   }
-  function buildApi() {
-    var origin = location.origin + location.pathname.replace(/[^/]*$/, '');
-    var text = [
-      '# fire-seed · machine interface',
-      'SEED_URL = ' + origin + 'assets/seed.bin',
-      '',
-      '# container',
-      "magic   : 'FSD1' (4 bytes)",
-      'iter    : u32 big-endian (200000)',
-      'salt    : 16 bytes',
-      'iv      : 12 bytes',
-      'payload : AES-256-GCM ciphertext || tag(16)',
-      'aad     : "FSD1"',
-      '',
-      'key = PBKDF2-HMAC-SHA256(pass, salt, iter, 32)',
-      'zip = AESGCM(key).decrypt(iv, payload, aad="FSD1")',
-      '',
-      'python3 tools/fetch_seed.py ' + origin + ' <pass> -o out.zip',
-      '',
-      '# garden write target',
-      'repo   = ' + REPO + ' @ ' + BRANCH,
-      'seed   = ' + SEED_PATH
-    ].join('\n');
-    var el = $('api');
-    el.style.display = 'block';
-    el.textContent = text;
-    $('btnCopy').addEventListener('click', async function () {
-      try { await navigator.clipboard.writeText(text); log('接口摘要已复制。', 'g'); }
-      catch (e) { log('复制失败，请手动选择。', 'e'); }
-    });
+  function printApi() {
+    var base = location.origin + location.pathname.replace(/[^/]*$/, '');
+    say('SEED_URL = ' + base + 'assets/seed.bin', 'd');
+    say('magic FSD1 | iter 200000 | salt16 | iv12 | AES-256-GCM(aad="FSD1")', 'd');
+    say('key = PBKDF2-HMAC-SHA256(pass, salt, iter, 32)', 'd');
+    say('python3 tools/fetch_seed.py ' + base + ' <pass> -o out.zip', 'd');
+    say('target repo ' + REPO + '@' + BRANCH + ' :: ' + SEED_PATH, 'd');
   }
 })();
 </script>
