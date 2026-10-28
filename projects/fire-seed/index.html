@@ -114,6 +114,14 @@
   var REPO = 'Metara-sama/whale-garden';
   var BRANCH = 'main';
   var SEED_PATH = 'projects/fire-seed/assets/seed.bin';
+  /* 多源竞速：jsDelivr 各节点在国内通常比 GitHub Pages 快 8–10 倍 */
+  var SOURCES = [
+    'https://testingcf.jsdelivr.net/gh/Metara-sama/whale-garden@main/projects/fire-seed/assets/seed.bin',
+    'https://cdn.jsdelivr.net/gh/Metara-sama/whale-garden@main/projects/fire-seed/assets/seed.bin',
+    'https://gcore.jsdelivr.net/gh/Metara-sama/whale-garden@main/projects/fire-seed/assets/seed.bin',
+    'assets/seed.bin'
+  ];
+  var freshMode = false;
   var enc = new TextEncoder();
 
   var $ = function (id) { return document.getElementById(id); };
@@ -211,6 +219,7 @@
         say('  token         show token state');
         say('  seed          re-read seed.bin info');
         say('  api           machine interface summary');
+        say('  fresh         toggle fresh-source mode (bypass CDN cache)');
         say('  clear         clear console');
         say('  exit          close panel');
         break;
@@ -220,6 +229,7 @@
         break;
       case 'seed': await loadStat(); break;
       case 'api': printApi(); break;
+      case 'fresh': freshMode = !freshMode; say('fresh mode: ' + (freshMode ? 'ON — 只走同源 Pages，绕过 CDN 缓存' : 'OFF — 多源竞速'), 'g'); break;
       case 'clear': out.textContent = ''; break;
       case 'exit': sleepBack(); break;
       default: say('unknown command: ' + c + ' (try help)', 'e');
@@ -248,8 +258,32 @@
     }
   }
 
-  async function fetchSeedWithProgress() {
-    var res = await fetch(SEED_URL, { cache: 'no-store' });
+  function shortHost(u) {
+    return u.indexOf('http') === 0 ? u.split('/')[2] : 'same-origin';
+  }
+  /* HEAD 探延迟，选最快的源 */
+  async function probe(u) {
+    var t0 = performance.now();
+    try {
+      var ac = ('AbortController' in window) ? new AbortController() : null;
+      var timer = ac ? setTimeout(function () { ac.abort(); }, 4000) : null;
+      var r = await fetch(u, { method: 'HEAD', cache: 'no-store', signal: ac ? ac.signal : undefined });
+      if (timer) clearTimeout(timer);
+      if (!r.ok) return Infinity;
+      return performance.now() - t0;
+    } catch (e) { return Infinity; }
+  }
+  async function pickSource() {
+    if (freshMode) return 'assets/seed.bin?cb=' + Date.now();
+    var arr = await Promise.all(SOURCES.map(async function (u) { return [u, await probe(u)]; }));
+    arr.sort(function (a, b) { return a[1] - b[1]; });
+    if (!isFinite(arr[0][1])) { say('所有源都不可达，改用同源', 'e'); return 'assets/seed.bin'; }
+    say('source: ' + shortHost(arr[0][0]) + ' (' + Math.round(arr[0][1]) + 'ms)', 'd');
+    return arr[0][0];
+  }
+
+  async function fetchSeedWithProgress(url) {
+    var res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var total = parseInt(res.headers.get('content-length') || '0', 10);
     if (!res.body || !total) return new Uint8Array(await res.arrayBuffer());
@@ -339,8 +373,9 @@
     if (!password) { say('passphrase 为空。', 'e'); pw.focus(); return; }
     busy = true;
     try {
-      say('fetch ' + SEED_URL + ' ...');
-      var cipher = await fetchSeedWithProgress();
+      var src = await pickSource();
+      say('fetch ' + shortHost(src) + ' ...');
+      var cipher = await fetchSeedWithProgress(src);
       say('cipher ' + fmt(cipher.length) + ' -> PBKDF2 200k ...');
       var zip = await decryptSeed(cipher, password);
       say('decrypt ok, plain zip ' + fmt(zip.length), 'g');
