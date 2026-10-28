@@ -175,6 +175,13 @@
     refreshTok();
     cmd.focus();
   }
+  function idleFlash() {
+    var ln = document.querySelector('#idle .ln');
+    if (!ln) return;
+    var old = ln.textContent;
+    ln.textContent = 'sh: command not found';
+    setTimeout(function () { ln.textContent = old; }, 1500);
+  }
   function sleepBack() {
     awake = false;
     document.body.classList.remove('awake');
@@ -190,7 +197,8 @@
     e.preventDefault();
     var line = cmd.value.trim();
     cmd.value = '';
-    if (!awake || !line) return;
+    if (!awake) { if (line) idleFlash(); return; }
+    if (!line) return;
     say('root@fs:~$ ' + line, 'd');
     var sp = line.indexOf(' ');
     var c = sp < 0 ? line : line.slice(0, sp);
@@ -310,6 +318,13 @@
     } catch (e) {
       say('解密失败：password 错误或密文被改动（' + (e.message || e) + '）', 'e');
     } finally { busy = false; this.disabled = false; refreshTok(); }
+  });
+
+  /* passphrase 框回车 = 直接 DOWNLOAD */
+  pw.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (!$('btnDown').disabled && !busy) $('btnDown').click();
   });
 
   /* UPLOAD */
