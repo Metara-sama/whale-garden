@@ -87,7 +87,7 @@
         <input id="pw" type="password" autocomplete="off" placeholder="passphrase">
       </div>
       <div class="btns">
-        <button id="btnDown" type="button" disabled>↓ DOWNLOAD</button>
+        <button id="btnDown" type="button">↓ DOWNLOAD</button>
         <button id="btnUp" type="button" class="up" disabled>↑ UPLOAD</button>
       </div>
     </div>
@@ -171,7 +171,7 @@
     document.body.classList.add('awake');
     say('link established. seed ' + SEED_URL, 'd');
     say('type "help" for commands.', 'd');
-    loadStat();
+    headStat();
     refreshTok();
     cmd.focus();
   }
@@ -234,6 +234,40 @@
     setTimeout(focusCmd, 0);
   });
   window.addEventListener('load', focusCmd);
+
+  async function headStat() {
+    try {
+      var r = await fetch(SEED_URL, { method: 'HEAD', cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      var len = parseInt(r.headers.get('content-length') || '0', 10);
+      $('mSeed').textContent = len ? 'seed ' + fmt(len) : 'seed ready';
+      say('seed.bin ' + (len ? fmt(len) : '(size unknown)') + ' ready', 'd');
+    } catch (e) {
+      $('mSeed').textContent = 'seed err';
+      say('HEAD seed.bin 失败：' + (e.message || e), 'e');
+    }
+  }
+
+  async function fetchSeedWithProgress() {
+    var res = await fetch(SEED_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var total = parseInt(res.headers.get('content-length') || '0', 10);
+    if (!res.body || !total) return new Uint8Array(await res.arrayBuffer());
+    var reader = res.body.getReader(), chunks = [], got = 0, marks = [0.25, 0.5, 0.75];
+    for (;;) {
+      var r = await reader.read();
+      if (r.done) break;
+      chunks.push(r.value);
+      got += r.value.length;
+      while (marks.length && got / total >= marks[0]) {
+        say('  ' + Math.round(marks[0] * 100) + '%  ' + fmt(got) + ' / ' + fmt(total), 'd');
+        marks.shift();
+      }
+    }
+    var out = new Uint8Array(got), off = 0;
+    for (var i = 0; i < chunks.length; i++) { out.set(chunks[i], off); off += chunks[i].length; }
+    return out;
+  }
 
   async function loadStat() {
     try {
@@ -299,15 +333,14 @@
   }
 
   /* DOWNLOAD */
-  $('btnDown').addEventListener('click', async function () {
+  async function doDownload() {
+    if (busy) { say('busy…', 'e'); return; }
     var password = pw.value;
     if (!password) { say('passphrase 为空。', 'e'); pw.focus(); return; }
-    busy = true; this.disabled = true; $('btnUp').disabled = true;
+    busy = true;
     try {
       say('fetch ' + SEED_URL + ' ...');
-      var res = await fetch(SEED_URL, { cache: 'no-store' });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      var cipher = new Uint8Array(await res.arrayBuffer());
+      var cipher = await fetchSeedWithProgress();
       say('cipher ' + fmt(cipher.length) + ' -> PBKDF2 200k ...');
       var zip = await decryptSeed(cipher, password);
       say('decrypt ok, plain zip ' + fmt(zip.length), 'g');
@@ -317,14 +350,15 @@
       say('downloaded: ' + name, 'g');
     } catch (e) {
       say('解密失败：password 错误或密文被改动（' + (e.message || e) + '）', 'e');
-    } finally { busy = false; this.disabled = false; refreshTok(); }
-  });
+    } finally { busy = false; refreshTok(); }
+  }
+  $('btnDown').addEventListener('click', doDownload);
 
   /* passphrase 框回车 = 直接 DOWNLOAD */
   pw.addEventListener('keydown', function (e) {
     if (e.key !== 'Enter') return;
     e.preventDefault();
-    if (!$('btnDown').disabled && !busy) $('btnDown').click();
+    if (!busy) doDownload();
   });
 
   /* UPLOAD */
