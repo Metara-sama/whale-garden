@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>吃掉小滚木</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#06182a">
+<meta name="description" content="新概念音游复刻：从最底下的开始，看你能吃掉多少根滚木。">
+<link rel="icon" href="../../assets/favicon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="stage">
+  <div id="board">
+    <div id="bgImg"></div>
+    <div class="layer" id="layerA"></div>
+    <div class="layer" id="layerB"></div>
+  </div>
+  <div id="hud"><span id="hudText"></span></div>
+  <button id="quit" aria-label="退出">×</button>
+  <div id="keybar"></div>
+</div>
+
+<!-- ============ 主页 ============ -->
+<section id="welcome" class="modal">
+  <div class="box">
+    <h1 id="wTitle">吃掉小滚木</h1>
+    <p class="sub">从最底下的开始<br>看你能吃掉多少根</p>
+    <div class="modes" id="modeRow">
+      <button class="chip" data-mode="normal">普通模式</button>
+      <button class="chip" data-mode="endless">无尽模式</button>
+      <button class="chip" data-mode="practice">练习模式</button>
+    </div>
+    <button class="btn primary" id="btnStart">开始游戏</button>
+    <div class="row">
+      <button class="btn ghost" id="btnSetting">游戏设置</button>
+      <button class="btn ghost" id="btnResetAll">恢复默认</button>
+    </div>
+    <p class="hint" id="bestLine"></p>
+  </div>
+</section>
+
+<!-- ============ 设置 ============ -->
+<section id="setting" class="modal">
+  <div class="box wide">
+    <h2>游戏设置</h2>
+
+    <div class="field">
+      <span class="lbl">标题</span>
+      <input type="text" id="inTitle" maxlength="14" placeholder="吃掉小滚木">
+    </div>
+
+    <div class="field">
+      <span class="lbl">时长</span>
+      <input type="number" id="inTime" min="5" max="99" step="1" inputmode="numeric">
+      <span class="unit">秒</span>
+    </div>
+
+    <div class="field">
+      <span class="lbl">按键</span>
+      <input type="text" id="inKeys" maxlength="4" placeholder="dfjk" autocapitalize="off" autocorrect="off">
+      <span class="unit">四个</span>
+    </div>
+
+    <div class="field">
+      <span class="lbl">键型倾向</span>
+      <select id="inPattern">
+        <option value="random">随机流 · 原版手感</option>
+        <option value="alternate">左右交替 · 两手换着来</option>
+        <option value="stair">阶梯往返 · 1234 折返</option>
+        <option value="jack">纵连 · 同一列连吃</option>
+        <option value="jump">大跳 · 1↔4 2↔3</option>
+        <option value="mixed">混合 · 每隔几行换一种</option>
+      </select>
+    </div>
+    <p class="tip" id="patternTip"></p>
+
+    <div class="field">
+      <span class="lbl">音效</span>
+      <button class="btn mini" id="btnSound">开启</button>
+    </div>
+
+    <div class="field">
+      <span class="lbl">按键图 · 没吃</span>
+      <label class="btn mini" for="fBefore">上传</label>
+      <button class="btn mini ghost" data-clear="beforeImg">还原</button>
+      <input type="file" id="fBefore" accept="image/*" hidden>
+    </div>
+
+    <div class="field">
+      <span class="lbl">按键图 · 吃过</span>
+      <label class="btn mini" for="fAfter">上传</label>
+      <button class="btn mini ghost" data-clear="afterImg">还原</button>
+      <input type="file" id="fAfter" accept="image/*" hidden>
+    </div>
+
+    <div class="field">
+      <span class="lbl">背景图</span>
+      <label class="btn mini" for="fBg">上传</label>
+      <button class="btn mini ghost" data-clear="bgImg">还原</button>
+      <input type="file" id="fBg" accept="image/*" hidden>
+    </div>
+
+    <div class="field">
+      <span class="lbl">吃掉音效</span>
+      <label class="btn mini" for="fTap">上传</label>
+      <button class="btn mini ghost" data-clear="tapSnd">还原</button>
+      <input type="file" id="fTap" accept="audio/*" hidden>
+    </div>
+
+    <div class="field">
+      <span class="lbl">按错音效</span>
+      <label class="btn mini" for="fErr">上传</label>
+      <button class="btn mini ghost" data-clear="errSnd">还原</button>
+      <input type="file" id="fErr" accept="audio/*" hidden>
+    </div>
+
+    <div class="field">
+      <span class="lbl">结束音效</span>
+      <label class="btn mini" for="fEnd">上传</label>
+      <button class="btn mini ghost" data-clear="endSnd">还原</button>
+      <input type="file" id="fEnd" accept="audio/*" hidden>
+    </div>
+
+    <button class="btn primary" id="btnDone">完成</button>
+  </div>
+</section>
+
+<!-- ============ 结算 ============ -->
+<section id="result" class="modal">
+  <div class="box">
+    <div id="rTitle" class="verdict"></div>
+    <div id="rCps" class="line"></div>
+    <div id="rScore" class="line"></div>
+    <div id="rBest" class="line dim"></div>
+    <div class="row">
+      <button class="btn primary" id="btnReplay">再来一次</button>
+      <button class="btn ghost" id="btnHome">回主页</button>
+    </div>
+  </div>
+</section>
+
+<script src="game.js"></script>
+<script src="../../assets/fullscreen.js"></script>
+</body>
+</html>

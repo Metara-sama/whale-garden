@@ -162,6 +162,15 @@ const PROJECTS = [
     ]
   },
   {
+    name: "吃掉小滚木",
+    desc: "四列滚木往下滚，按对字母就吃掉，二十秒能吃几根？",
+    status: "live",
+    year: "2026",
+    links: [
+      { label: "开始吃", url: "projects/eat-roll-wood/" }
+    ]
+  },
+  {
     name: "POCKET",
     desc: "一台能开机的拟物掌机，五张 GBA 卡带，也能塞自己的 ROM。",
     status: "live",
