@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>赛博棋牌室 · Whale's Garden</title>
+<meta name="description" content="接上 AI 就能开桌：斗地主、麻将、UNO、五子棋、象棋、国际象棋、围棋、浅滩鱼悔，边打边聊。">
+<meta name="theme-color" content="#06182a">
+<link rel="icon" href="../../assets/favicon.png">
+<link rel="apple-touch-icon" href="../../assets/favicon.png">
+<link rel="stylesheet" href="../../fonts.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/table.css">
+<style>
+  /* 对局视图要撑满整屏才好排版 */
+  #tableview.on{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+  #gameHost{flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-bottom:4px}
+  #seatRow{gap:6px;margin-bottom:2px}
+  .lobby-head{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+  .badge-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+</style>
+</head>
+<body>
+
+<!-- ============ 大厅 ============ -->
+<div id="lobby" class="view on lobby">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-mark">🎴</div>
+        <div>
+          <h1>赛博棋牌室</h1>
+          <div class="sub">Whale's Garden · 接上 AI 就能开桌</div>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <span class="api-dot" id="apiDot"></span>
+      <span class="tiny muted" id="apiText" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <button class="btn icon" id="btnSettings" title="设置">⚙</button>
+    </div>
+
+    <div class="hero">
+      <h2>八张桌子，八个脾气不好的对手</h2>
+      <p>填一次 API，棋牌室里就坐满了会说话的人。每张桌子能单独配角色卡和智商，边打边聊，输赢都记着。</p>
+      <div class="badge-row">
+        <span class="tag">角色卡各自行动</span>
+        <span class="tag">智商四档可调</span>
+        <span class="tag gold">决策缓存省 token</span>
+        <span class="tag">自动存档</span>
+      </div>
+    </div>
+
+    <div class="grid-games" id="gameGrid"></div>
+
+    <p class="tiny muted center" style="margin-top:26px;line-height:1.8">
+      没有 API Key 也能玩 —— AI 会退化成内置规则，只是没那么会说话。<br>
+      浅滩鱼悔改编自 <a href="https://github.com/Jeko-jike/shallow-regrets" style="color:#8fd8f5" target="_blank" rel="noopener">Jeko-jike/shallow-regrets</a>（MIT），本页为简化对战版。
+    </p>
+  </div>
+</div>
+
+<!-- ============ 对局 ============ -->
+<div id="tableview" class="view table-view">
+  <div class="tbar">
+    <button class="btn icon" id="btnBack" title="返回大厅">←</button>
+    <div class="tbar-title">
+      <h2 id="gameTitle">对局</h2>
+      <span id="gameSub"></span>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn icon chat-toggle" id="btnChatToggle" title="聊天">💬</button>
+    <button class="btn icon" id="btnSettings2" title="设置">⚙</button>
+  </div>
+
+  <div class="table-main">
+    <div class="felt-wrap">
+      <div class="felt">
+        <div class="felt-inner">
+          <div id="seatRow" class="row wrap"></div>
+          <div id="gameHost"></div>
+        </div>
+      </div>
+      <div class="actionbar" id="actionbar"></div>
+    </div>
+
+    <aside class="chatpane" id="chatpane">
+      <div class="chat-head">
+        <span>💬</span>
+        <span>牌桌聊天</span>
+        <div class="spacer"></div>
+        <span class="tiny muted">说点什么，他们会回</span>
+      </div>
+      <div class="chat-log" id="chatLog"></div>
+      <div class="chat-input">
+        <input class="input" id="chatBox" placeholder="跟对手聊两句…" autocomplete="off">
+        <button class="btn primary sm" id="chatSend">发</button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- ============ 设置抽屉 ============ -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h3>设置</h3>
+    <div class="spacer"></div>
+    <button class="btn icon" id="drawerClose" title="关闭">✕</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<div id="modalRoot"></div>
+<div id="toasts"></div>
+
+<script type="module" src="js/main.js"></script>
+<script src="../../assets/fullscreen.js"></script>
+</body>
+</html>

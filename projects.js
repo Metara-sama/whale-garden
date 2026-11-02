@@ -23,6 +23,15 @@ const SITE = {
    links: 一个或多个链接（在线玩、源码、文章……）            */
 const PROJECTS = [
   {
+    name: "赛博棋牌室",
+    desc: "八张桌子，接上 API 就能和会说话的 AI 打牌。",
+    status: "live",
+    year: "2026",
+    links: [
+      { label: "开桌", url: "projects/casino/" }
+    ]
+  },
+  {
     name: "同人文猎手",
     desc: "贴吧和 NGA 的同人文，搜得到，也存得下来。",
     status: "live",
