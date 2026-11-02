@@ -440,12 +440,20 @@ const regrets = {
       if (i === seat) return;
       lines.push(`对手 ${p.name}：${getRawScore(s, i)} 分，力量 ${getPower(s, i)}，已钓 ${p.caught.map((id) => card(id).name).join('、') || '无'}${p.caught.some((id) => !p.exhausted.includes(id) && card(id).ability) ? '（有可用能力鱼）' : ''}`);
     });
-    lines.push('浅滩（顶牌只露需求档位，看不出具体是哪条鱼）：');
+    lines.push('浅滩（顶牌默认只露需求档位）：');
+    const revealedSet = new Set([
+      ...(s.revealedTops?.shoalIndexes || []),
+      ...(s.lastPeek?.player === seat ? (s.lastPeek.shoalIndexes || []) : []),
+    ]);
     s.shoals.forEach((sh, i) => {
       if (!sh.length) { lines.push(`  ${i + 1} 号：空`); return; }
       const topId = sh[0];
       const [lo, hi] = tierRange(card(topId).strength);
       const pw = getPower(s, seat);
+      if (revealedSet.has(i)) {
+        lines.push(`  ${i + 1} 号：${sh.length} 张，顶牌已翻开＝【${card(topId).name}】需 ${card(topId).strength} 钩、${card(topId).points} 分${card(topId).type === 'foul' ? '、污秽' : ''}${pw >= card(topId).strength ? '（你能钓）' : '（钓不了）'}`);
+        return;
+      }
       const state2 = pw >= hi ? '你能钓' : (pw >= lo ? '档内看具体鱼，可能钓得动' : '力量不够');
       lines.push(`  ${i + 1} 号：${sh.length} 张，顶牌需求 ${tierLabel(card(topId).strength)}（你力量 ${pw}，${state2}）`);
     });
@@ -512,8 +520,9 @@ const regrets = {
     const p = s.players[seat];
     const foul = getFoulCount(s, seat);
     const tag = s.frodSeat === seat ? ' · 脚本' : '';
+    const guard = p.snowGuard ? ' · 🛡护体' : '';
     return {
-      sub: `${getRawScore(s, seat)} 分 · 力量 ${getPower(s, seat)} · ${p.caught.length} 条${foul ? ` · 污秽${foul}` : ''}${tag}`,
+      sub: `${getRawScore(s, seat)} 分 · 力量 ${getPower(s, seat)} · ${p.caught.length} 条${foul ? ` · 污秽${foul}` : ''}${tag}${guard}`,
       badge: this.turn(s) === seat ? (s.phase === PHASE.PENDING ? '待反应' : '该你') : '',
     };
   },
@@ -634,28 +643,40 @@ const regrets = {
       const canPick = isThrowTarget || (myTurn && s.phase === PHASE.DRAW && sh.length > 0 && ui.drawPicks.length < need);
       const top = sh.length ? card(sh[0]) : null;
       const myPower = getPower(s, 0);
+      const peeked = s.lastPeek?.player === 0 && (s.lastPeek.shoalIndexes || []).includes(i);
+      const revealedAll = (s.revealedTops?.shoalIndexes || []).includes(i);
+      const topVisible = !!(top && (peeked || revealedAll));
       const [tMin, tMax] = top ? tierRange(top.strength) : [0, 0];
       const sureCan = top ? myPower >= tMax : false;
       const maybe = top ? (myPower >= tMin && myPower < tMax) : false;
-      const reach = sureCan;
+      const reach = top ? myPower >= (topVisible ? top.strength : tMax) : false;
       const box = el('div.shoal' + (canPick ? '.pickable' : '') + (picked ? '.picked' : ''));
       box.append(el('div.shoal-h',
         el('span', { text: `浅滩 ${i + 1}${picked ? ` · 已选 ${picked}` : ''}` }),
         el('span', { text: `${sh.length} 张` })
       ));
       if (top) {
-        box.append(el('div.demand' + (sureCan ? '.ok' : (maybe ? '.maybe' : '')),
-          el('span.dl', { text: `需 ${tierLabel(top.strength)}` }),
-          el('span.dv', { text: sureCan ? '可钓' : (maybe ? '看具体鱼' : '力量不够') })
-        ));
+        if (topVisible) {
+          box.append(el('div.demand' + (reach ? '.ok' : ''),
+            el('span.dl', { text: `需 ${top.strength}（已翻开）` }),
+            el('span.dv', { text: reach ? '可钓' : '钓不了' })
+          ));
+        } else {
+          box.append(el('div.demand' + (sureCan ? '.ok' : (maybe ? '.maybe' : '')),
+            el('span.dl', { text: `需 ${tierLabel(top.strength)}` }),
+            el('span.dv', { text: sureCan ? '可钓' : (maybe ? '看具体鱼' : '力量不够') })
+          ));
+        }
       }
       const cap = s.cardsPerShoal || CARDS_PER_SHOAL;
       const show = Math.min(cap, 6);
       sh.slice(0, show).forEach((id, ci) => {
-        box.append(ci === 0
-          ? el('div.fish.topcard', { text: '顶' })
-          : el('div.fish.backface'));
+        if (ci === 0 && topVisible) box.append(cardFace(id, { mini: true }));
+        else box.append(ci === 0 ? el('div.fish.topcard', { text: '顶' }) : el('div.fish.backface'));
       });
+      if (topVisible) {
+        box.append(el('div.tiny', { style: { color: 'var(--aqua)' }, text: peeked ? '美人鱼偷看' : '顶牌已翻开（凯尔派）' }));
+      }
       if (!sh.length) box.append(el('div.tiny.muted.center', { text: '空了' }));
       else if (sh.length > show) box.append(el('div.tiny.muted', { text: `…还有 ${sh.length - show} 张` }));
       if (isThrowTarget) {

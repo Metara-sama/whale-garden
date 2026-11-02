@@ -143,6 +143,7 @@ async function startGame(game) {
       if (again) setTimeout(() => startGame(game), 220);
     };
     table.mount().start(payload);
+    window.__cgTable = table; // 调试用：控制台可查当前对局
   } catch (e) {
     console.error('[casino] 开局失败', e);
     toast('开局失败：' + (e && e.message ? e.message : e), 'err');
