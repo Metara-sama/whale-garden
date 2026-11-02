@@ -237,6 +237,21 @@ export class Table {
       console.error(e);
     }
 
+    // 牌桌动态：最近两条动作，让人看见对手到底做了什么
+    const ticker = document.getElementById('ticker');
+    if (ticker) {
+      const last = this.logs.slice(-2);
+      ticker.innerHTML = '';
+      if (!last.length) {
+        ticker.append(el('span', { text: '等待开局…' }));
+      } else {
+        last.forEach((line, i) => {
+          if (i > 0) ticker.append(el('span.tk-sep', { text: '·' }));
+          ticker.append(el('span' + (i === last.length - 1 ? '.tk-last' : ''), { text: line }));
+        });
+      }
+    }
+
     // 操作栏
     this.renderActionbar(st);
     if (st.over && !this.finished) this.finish(st);

@@ -343,10 +343,32 @@ const regrets = {
 
   apply(s, a) {
     const text = describeAction(a, s);
+    const actor = s.currentPlayer;
+    const prevCaught = s.players.map((p) => p.caught.slice());
     const r = applyAction(s, a);
     if (r.error) return { log: '✗ ' + r.error };
     replaceState(s, r.state);
+
+    // 记录每条鱼的来路：钓到 / 交换 / 赠予 / 传递（用来解释"力量不够却拿着大鱼"）
+    const abilityKey = a.type === ACTION.USE_ABILITY ? card(a.cardId).ability : null;
+    const label = a.type === ACTION.CATCH ? 'catch'
+      : a.type === ACTION.RESOLVE ? 'pass'
+        : abilityKey === 'give_card' ? 'give'
+          : (abilityKey && String(abilityKey).startsWith('swap')) ? 'swap'
+            : 'other';
+    if (!s.acq) s.acq = {};
+    s.players.forEach((p, pi) => {
+      const before = prevCaught[pi] || [];
+      p.caught.forEach((id) => {
+        if (before.includes(id)) return;
+        s.acq[id] = label;
+      });
+    });
+
     const logs = [text];
+    if (a.type === ACTION.CATCH && actor != null && s.players[actor]) {
+      logs.push(`力量 → ${getPower(s, actor)}`);
+    }
     if (r.events?.includes('game_over')) logs.push('对局结束，开始结算');
     if (s.pending?.type === 'PASS_LEFT') {
       const who = s.players[s.pending.playerIndices[s.pending.current]]?.name;
@@ -673,10 +695,15 @@ const regrets = {
     const mineRow = el('div.caught-row', { style: { marginTop: '6px', gap: '8px' } });
     meP.caught.forEach((id) => {
       const ex = meP.exhausted.includes(id);
+      const acq = s.acq?.[id];
       mineRow.append(cardFace(id, {
         mini: true,
         exhausted: ex,
-        onClick: () => openFishDetail(id, { where: ex ? '你的钓获 · 已横置（能力已用掉）' : '你的钓获' }),
+        acq,
+        onClick: () => openFishDetail(id, {
+          where: ex ? '你的钓获 · 已横置（能力已用掉）' : '你的钓获',
+          acq,
+        }),
       }));
     });
     host.append(el('div', { style: { marginTop: '10px' } },
@@ -690,15 +717,20 @@ const regrets = {
       if (i === me) return;
       const prow = el('div.row.wrap', { style: { gap: '6px', alignItems: 'flex-end' } },
         el('span.tiny.muted', { style: { minWidth: '58px' }, text: p.name }),
-        el('span.tiny', { text: `${getRawScore(s, i)}分` })
+        el('span.tiny', { text: `${getRawScore(s, i)} 分 · 力量 ${getPower(s, i)}` })
       );
       if (!p.caught.length) prow.append(el('span.tiny.muted', { text: '还没钓到' }));
       p.caught.forEach((id) => {
         const ex = p.exhausted.includes(id);
+        const acq = s.acq?.[id];
         prow.append(cardFace(id, {
           mini: true,
           exhausted: ex,
-          onClick: () => openFishDetail(id, { where: `${p.name} 的钓获${ex ? ' · 已横置' : ''}` }),
+          acq,
+          onClick: () => openFishDetail(id, {
+            where: `${p.name} 的钓获${ex ? ' · 已横置' : ''}（当前力量 ${getPower(s, i)}）`,
+            acq,
+          }),
         }));
       });
       oppBox.append(prow);
@@ -728,6 +760,8 @@ const CARD_IMG = (id) => `assets/cards/${baseIdOf(id)}.webp`;
  * 一张鱼卡（用上游卡图）。
  * opt: {mini, picked, exhausted, dim, info, onClick, onInfo}
  */
+const ACQ_TXT = { catch: '钓到的', swap: '交换得到的', give: '别人送的', pass: '传过来的', other: '其他方式得到' };
+
 function cardFace(id, opt = {}) {
   const c = card(id);
   const cls = 'div.fcard'
@@ -737,14 +771,15 @@ function cardFace(id, opt = {}) {
     + (opt.exhausted ? '.exhausted' : '');
   const style = { backgroundImage: `url(${CARD_IMG(id)})` };
   if (opt.dim) { style.filter = 'grayscale(.85)'; style.opacity = '.55'; }
+  const acqMark = (opt.acq && opt.acq !== 'catch') ? (opt.acq === 'swap' ? '↔' : '⇢') : '';
   const node = el(cls, {
     style,
-    title: `${c.name}｜${c.points >= 0 ? '+' : ''}${c.points} 分｜需 ${c.strength} 钩${c.hooks ? `｜钓到给 ${c.hooks} 钩` : ''}｜${c.type === 'foul' ? '污秽' : '正品'}`,
+    title: `${c.name}｜${c.points >= 0 ? '+' : ''}${c.points} 分｜需 ${c.strength} 钩${c.hooks ? `｜钓到给 ${c.hooks} 钩` : ''}｜${c.type === 'foul' ? '污秽' : '正品'}${acqMark ? `｜${ACQ_TXT[opt.acq] || ''}（不靠钓力）` : ''}`,
     onClick: opt.onClick || null,
   });
   node.append(
     el('div.pt', { text: (c.points > 0 ? '+' : '') + c.points }),
-    el('div.str', { text: `🪝${c.strength}` }),
+    el('div.str', { text: `${acqMark}🪝${c.strength}` }),
     el('div.nm', { text: c.name }),
     c.ability ? el('div.ab', { text: '✦' }) : null,
   );
@@ -784,6 +819,16 @@ function openFishDetail(id, opt = {}) {
       el('span', { text: '分值 ' }, el('b', { text: (c.points > 0 ? '+' : '') + c.points })),
       el('span', { text: '难度 ' }, el('b', { text: String(c.strength) }), el('span', { text: ' 钩' })),
       el('span', { text: '钓到给 ' }, el('b', { text: String(c.hooks) }), el('span', { text: ' 钩' }))
+    ),
+    el('div.frow',
+      el('span', { text: '来路 ' },
+        el('b', { text: ACQ_TXT[opt.acq] || ACQ_TXT.catch }),
+        el('span', {
+          text: opt.acq && opt.acq !== 'catch'
+            ? '——这条不靠钓力（能力换/送/传来），所以可能超过当前力量'
+            : `（钓它时力量需 ≥ ${c.strength}）`,
+        })
+      )
     ),
     meta
       ? el('div.abbox',
