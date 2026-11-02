@@ -1,371 +1,616 @@
-/* 浅滩鱼悔 · 改编自 Jeko-jike/shallow-regrets（MIT）
-   本实现为该作品的「简化对战版」：保留 24 张鱼卡、钩数/强度、浅滩、污秽罚分与能力，
-   把繁杂的多段式回合压成「一次判定」，方便与 AI 逐手对话。
-   玩法数据来源：https://github.com/Jeko-jike/shallow-regrets
-*/
-import { el, shuffle } from '../core/util.js';
+/* 浅滩鱼悔 · 对战适配层
+ *
+ * 规则层（cards / gameState / rules / stateMachine / abilities / scoring / heuristicAI）
+ * 原样来自开源实现 Jeko-jike/shallow-regrets（MIT），只做了「多副牌组」实例化适配。
+ * 本文件只负责：把 core 的状态机接到赛博棋牌室的通用对局外壳上，
+ * 以及给 LLM 提供合法动作清单、给玩家提供交互界面。
+ */
+import { el } from '../core/util.js';
+import { createInitialState, getHooks, getPower, CARDS_PER_SHOAL } from './regrets-core/gameState.js';
+import { applyAction, validateAction, ACTION, PHASE } from './regrets-core/stateMachine.js';
+import {
+  canCatch, getCatchableDrawn, getDrawableShoals, getLegalThrowTargets,
+  getRequiredDrawCount, getCatchLimit,
+} from './regrets-core/rules.js';
+import { CARD_BY_ID } from './regrets-core/cards.js';
+import { ABILITIES, ABILITY_TYPES } from './regrets-core/abilities.js';
+import { getResults, getRawScore, getFoulCount, getPlayerScore } from './regrets-core/scoring.js';
+import { chooseAction } from './regrets-core/heuristicAI.js';
 
-/* 24 张鱼卡：id / 名字 / 分值 / 所需钩数 / 提供钩数 / 类型 / 能力 */
-const CARDS = [
-  { id: 'lamprey', n: '七鳃鳗', p: 1, s: 0, h: 1, t: 'fair', a: 'draw_plus1' },
-  { id: 'seaBishop', n: '海主教', p: 1, s: 0, h: 1, t: 'foul', a: 'shuffle_all' },
-  { id: 'seaMonkey', n: '海猴', p: -2, s: 0, h: 3, t: 'foul', a: 'curse' },
-  { id: 'severedFoot', n: '断脚', p: -1, s: 0, h: 2, t: 'foul', a: 'curse' },
-  { id: 'eyeballBlob', n: '眼球团', p: 1, s: 0, h: 1, t: 'foul', a: 'shuffle_all' },
-  { id: 'rotfish', n: '腐鱼', p: -1, s: 0, h: 2, t: 'foul', a: 'curse' },
-  { id: 'dayOctopus', n: '日间章鱼', p: 1, s: 0, h: 0, t: 'fair', a: 'curse' },
-  { id: 'barracuda', n: '梭子鱼', p: 0, s: 0, h: 1, t: 'fair', a: 'curse' },
-  { id: 'whiptailStingray', n: '鞭尾魟鱼', p: 0, s: 0, h: 1, t: 'fair', a: 'curse' },
-  { id: 'oarfish', n: '皇带鱼', p: 2, s: 1, h: 1, t: 'fair', a: 'draw_plus2' },
-  { id: 'mermaid', n: '美人鱼', p: 2, s: 1, h: 1, t: 'foul', a: 'draw_plus1' },
-  { id: 'snowEel', n: '雪鳗', p: 2, s: 1, h: 1, t: 'fair', a: 'draw_plus1' },
-  { id: 'manOWar', n: '僧帽水母', p: 0, s: 1, h: 1, t: 'fair', a: 'curse' },
-  { id: 'lionfish', n: '狮子鱼', p: 0, s: 1, h: 1, t: 'fair', a: 'curse' },
-  { id: 'sealMan', n: '海豹人', p: 3, s: 2, h: 1, t: 'foul', a: 'curse' },
-  { id: 'banshee', n: '女妖', p: 3, s: 2, h: 1, t: 'foul', a: 'draw_plus1' },
-  { id: 'everSquid', n: '永动鱿鱼', p: 2, s: 2, h: 0, t: 'foul', a: 'curse' },
-  { id: 'giantOctopus', n: '巨型章鱼', p: 2, s: 2, h: 1, t: 'fair', a: 'draw_plus1' },
-  { id: 'swordfish', n: '旗鱼', p: 3, s: 3, h: 0, t: 'fair', a: 'curse' },
-  { id: 'giantSquid', n: '巨型乌贼', p: 3, s: 3, h: 0, t: 'fair', a: 'curse' },
-  { id: 'greatWhite', n: '大白鲨', p: 3, s: 3, h: 0, t: 'fair', a: 'draw_plus1' },
-  { id: 'elderThing', n: '旧日支配者', p: 5, s: 4, h: 0, t: 'foul', a: 'curse' },
-  { id: 'kelpie', n: '凯尔派', p: 4, s: 4, h: 0, t: 'foul', a: 'shuffle_all' },
-  { id: 'kraken', n: '挪威海怪', p: 5, s: 5, h: 0, t: 'foul', a: null },
-];
+const T = ABILITY_TYPES;
+const card = (id) => CARD_BY_ID[id] || { name: '?', points: 0, strength: 0, hooks: 0, type: 'fair', ability: null };
 
-const ABILITY_TXT = {
-  draw_plus1: '涨潮：本回合所需钩数 -1',
-  draw_plus2: '大潮：本回合所需钩数 -2',
-  shuffle_all: '搅动：重排所有浅滩',
-  curse: '诅咒：让一个对手的一条鱼跑掉（分数归零）',
+/* ---------------- 小工具 ---------------- */
+function replaceState(target, src) {
+  for (const k of Object.keys(target)) delete target[k];
+  Object.assign(target, src);
+}
+
+/** pending 窗口该由谁做决定（原实现未指定，这里按"最相关的人"定，保持确定） */
+function pendingActor(s) {
+  const p = s.pending;
+  if (!p) return s.currentPlayer;
+  if (p.type === 'REDIRECT') return p.candidates[0] ?? s.currentPlayer;
+  if (p.type === 'COUNTER') return p.counterP ?? s.currentPlayer;
+  if (p.type === 'REARRANGE') return p.owner ?? s.currentPlayer;
+  if (p.type === 'PASS_LEFT') return p.playerIndices[p.current] ?? s.currentPlayer;
+  return s.currentPlayer;
+}
+
+const fishName = (id) => card(id).name;
+
+const SHORT_ABILITY = {
+  draw_plus2: '+2抽', draw_plus1: '+1抽', power_plus3: '+3力量', reveal_all: '翻顶牌',
+  shuffle_all: '洗牌', snow_guard: '护体', pass_left: '传鱼',
+  exhaust_foul: '横置污秽', exhaust_fair: '横置正品', exhaust_any: '横置',
+  swap_any: '换鱼', swap_fair: '换正品', swap_zero: '换难度0',
+  give_card: '送鱼', peek_multi: '偷看', remove_zero: '移除难度0', rearrange_shoal: '重排鱼群',
 };
 
-function buildShoals(mult) {
-  const pool = [];
-  for (let k = 0; k < mult; k++) for (const c of CARDS) pool.push({ ...c, uid: c.id + '#' + k });
-  const deck = shuffle(pool);
-  const shoals = [];
-  while (deck.length) shoals.push(deck.splice(0, 3));
-  // 每堆顶牌放这堆里最容易钓的那张，保证开局人人有事做
-  return shoals.map((sh) => {
-    let minIdx = 0;
-    sh.forEach((c, i) => { if (c.s < sh[minIdx].s) minIdx = i; });
-    const copy = sh.slice();
-    const [easiest] = copy.splice(minIdx, 1);
-    copy.unshift(easiest);
-    return copy;
-  });
-}
-
-const topOf = (shoal) => (shoal && shoal.length ? shoal[0] : null);
-
-function scoreOf(pl) {
-  let sum = 0, foul = 0;
-  for (const f of pl.caught) {
-    if (!f.dead) { sum += f.p; if (f.t === 'foul') foul++; }
+function abilityLabel(key, target, s) {
+  if (!target) return ABILITIES[key]?.desc || key;
+  if (target.shoalIndexes) return `查看 ${target.shoalIndexes.map((i) => i + 1).join('、')} 号浅滩`;
+  if (target.shoalIndex !== undefined && target.cardIndex === undefined) return `重排 ${target.shoalIndex + 1} 号浅滩`;
+  if (target.cardIndex !== undefined) return `移除 ${target.shoalIndex + 1} 号浅滩第 ${target.cardIndex + 1} 张`;
+  if (target.cardId && target.playerIndex !== undefined) {
+    return `目标：${s.players[target.playerIndex]?.name ?? target.playerIndex} 的【${fishName(target.cardId)}】`;
   }
-  return { sum, foul };
+  if (target.oppCardId && target.playerIndex !== undefined) {
+    return `换走 ${s.players[target.playerIndex]?.name ?? target.playerIndex} 的【${fishName(target.oppCardId)}】`;
+  }
+  if (target.playerIndex !== undefined) return `目标：${s.players[target.playerIndex]?.name ?? target.playerIndex}`;
+  return ABILITIES[key]?.desc || key;
 }
 
+function describeAction(a, s) {
+  switch (a.type) {
+    case ACTION.USE_ABILITY: {
+      const c = card(a.cardId);
+      return `发动【${c.name}】：${ABILITY_LABEL_CACHE.get(a) || ABILITIES[c.ability]?.desc || ''}`;
+    }
+    case ACTION.PASS_ABILITIES: return '结束能力阶段，进入抽牌';
+    case ACTION.DRAW: return `从 ${a.from.map((i) => i + 1).join('、')} 号浅滩抽 ${a.from.length} 张`;
+    case ACTION.CATCH: return `钓走【${fishName(a.cardId)}】`;
+    case ACTION.THROW_BACK: return `把【${fishName(a.cardId)}】放回 ${a.shoalIndex + 1} 号浅滩`;
+    case ACTION.RESOLVE: {
+      const p = s.pending;
+      if (!p) return '结算';
+      if (p.type === 'REDIRECT') return a.resolution?.use ? '女妖改向' : '不改向';
+      if (p.type === 'COUNTER') return a.resolution?.use ? '僧帽水母反击' : '不反击';
+      if (p.type === 'REARRANGE') return '重排鱼群';
+      if (p.type === 'PASS_LEFT') return a.resolution?.pick ? `把【${fishName(a.resolution.pick)}】传给左边` : '跳过传鱼';
+      return '结算';
+    }
+    default: return '动作';
+  }
+}
+const ABILITY_LABEL_CACHE = new WeakMap();
+
+/* ---------------- 合法动作枚举 ---------------- */
+function abilityActions(s, meIdx) {
+  const me = s.players[meIdx];
+  const out = [];
+  const ready = me.caught.filter((id) => !me.exhausted.includes(id) && card(id).ability
+    && ABILITIES[card(id).ability]?.kind === 'active');
+
+  for (const cardId of ready) {
+    const key = card(cardId).ability;
+    const push = (target) => {
+      const a = { type: ACTION.USE_ABILITY, cardId, ...(target ? { target } : {}) };
+      if (validateAction(s, a)) return;
+      const label = `${card(cardId).name}｜${abilityLabel(key, target, s)}`;
+      ABILITY_LABEL_CACHE.set(a, label);
+      out.push({ ...a, k: 'use:' + cardId + ':' + (target ? JSON.stringify(target) : '-'), label });
+    };
+    switch (key) {
+      case T.DRAW_PLUS1: case T.DRAW_PLUS2: case T.POWER_PLUS3:
+      case T.REVEAL_ALL: case T.SHUFFLE_ALL: case T.SNOW_GUARD: case T.PASS_LEFT:
+        push(null);
+        break;
+      case T.EXHAUST_FOUL: case T.EXHAUST_FAIR: case T.EXHAUST_ANY:
+      case T.SWAP_ANY: case T.SWAP_FAIR: case T.SWAP_ZERO: {
+        const swap = key === T.SWAP_ANY || key === T.SWAP_FAIR || key === T.SWAP_ZERO;
+        s.players.forEach((p, oi) => {
+          if (oi === meIdx) return;
+          p.caught.forEach((id) => {
+            push(swap ? { playerIndex: oi, oppCardId: id } : { playerIndex: oi, cardId: id });
+          });
+        });
+        break;
+      }
+      case T.GIVE_CARD:
+        s.players.forEach((p, oi) => { if (oi !== meIdx) push({ playerIndex: oi }); });
+        break;
+      case T.PEEK_MULTI: {
+        const nonEmpty = getDrawableShoals(s);
+        nonEmpty.forEach((i) => push({ shoalIndexes: [i] }));
+        if (nonEmpty.length >= 2) push({ shoalIndexes: nonEmpty.slice(0, Math.min(3, nonEmpty.length)) });
+        break;
+      }
+      case T.REARRANGE_SHOAL:
+        getDrawableShoals(s).forEach((i) => push({ shoalIndex: i }));
+        break;
+      case T.REMOVE_ZERO: {
+        s.shoals.forEach((sh, si) => {
+          sh.forEach((id, ci) => {
+            if (card(id).strength === 0) push({ shoalIndex: si, cardIndex: ci });
+          });
+        });
+        s.players.forEach((p, oi) => {
+          if (oi === meIdx) return;
+          p.caught.forEach((id) => { if (card(id).strength === 0) push({ playerIndex: oi, cardId: id }); });
+        });
+        break;
+      }
+      default: break;
+    }
+  }
+  out.push({ type: ACTION.PASS_ABILITIES, k: 'pass_abilities', label: '结束能力阶段，进入抽牌' });
+  return out;
+}
+
+function drawActions(s) {
+  const required = getRequiredDrawCount(s);
+  const drawable = getDrawableShoals(s);
+  if (!drawable.length) return [];
+  const out = [];
+  const seen = new Set();
+  const add = (from) => {
+    const k = from.join(',');
+    if (seen.has(k)) return;
+    const a = { type: ACTION.DRAW, from };
+    if (validateAction(s, a)) return;
+    seen.add(k);
+    out.push({ ...a, k: 'draw:' + k, label: `从 ${from.map((i) => i + 1).join(' + ')} 号浅滩抽牌` });
+  };
+  const K = required;
+  if (K <= 1) { drawable.forEach((i) => add([i])); return out; }
+
+  // ① 同一堆挖到底（能翻出次顶牌）
+  drawable.forEach((i) => add(new Array(K).fill(i)));
+
+  // ② 规模可控时枚举「可重复组合」（n 选 K 可重复）
+  let approx = 1;
+  for (let i = 1; i <= K; i++) approx = (approx * (drawable.length + i - 1)) / i;
+  if (approx <= 240) {
+    const rec = (start, depth, acc) => {
+      if (out.length >= 240) return;
+      if (depth === K) { add(acc.slice()); return; }
+      for (let x = start; x < drawable.length; x++) {
+        acc.push(drawable[x]);
+        rec(x, depth + 1, acc);
+        acc.pop();
+      }
+    };
+    rec(0, 0, []);
+  } else {
+    // ③ 规模太大（如 3 副 + 额外抽牌）：滑动窗口的「不同堆各抽一张」+ 前 6 堆内的不重复组合
+    for (let i = 0; i + K <= drawable.length; i++) add(drawable.slice(i, i + K));
+    const head = drawable.slice(0, Math.max(K, 6));
+    const rec = (start, depth, acc) => {
+      if (depth === K) { add(acc.slice()); return; }
+      for (let x = start; x < head.length; x++) {
+        acc.push(head[x]);
+        rec(x + 1, depth + 1, acc);
+        acc.pop();
+      }
+    };
+    if (head.length >= K) rec(0, 0, []);
+  }
+  return out.slice(0, 160);
+}
+
+function catchActions(s) {
+  const out = [];
+  const limit = getCatchLimit(s);
+  if (s.caughtThisTurn < limit) {
+    getCatchableDrawn(s).forEach((id) => {
+      const a = { type: ACTION.CATCH, cardId: id };
+      if (!validateAction(s, a)) out.push({ ...a, k: 'catch:' + id, label: `钓走【${fishName(id)}】` });
+    });
+  }
+  const targets = getLegalThrowTargets(s);
+  s.drawn.forEach((id, di) => {
+    targets.forEach((ti) => {
+      const a = { type: ACTION.THROW_BACK, cardId: id, shoalIndex: ti };
+      if (!validateAction(s, a)) out.push({ ...a, k: `throw:${id}:${ti}:${di}`, label: `放回【${fishName(id)}】到 ${ti + 1} 号浅滩` });
+    });
+  });
+  return out;
+}
+
+function pendingActions(s) {
+  const p = s.pending;
+  if (!p) return [];
+  const out = [];
+  const push = (resolution, label, k) => {
+    const a = { type: ACTION.RESOLVE, resolution, k };
+    if (!validateAction(s, a)) out.push({ ...a, label });
+  };
+  if (p.type === 'REDIRECT') {
+    push({ use: false }, '不改向（保护原目标）', 'resolve:no');
+    p.candidates.forEach((ci, k) => push({ use: true, candidateIdx: k }, `用 ${s.players[ci].name} 的女妖替它挡下`, 'resolve:' + ci));
+  } else if (p.type === 'COUNTER') {
+    push({ use: false }, '不反击', 'resolve:no');
+    p.counterTargets.forEach((id) => push({ use: true, cardId: id }, `反击：横置对方【${fishName(id)}】`, 'resolve:' + id));
+  } else if (p.type === 'REARRANGE') {
+    const cards = (s.shoals[p.shoalIndex] || []).slice();
+    push({ order: cards }, '保持原顺序', 'resolve:keep');
+    push({ order: cards.slice().sort((a, b) => card(b).points - card(a).points) }, '高分置顶', 'resolve:high');
+    push({ order: cards.slice().sort((a, b) => card(a).points - card(b).points) }, '低分置顶', 'resolve:low');
+  } else if (p.type === 'PASS_LEFT') {
+    const fromIdx = p.playerIndices[p.current];
+    (s.players[fromIdx]?.caught || []).forEach((id) => push({ pick: id }, `把【${fishName(id)}】传出去`, 'resolve:' + id));
+    push({ pick: null }, '跳过（不传）', 'resolve:null');
+  }
+  return out;
+}
+
+/* ---------------- 游戏模块 ---------------- */
 const regrets = {
   id: 'regrets',
   name: '浅滩鱼悔',
   icon: '🎣',
-  desc: '钓起灰雾下的怪鱼：攒钩数、抢大鱼，别让污秽拖低你的分。',
-  tags: ['多人', '卡牌', '改编'],
+  desc: '钓起灰雾下的怪鱼：攒钩数、抢大鱼，三段回合与反应窗口全按原规则。',
+  tags: ['多人', '卡牌', '开源规则'],
   players: { min: 2, max: 4, def: 3 },
   optionSpec: [
-    { key: 'mult', label: '牌组倍数', type: 'num', min: 1, max: 3, step: 1, def: 1, hint: '24 张基础鱼卡，2 倍 = 48 张，浅滩更多，局势更慢更肥。' },
-    { key: 'stall', label: '停滞保护', type: 'seg', def: 8, options: [{ v: 6, label: '6 回合' }, { v: 8, label: '8 回合' }, { v: 12, label: '12 回合' }] },
+    {
+      key: 'mult', label: '牌组倍数', type: 'seg', def: 1,
+      options: [{ v: 1, label: '1 副（6 堆）' }, { v: 2, label: '2 副（12 堆）' }, { v: 3, label: '3 副（18 堆）' }],
+      hint: '每副 24 张鱼卡，浅滩固定每堆 4 张。',
+    },
   ],
-  rulesBrief: '浅滩每堆最多 3 张，顶牌明示。轮到你时选一个浅滩读牌：当前钩数 ≥ 这条鱼所需钩数就能钓走，得到它的分数和钩数；否则它惊走，你空手。每回合最多钓 1 条。已钓到的鱼带能力，每局各用一次：减难度、搅乱浅滩、或诅咒对手让它一条鱼跑掉。浅滩钓空或长时间无人上钩就结束，分数最高者胜；污秽鱼最多的人额外 -2 分。',
+  rulesBrief: '每回合三段：①能力阶段——可逐个发动自己已钓到的主动能力鱼（整局各一次，发动后横置）；②抽牌——从任意浅滩一共抽 2 张（可同一堆抽两次，能挖到次顶牌）；③钓走/放回——力量（已钓鱼钩数之和）≥ 目标难度就能钓走，每回合最多钓 1 条；有能钓的牌必须先钓走，其余放回。放回优先空浅滩，其次盖在大阴影上，浅滩满 4 张不能放。他人以你的鱼为目标可能触发女妖改向、僧帽反击。全部鱼钓光、或连续一整轮没人钓到鱼、或没人能钓任何可接触的鱼时终局。计分=钓获分值之和，污秽鱼最多者额外 -2。',
 
   init(opt, seatCount) {
     const mult = Math.max(1, Math.min(3, opt.mult || 1));
-    const seats = seatCount || 3;
-    return {
-      mult, seats,
-      shoals: buildShoals(mult),
-      players: Array.from({ length: seats }, () => ({ hooks: 0, caught: [], bonus: 0 })),
-      turn: 0, round: 1, failStreak: 0,
-      stallLimit: opt.stall || 8,
-      winner: null, result: null,
-    };
+    const n = Math.max(2, Math.min(4, seatCount || 3));
+    const state = createInitialState({
+      seed: (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0,
+      playerNames: Array.from({ length: n }, (_, i) => (i === 0 ? '你' : `座位${i + 1}`)),
+      mult,
+    });
+    state.mult = mult;
+    return state;
   },
 
-  turn(s) { return s.winner === null ? s.turn : null; },
+  turn(s) {
+    if (s.phase === PHASE.GAME_OVER || s.gameOver) return null;
+    if (s.phase === PHASE.PENDING) return pendingActor(s);
+    return s.currentPlayer;
+  },
 
   legal(s, seat) {
-    if (s.winner !== null) return [];
-    if (seat !== undefined && seat !== null && s.turn !== seat) return [];
-    const pl = s.players[s.turn];
-    const out = [];
-    s.shoals.forEach((sh, i) => {
-      const t = topOf(sh);
-      if (!t) return;
-      const eff = Math.max(0, t.s - pl.bonus);
-      out.push({
-        k: 'hook:' + i, shoal: i, tile: t,
-        label: `读浅滩 ${i + 1}：${t.n}（需 ${eff} 钩 · ${t.p} 分${t.t === 'foul' ? ' · 污秽' : ''}）${pl.hooks >= eff ? ' → 能钓' : ' → 钩不够'}`,
-      });
-    });
-    pl.caught.forEach((f, fi) => {
-      if (f.dead || !f.a || f.used) return;
-      if (f.a === 'curse') {
-        for (let vs = 0; vs < s.seats; vs++) {
-          if (vs === s.turn) continue;
-          out.push({ k: `ab:${fi}:${vs}`, ability: f.a, fromIdx: fi, target: vs, label: `能力「诅咒」→ 座位 ${vs}` });
-        }
-      } else {
-        out.push({ k: `ab:${fi}`, ability: f.a, fromIdx: fi, label: `能力「${ABILITY_TXT[f.a] || f.a}」` });
-      }
-    });
-    out.push({ k: 'skip', skip: true, label: '这一手不钓（跳过）' });
-    return out;
+    if (s.phase === PHASE.GAME_OVER || s.gameOver) return [];
+    const actor = this.turn(s);
+    if (seat !== undefined && seat !== null && seat !== actor) return [];
+    if (s.phase === PHASE.PENDING) return pendingActions(s);
+    if (s.phase === PHASE.ABILITY) return abilityActions(s, s.currentPlayer);
+    if (s.phase === PHASE.DRAW) return drawActions(s);
+    if (s.phase === PHASE.CATCH) return catchActions(s);
+    return [];
   },
 
   apply(s, a) {
-    const pl = s.players[s.turn];
-    const advance = () => {
-      s.turn = (s.turn + 1) % s.seats;
-      if (s.turn === 0) s.round++;
-    };
-    if (a.skip) {
-      s.failStreak++;
-      advance();
-      this.checkEnd(s);
-      return { log: '这一手没动钩' };
+    const text = describeAction(a, s);
+    const r = applyAction(s, a);
+    if (r.error) return { log: '✗ ' + r.error };
+    replaceState(s, r.state);
+    const logs = [text];
+    if (r.events?.includes('game_over')) logs.push('对局结束，开始结算');
+    if (s.pending?.type === 'PASS_LEFT') {
+      const who = s.players[s.pending.playerIndices[s.pending.current]]?.name;
+      if (who) logs.push(`${who} 要选一条鱼传给左边`);
     }
-    if (a.ability) {
-      const f = pl.caught[a.fromIdx];
-      if (!f || f.used) return null;
-      f.used = true;
-      if (a.ability === 'draw_plus1') pl.bonus += 1;
-      else if (a.ability === 'draw_plus2') pl.bonus += 2;
-      else if (a.ability === 'shuffle_all') {
-        const all = s.shoals.flat().filter(Boolean);
-        const mixed = shuffle(all);
-        const sizes = s.shoals.map((x) => x.length);
-        let k = 0;
-        s.shoals = sizes.map((n) => mixed.slice(k, k += n));
-        return { log: `${f.n} 搅动浅滩，牌全重排` };
-      } else if (a.ability === 'curse') {
-        const target = s.players[a.target];
-        const alive = target.caught.filter((x) => !x.dead);
-        if (!alive.length) return { log: '对方没有可诅咒的鱼' };
-        const victim = alive[Math.floor(Math.random() * alive.length)];
-        victim.dead = true;
-        return { log: `${f.n} 诅咒生效：座位 ${a.target} 的${victim.n}跑掉了` };
-      }
-      return { log: `${f.n} 发动能力：${ABILITY_TXT[a.ability] || a.ability}` };
-    }
-    if (a.shoal !== undefined) {
-      const sh = s.shoals[a.shoal];
-      const t = topOf(sh);
-      if (!t) return null;
-      const eff = Math.max(0, t.s - pl.bonus);
-      if (pl.hooks >= eff) {
-        sh.shift();
-        pl.caught.push({ ...t, used: false, dead: false });
-        pl.hooks += t.h;
-        pl.bonus = 0;
-        s.failStreak = 0;
-        advance();
-        this.checkEnd(s);
-        return { log: `钓到【${t.n}】${t.p >= 0 ? '+' : ''}${t.p} 分，钩数 +${t.h}（现有 ${pl.hooks}）` };
-      }
-      sh.push(sh.shift());
-      pl.bonus = 0;
-      s.failStreak++;
-      advance();
-      this.checkEnd(s);
-      return { log: `钩数不够（需 ${eff}，你有 ${pl.hooks}），${t.n} 受惊潜回水底` };
-    }
-    return null;
-  },
-
-  checkEnd(s) {
-    const empty = s.shoals.every((x) => x.length === 0);
-    const stalled = s.failStreak >= s.stallLimit;
-    if (!empty && !stalled) return;
-    const scored = s.players.map((pl, i) => {
-      const { sum, foul } = scoreOf(pl);
-      return { seat: i, sum, foul };
-    });
-    const maxFoul = Math.max(...scored.map((x) => x.foul));
-    const adjusted = scored.map((x) => ({ ...x, total: x.sum - (x.foul === maxFoul && maxFoul > 0 ? 2 : 0) }));
-    const best = Math.max(...adjusted.map((x) => x.total));
-    const winners = adjusted.filter((x) => x.total === best).map((x) => x.seat);
-    s.winner = winners.length === 1 ? winners[0] : -1;
-    s.result = { adjusted, best, winners, stalled, empty };
+    return { log: logs };
   },
 
   status(s) {
-    if (s.winner === null) return { over: false };
-    const rows = s.result.adjusted.slice().sort((a, b) => b.total - a.total).map((x) => ({
-      seat: x.seat,
-      text: `${x.sum} 分${x.foul ? `（污秽 ${x.foul}，-2）` : ''} → 合计 ${x.total}`,
-    }));
+    if (!s.gameOver) return { over: false };
+    const scoring = getResults(s);
+    const results = scoring.map((r) => ({
+      seat: r.playerIndex,
+      score: r.score,
+      raw: r.caught.reduce((x, c) => x + c.points, 0),
+      foul: r.foulCount,
+      count: r.caught.length,
+    })).sort((a, b) => b.score - a.score);
+    const top = results[0].score;
+    const winners = results.filter((r) => r.score === top).map((r) => r.seat);
+    const iWin = winners.includes(0);
     return {
       over: true,
       result: {
-        title: s.winner === -1 ? '平局' : (s.winner === 0 ? '你赢了' : '你输了'),
-        text: s.result.stalled ? '海面安静太久，大家都收竿了。' : '所有浅滩都钓空了。',
-        rows,
+        title: winners.length > 1 ? '平局' : (iWin ? '你赢了' : '你输了'),
+        text: winners.length > 1 ? `并列最高 ${top} 分。` : `${winners[0] === 0 ? '你' : s.players[winners[0]].name} 以 ${top} 分收竿。`,
+        rows: results.map((r) => ({
+          seat: r.seat,
+          text: `${r.raw} 分${r.foul ? `（污秽 ${r.foul}，-2）` : ''} → ${r.score} 分 · ${r.count} 条`,
+        })),
       },
     };
   },
 
   view(s, seat) {
-    const pl = s.players[seat];
-    const lines = [
-      `你在第 ${s.round} 回合，当前钩数 ${pl.hooks}${pl.bonus ? `（本回合能力加成 +${pl.bonus}）` : ''}。`,
-      '浅滩情况（顶牌明示）：',
-    ];
-    s.shoals.forEach((sh, i) => {
-      const t = topOf(sh);
-      if (!t) { lines.push(`  浅滩${i + 1}：空`); return; }
-      const eff = Math.max(0, t.s - pl.bonus);
-      lines.push(`  浅滩${i + 1}：${t.n}（需 ${eff} 钩 / ${t.p} 分${t.t === 'foul' ? ' / 污秽' : ''}${t.h ? ' / 钓到给 ' + t.h + ' 钩' : ''}）${pl.hooks >= eff ? ' ← 你能钓' : ''}`);
+    const me = s.players[seat];
+    const phaseName = { ability: '能力阶段', draw: '抽牌', catch: '钓走/放回', pending: '反应窗口', gameOver: '终局' }[s.phase] || s.phase;
+    const lines = [];
+    lines.push(`【浅滩鱼悔】你是 ${me.name}。第 ${s.turn} 轮，现在是「${phaseName}」。`);
+    lines.push(`你的力量（钩数）${getPower(s, seat)}${me.powerBonus ? `（含能力加成 +${me.powerBonus}）` : ''}；本回合最多钓 ${getCatchLimit(s)} 条，已钓 ${s.caughtThisTurn} 条。`);
+    const mine = me.caught.map((id) => `${card(id).name}${me.exhausted.includes(id) ? '(已横置)' : ''}`);
+    lines.push(`你已钓（${me.caught.length} 条，${getRawScore(s, seat)} 分）：${mine.join('、') || '无'}`);
+    s.players.forEach((p, i) => {
+      if (i === seat) return;
+      lines.push(`对手 ${p.name}：${getRawScore(s, i)} 分，力量 ${getPower(s, i)}，已钓 ${p.caught.map((id) => card(id).name).join('、') || '无'}${p.caught.some((id) => !p.exhausted.includes(id) && card(id).ability) ? '（有可用能力鱼）' : ''}`);
     });
-    const mine = pl.caught.map((f) => `${f.n}(${f.dead ? '跑掉' : f.p})`).join('、') || '无';
-    lines.push(`你已钓到：${mine}`);
-    const others = s.players.map((o, i) => {
-      if (i === seat) return null;
-      const sc = scoreOf(o);
-      return `座位${i}：${sc.sum} 分，钩数 ${o.hooks}，已钓 ${o.caught.length} 条`;
-    }).filter(Boolean);
-    lines.push('对手：' + others.join('；'));
-    const usable = pl.caught.filter((f) => f.a && !f.used && !f.dead).map((f) => `${f.n}（${ABILITY_TXT[f.a]}）`);
-    if (usable.length) lines.push('可用能力：' + usable.join('、'));
-    lines.push(`已经连续 ${s.failStreak} 手没人上钩（到 ${s.stallLimit} 就结束）。`);
+    lines.push('浅滩（顶牌只露阴影，看不出是什么鱼）：');
+    s.shoals.forEach((sh, i) => {
+      if (!sh.length) { lines.push(`  ${i + 1} 号：空`); return; }
+      lines.push(`  ${i + 1} 号：${sh.length} 张，顶牌${card(sh[0]).strength <= 0 ? '是小阴影（易钓）' : '是大阴影（难）'}`);
+    });
+    if (s.drawn.length) {
+      lines.push('本回合抽到的牌：' + s.drawn.map((id) => {
+        const c = card(id);
+        return `${c.name}（难度${c.strength}，${c.points}分${c.type === 'foul' ? '，污秽' : ''}${c.hooks ? `，钓到+${c.hooks}钩` : ''}）`;
+      }).join('；'));
+    }
+    const usable = me.caught.filter((id) => !me.exhausted.includes(id) && card(id).ability && ABILITIES[card(id).ability]?.kind === 'active');
+    if (usable.length && s.phase === PHASE.ABILITY) {
+      lines.push('可发动的能力鱼：' + usable.map((id) => `${card(id).name}（${ABILITIES[card(id).ability].desc}）`).join('、'));
+    }
+    if (s.pending) {
+      const p = s.pending;
+      if (p.type === 'REDIRECT') lines.push(`有人以你的鱼为目标（${s.players[p.initiatorIdx].name}），你可以用女妖把目标换成自己。`);
+      if (p.type === 'COUNTER') lines.push('有人以你或你的鱼为目标，你可以用僧帽水母横置他的一条鱼。');
+      if (p.type === 'PASS_LEFT') lines.push('腐鱼生效：从自己已钓的鱼里选一条传给左边的玩家。');
+      if (p.type === 'REARRANGE') {
+        const cards = s.shoals[p.shoalIndex] || [];
+        lines.push(`眼球团：${p.shoalIndex + 1} 号浅滩现在是 ${cards.map((id) => `${card(id).name}(${card(id).points}分)`).join('、')}，可以重排。`);
+      }
+    }
+    lines.push(`已经连续 ${s.stagnation} 轮没人钓到鱼（满 ${s.players.length} 轮就终局）。`);
     return lines.join('\n');
   },
 
   fallback(s, seat, level) {
-    const pl = s.players[seat];
-    const opts = [];
-    s.shoals.forEach((sh, i) => {
-      const t = topOf(sh);
-      if (!t) return;
-      const eff = Math.max(0, t.s - pl.bonus);
-      opts.push({ i, t, eff, can: pl.hooks >= eff });
-    });
-    const can = opts.filter((o) => o.can);
-    if (level <= 0) {
-      if (!can.length) return { k: 'skip', skip: true };
-      return { k: 'hook:' + can[0].i, shoal: can[0].i, tile: can[0].t };
-    }
-    if (can.length) {
-      const sorted = can.slice().sort((a, b) => {
-        const va = a.t.p - (a.t.t === 'foul' ? 0.8 : 0) + a.t.h * 0.45;
-        const vb = b.t.p - (b.t.t === 'foul' ? 0.8 : 0) + b.t.h * 0.45;
-        return vb - va;
-      });
-      return { k: 'hook:' + sorted[0].i, shoal: sorted[0].i, tile: sorted[0].t };
-    }
-    const cursor = pl.caught.findIndex((f) => f.a && !f.used && !f.dead);
-    if (cursor >= 0 && level >= 2) {
-      const f = pl.caught[cursor];
-      if (f.a === 'curse') {
-        const target = s.players.findIndex((o, i) => i !== seat && o.caught.some((x) => !x.dead));
-        if (target >= 0) return { k: `ab:${cursor}:${target}`, ability: 'curse', fromIdx: cursor, target };
-      } else if (f.a === 'shuffle_all' || f.a === 'draw_plus1' || f.a === 'draw_plus2') {
-        return { k: `ab:${cursor}`, ability: f.a, fromIdx: cursor };
-      }
-    }
-    return { k: 'skip', skip: true };
+    try {
+      const a = chooseAction(s);
+      if (a) return a;
+    } catch { /* 落到下面兜底 */ }
+    const legal = this.legal(s, seat);
+    return legal[0] || null;
   },
 
   rankActions(s, seat, legal) {
-    const val = (a) => {
-      if (a.shoal === undefined) return -1;
-      const t = a.tile;
-      return t.p + t.h * 0.5 - (t.t === 'foul' ? 0.5 : 0);
+    const score = (a) => {
+      if (a.type === ACTION.CATCH) return 100 + card(a.cardId).points * 2 - (card(a.cardId).type === 'foul' ? 6 : 0);
+      if (a.type === ACTION.USE_ABILITY) return 60;
+      if (a.type === ACTION.DRAW) return 40;
+      if (a.type === ACTION.THROW_BACK) return 10 - card(a.cardId).points;
+      if (a.type === ACTION.PASS_ABILITIES) return 5;
+      return 0;
     };
-    return legal.slice().sort((a, b) => val(b) - val(a));
+    return legal.slice().sort((x, y) => score(y) - score(x));
   },
 
   hint(s, seat) {
-    if (s.winner !== null) return '对局结束';
-    if (s.turn !== seat) return '对手正在挑浅滩…';
-    const pl = s.players[seat];
-    return `你的钩数 ${pl.hooks}${pl.bonus ? `(+${pl.bonus})` : ''}：点一个浅滩的顶牌读一读，钩够就能钓走`;
-  },
-
-  extraButtons(s, seat, ctx) {
-    if (s.winner !== null || s.turn !== seat) return [];
-    const pl = s.players[seat];
-    const btns = [];
-    pl.caught.forEach((f, fi) => {
-      if (f.dead || !f.a || f.used) return;
-      if (f.a === 'curse') {
-        for (let vs = 0; vs < s.seats; vs++) {
-          if (vs === seat) continue;
-          btns.push(el('button.btn.sm.ghost', { onClick: () => ctx.act({ k: `ab:${fi}:${vs}`, ability: 'curse', fromIdx: fi, target: vs }) }, `${f.n} 诅咒→${vs}号位`));
-        }
-      } else {
-        btns.push(el('button.btn.sm.ghost', { onClick: () => ctx.act({ k: `ab:${fi}`, ability: f.a, fromIdx: fi }) }, `${f.n} · ${f.a === 'shuffle_all' ? '搅动' : '涨潮'}`));
-      }
-    });
-    btns.push(el('button.btn.sm.ghost', { onClick: () => ctx.act({ k: 'skip', skip: true }) }, '不钓（跳过）'));
-    return btns;
+    if (s.gameOver) return '对局结束';
+    const actor = this.turn(s);
+    if (actor !== seat) {
+      const who = s.players[actor]?.name || '对手';
+      return s.phase === PHASE.PENDING ? `等 ${who} 处理反应窗口…` : `等 ${who} 行动…`;
+    }
+    if (s.phase === PHASE.ABILITY) return '能力阶段：可发动已钓能力鱼（每局各一次），或直接进抽牌';
+    if (s.phase === PHASE.DRAW) return `抽牌：选 ${getRequiredDrawCount(s)} 张（点同一堆两次可挖次顶牌）`;
+    if (s.phase === PHASE.CATCH) return `力量 ${getPower(s, seat)}，本回合还能钓 ${Math.max(0, getCatchLimit(s) - s.caughtThisTurn)} 条`;
+    if (s.phase === PHASE.PENDING) return '有个反应窗口要你决定';
+    return '';
   },
 
   seatInfo(s, seat) {
-    const pl = s.players[seat];
-    const sc = scoreOf(pl);
-    return { sub: `${sc.sum} 分 · 钩 ${pl.hooks}`, badge: s.turn === seat ? '该你' : '' };
+    const p = s.players[seat];
+    const foul = getFoulCount(s, seat);
+    return {
+      sub: `${getRawScore(s, seat)} 分 · 力量 ${getPower(s, seat)} · ${p.caught.length} 条${foul ? ` · 污秽${foul}` : ''}`,
+      badge: this.turn(s) === seat ? (s.phase === PHASE.PENDING ? '待反应' : '该你') : '',
+    };
+  },
+
+  /* ---------------- 交互 ---------------- */
+  extraButtons(s, seat, ctx) {
+    if (s.gameOver || this.turn(s) !== seat) return [];
+    const ui = ctx.table?.host?.__ui;
+    const btns = [];
+    if (s.phase === PHASE.ABILITY) {
+      this.legal(s, seat).filter((a) => a.type === ACTION.USE_ABILITY).forEach((a) => {
+        btns.push(el('button.btn.sm', { onClick: () => ctx.act(a), title: a.label },
+          `${card(a.cardId).name} · ${SHORT_ABILITY[card(a.cardId).ability] || ''}`));
+      });
+      btns.push(el('button.btn.sm.primary', {
+        onClick: () => ctx.act({ type: ACTION.PASS_ABILITIES, k: 'pass_abilities' })
+      }, '结束能力阶段'));
+    }
+    if (s.phase === PHASE.DRAW) {
+      const need = getRequiredDrawCount(s);
+      btns.push(el('button.btn.sm.primary', {
+        onClick: () => {
+          const picks = ui?.drawPicks || [];
+          if (picks.length !== need) return window.__cgToast?.(`要选 ${need} 张`, 'err');
+          ui.drawPicks = [];
+          ctx.act({ type: ACTION.DRAW, from: picks.slice() });
+        }
+      }, `抽牌（已选 ${(ui?.drawPicks || []).length}/${need}）`));
+      btns.push(el('button.btn.sm.ghost', {
+        onClick: () => { if (ui) ui.drawPicks = []; ctx.rerender(); }
+      }, '清空'));
+    }
+    if (s.phase === PHASE.CATCH) {
+      const sel = ui?.drawnSel;
+      btns.push(el('button.btn.sm.primary', {
+        onClick: () => {
+          if (sel == null) return window.__cgToast?.('先点一张抽到的牌', 'err');
+          const id = s.drawn[sel];
+          if (!canCatch(s, seat, id)) return window.__cgToast?.('力量不够，钓不了这张', 'err');
+          if (ui) ui.drawnSel = null;
+          ctx.act({ type: ACTION.CATCH, cardId: id });
+        }
+      }, '钓走这张'));
+      btns.push(el('button.btn.sm.ghost', {
+        onClick: () => {
+          if (sel == null) return window.__cgToast?.('先点一张抽到的牌', 'err');
+          const id = s.drawn[sel];
+          const targets = getLegalThrowTargets(s);
+          if (!targets.length) return window.__cgToast?.('没有合法放回位置', 'err');
+          if (ui) ui.drawnSel = null;
+          ctx.act({ type: ACTION.THROW_BACK, cardId: id, shoalIndex: targets[0] });
+        }
+      }, '放回（自动选合法浅滩）'));
+      btns.push(el('button.btn.sm.ghost', {
+        onClick: () => { if (ui) ui.drawnSel = null; ctx.rerender(); }
+      }, '取消选择'));
+    }
+    return btns;
   },
 
   render(s, ctx) {
     const me = 0;
     const host = ctx.host;
-    const pl = s.players[me];
-    const myTurn = s.turn === me && s.winner === null;
+    const ui = host.__ui = host.__ui || {};
+    if (!ui.drawPicks) ui.drawPicks = [];
+    const myTurn = this.turn(s) === me && !s.gameOver;
 
+    /* --- 浅滩 --- */
     const grid = el('div.shoals');
     s.shoals.forEach((sh, i) => {
-      const t = topOf(sh);
-      const eff = t ? Math.max(0, t.s - pl.bonus) : 99;
-      const pickable = myTurn && t && pl.hooks >= eff;
-      const box = el('div.shoal' + (pickable ? '.pickable' : ''));
+      const picked = ui.drawPicks.filter((x) => x === i).length;
+      const canPick = myTurn && s.phase === PHASE.DRAW && sh.length > 0 && ui.drawPicks.length < getRequiredDrawCount(s);
+      const box = el('div.shoal' + (canPick ? '.pickable' : ''),
+        picked ? { style: { borderColor: 'rgba(232,195,122,.9)', background: 'rgba(232,195,122,.12)' } } : null);
       box.append(el('div.shoal-h',
-        el('span', { text: '浅滩 ' + (i + 1) }),
-        el('span', { text: sh.length + ' 张' })
+        el('span', { text: `浅滩 ${i + 1}${picked ? `（已选 ${picked}）` : ''}` }),
+        el('span', { text: `${sh.length} 张` })
       ));
-      sh.forEach((c, ci) => {
+      sh.slice(0, CARDS_PER_SHOAL).forEach((id, ci) => {
         if (ci === 0) {
-          box.append(el('div.fish.revealed' + (c.t === 'foul' ? '.foul' : ''),
-            el('div.fn', { text: c.n }),
-            el('div.fs',
-              el('span', { text: `需 ${Math.max(0, c.s - pl.bonus)} 钩` }),
-              el('span', { text: `${c.p >= 0 ? '+' : ''}${c.p} 分` }),
-              c.h ? el('span', { text: `+${c.h} 钩` }) : null,
-            ),
-            c.a ? el('div.fw', { text: '✦' }) : null,
+          const small = card(id).strength <= 0;
+          box.append(el('div.fish' + (small ? '' : '.foul'),
+            el('div.fn', { text: small ? '小阴影' : '大阴影' }),
+            el('div.fs', el('span', { text: small ? '顶牌易钓' : '顶牌难钓' })),
           ));
         } else {
           box.append(el('div.fish.backface', { text: '?' }));
         }
       });
-      if (!t) box.append(el('div.tiny.muted.center', { text: '空了' }));
-      if (pickable) box.addEventListener('click', () => ctx.act({ k: 'hook:' + i, shoal: i, tile: t }));
+      if (!sh.length) box.append(el('div.tiny.muted.center', { text: '空了' }));
+      if (canPick) box.addEventListener('click', () => { ui.drawPicks.push(i); ctx.rerender(); });
       grid.append(box);
     });
     host.append(grid);
 
-    const sc = scoreOf(pl);
+    /* --- 本回合抽到的牌 --- */
+    if (s.drawn.length) {
+      const row = el('div.caught-row', { style: { marginTop: '4px' } });
+      s.drawn.forEach((id, di) => {
+        const c = card(id);
+        const canC = canCatch(s, s.currentPlayer, id) && s.caughtThisTurn < getCatchLimit(s);
+        const sel = ui.drawnSel === di;
+        row.append(el('div.fish' + (c.type === 'foul' ? '.foul' : ''), {
+          style: {
+            minWidth: '96px',
+            cursor: myTurn && s.phase === PHASE.CATCH ? 'pointer' : 'default',
+            outline: sel ? '2px solid rgba(76,201,240,.95)' : (canC ? '1px solid rgba(93,219,160,.55)' : 'none'),
+          },
+          onClick: myTurn && s.phase === PHASE.CATCH ? () => { ui.drawnSel = sel ? null : di; ctx.rerender(); } : null,
+        },
+          el('div.fn', { text: c.name }),
+          el('div.fs',
+            el('span', { text: `难度${c.strength}` }),
+            el('span', { text: `${c.points}分` }),
+            c.hooks ? el('span', { text: `+${c.hooks}钩` }) : null,
+          ),
+        ));
+      });
+      host.append(el('div', { style: { marginTop: '10px' } }, el('div.tiny.muted', { text: '本回合抽到' }), row));
+    }
+
+    /* --- 我的钓获 --- */
+    const meP = s.players[me];
+    const mineRow = el('div.caught-row', { style: { marginTop: '4px' } });
+    meP.caught.forEach((id) => {
+      const c = card(id);
+      const ex = meP.exhausted.includes(id);
+      mineRow.append(el('div.fish' + (c.type === 'foul' ? '.foul' : ''), { style: { minWidth: '88px', opacity: ex ? 0.5 : 1 } },
+        el('div.fn', { text: c.name + (ex ? '（横置）' : '') }),
+        el('div.fs', el('span', { text: `${c.points}分` }), c.hooks ? el('span', { text: `+${c.hooks}钩` }) : null),
+      ));
+    });
     host.append(el('div', { style: { marginTop: '10px' } },
-      el('div.tiny.muted', { text: `你 · ${sc.sum} 分 · 钩数 ${pl.hooks}${pl.bonus ? `(+${pl.bonus})` : ''}` }),
-      el('div.caught-row', { style: { marginTop: '4px' } },
-        ...pl.caught.map((f) => el('div.chip' + (!f.dead && f.t !== 'foul' ? '.on' : ''),
-          { text: `${f.n} ${f.dead ? '(跑)' : f.p}${f.a && !f.used ? ' ✦' : ''}` }))
-      )
+      el('div.tiny.muted', { text: `你的钓获 · ${getRawScore(s, me)} 分 · 力量 ${getPower(s, me)}` }),
+      meP.caught.length ? mineRow : el('div.tiny.muted', { text: '还空着' })
     ));
+
+    /* --- 对手（公开信息）--- */
+    const oppBox = el('div', { style: { marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' } });
+    s.players.forEach((p, i) => {
+      if (i === me) return;
+      oppBox.append(el('div.row.wrap', { style: { gap: '4px' } },
+        el('span.tiny.muted', { style: { minWidth: '58px' }, text: p.name }),
+        el('span.tiny', { text: `${getRawScore(s, i)}分` }),
+        ...p.caught.map((id) => el('span.chip', { text: card(id).name + (p.exhausted.includes(id) ? '(横置)' : '') }))
+      ));
+    });
+    host.append(oppBox);
+
+    /* --- 反应窗口：轮到人类就弹选择 --- */
+    if (s.phase === PHASE.PENDING && this.turn(s) === me && !s.gameOver) {
+      const key = JSON.stringify(s.pending);
+      if (ui.pendingKey !== key) {
+        ui.pendingKey = key;
+        setTimeout(() => openPendingPicker(s, this, ctx), 40);
+      }
+    } else if (s.phase !== PHASE.PENDING) {
+      ui.pendingKey = null;
+    }
+
     host.append(el('div.tiny.muted', { style: { marginTop: '6px' } },
-      `第 ${s.round} 回合 · 连续空手 ${s.failStreak}/${s.stallLimit} 手 · 牌组 ${s.mult} 倍`));
+      `第 ${s.turn} 轮 · 连续空手 ${s.stagnation}/${s.players.length} · 牌组 ${s.mult || 1} 副`));
   },
 };
 
+/* 反应窗口选择器 */
+function openPendingPicker(s, game, ctx) {
+  const acts = game.legal(s, 0);
+  if (!acts.length) return;
+  const scrim = document.createElement('div');
+  scrim.className = 'modal-scrim';
+  scrim.style.zIndex = 80;
+  const box = document.createElement('div');
+  box.className = 'modal';
+  box.style.width = 'auto';
+  box.style.maxWidth = '430px';
+  const p = s.pending;
+  const titles = { REDIRECT: '女妖改向', COUNTER: '僧帽水母反击', REARRANGE: '眼球团：重排鱼群', PASS_LEFT: '腐鱼：选一条传给左边' };
+  box.append(el('h3', { text: titles[p?.type] || '反应窗口' }));
+  const desc = el('p.tiny.muted', { style: { marginBottom: '10px' } });
+  if (p?.type === 'REDIRECT') desc.textContent = `${s.players[p.initiatorIdx].name} 以一条鱼为目标，你可以用女妖把目标换成自己来保护原目标。`;
+  if (p?.type === 'COUNTER') desc.textContent = `${s.players[p.initiatorIdx].name} 以你或你的鱼为目标，你可以横置他一条鱼。`;
+  if (p?.type === 'REARRANGE') {
+    const cards = s.shoals[p.shoalIndex] || [];
+    desc.textContent = `这一堆现在是：${cards.map((id) => `${card(id).name}(${card(id).points}分)`).join('、')}`;
+  }
+  if (p?.type === 'PASS_LEFT') desc.textContent = '所有玩家各选一条鱼传给左边的人。';
+  box.append(desc);
+  const list = el('div.col');
+  acts.forEach((a) => {
+    list.append(el('button.btn.block', { onClick: () => { scrim.remove(); ctx.act(a); } }, a.label));
+  });
+  box.append(list);
+  scrim.append(box);
+  document.getElementById('modalRoot').append(scrim);
+  requestAnimationFrame(() => scrim.classList.add('on'));
+  scrim.addEventListener('click', (e) => { if (e.target === scrim) scrim.remove(); });
+}
+
 export default regrets;
+export { pendingActor };
