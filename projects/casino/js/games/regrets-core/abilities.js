@@ -42,8 +42,8 @@ export const ABILITY_TYPES = {
 };
 
 export const ABILITIES = {
-  draw_plus2: { kind: 'active', amount: 2, schema: null, desc: '本回合额外抽 2 张牌，可保留 3 条（看 4 摸 3）' },
-  draw_plus1: { kind: 'active', amount: 1, schema: null, desc: '本回合额外抽 1 张牌，可保留 2 条（看 3 摸 2）' },
+  draw_plus2: { kind: 'active', amount: 2, schema: null, desc: '本回合额外抽 2 张牌（看 4 张，但只能钓走 1 条）' },
+  draw_plus1: { kind: 'active', amount: 1, schema: null, desc: '本回合额外抽 1 张牌（看 3 张，但只能钓走 1 条）' },
   power_plus3: { kind: 'active', amount: 3, schema: null, desc: '本回合你的力量增加 3' },
   exhaust_foul: { kind: 'active', schema: { playerIndex: 'number', cardId: 'string' }, typeFilter: 'foul', desc: '横置另一位玩家的一条邪秽鱼' },
   exhaust_fair: { kind: 'active', schema: { playerIndex: 'number', cardId: 'string' }, typeFilter: 'fair', desc: '横置另一位玩家的一条正品鱼' },

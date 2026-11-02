@@ -62,21 +62,21 @@ export function getCatchableDrawn(state) {
   return state.drawn.filter((id) => canCatch(state, p, id));
 }
 
-/** 合法放回目标浅滩索引列表（满堆不可放回；有空浅滩必须放回空滩） */
+/**
+ * 合法放回目标浅滩索引列表。
+ *
+ * 本站按用户要求放开了原版限制：**六个浅滩里任何一堆「非空」的牌堆都能放回**——
+ * 不再要求"优先空滩 / 只能盖大阴影"，也不再限制满堆（4 张的堆也能继续往上放）。
+ * 只有全场都空时才退化为所有堆，避免无解。
+ */
 export function getLegalThrowTargets(state) {
-  const cap = state.cardsPerShoal || CARDS_PER_SHOAL;
-  const empty = [];
-  const large = [];
+  const nonEmpty = [];
   const all = [];
   state.shoals.forEach((s, i) => {
-    if (s.length >= cap) return;
     all.push(i);
-    if (s.length === 0) empty.push(i);
-    else if (!isSmallShadow(s)) large.push(i);
+    if (s.length > 0) nonEmpty.push(i);
   });
-  if (empty.length > 0) return empty;
-  if (large.length > 0) return large;
-  return all;
+  return nonEmpty.length > 0 ? nonEmpty : all;
 }
 
 /** 可抽牌的浅滩索引（非空） */
@@ -93,9 +93,14 @@ export function getRequiredDrawCount(state) {
   return Math.min(BASE_DRAW + state.extraDraw, getDrawableShoals(state).length);
 }
 
-/** 本回合可钓走上限 = 基础 1 + 额外抽卡数（皇带鱼+2 / 七鳃鳗+1 提升可保留数） */
+/**
+ * 本回合可钓走上限。
+ *
+ * 本站规则（按站主要求）：**不管这回合抽了几张，只能钓走 1 条**。
+ * （上游原版是「1 + 额外抽牌数」，即多抽就能多留；这里改掉了。）
+ */
 export function getCatchLimit(state) {
-  return 1 + state.extraDraw;
+  return 1;
 }
 
 /**

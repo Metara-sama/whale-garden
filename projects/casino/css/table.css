@@ -326,6 +326,8 @@
 .demand .dv{font-size:10.5px;color:var(--ink-mute)}
 .demand.ok{background:#effaf3;border-color:rgba(21,147,95,.28);color:#0f6b46}
 .demand.ok .dv{color:var(--green)}
+.demand.maybe{background:#fdf8ec;border-color:rgba(154,123,47,.26);color:#6f5a1f}
+.demand.maybe .dv{color:var(--gold)}
 .fish{
   border-radius:8px;padding:5px 6px;font-size:11px;line-height:1.35;
   background:#fff;border:1px solid var(--line);position:relative;

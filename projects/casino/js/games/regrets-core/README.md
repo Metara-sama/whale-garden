@@ -17,6 +17,8 @@
 | `gameState.js` | `createInitialState` 接受 `mult`，浅滩数按牌组自动算；state 增加 `mult` 字段 | 1 副 = 6 堆 / 2 副 = 12 堆 / 3 副 = 18 堆，每堆仍固定 4 张 |
 | `abilities.js` | `shuffle_all` 用 `state.shoals.length` 代替常量 `NUM_SHOALS`；`REDIRECT` 改向时取候选人真正持有的女妖实例 id；狮子鱼判定用 `baseIdOf` | 多副牌组下常量会错；实例 id 带后缀，硬编码 `'banshee'`/`'lionfish'` 会失配 |
 | `heuristicAI.js` | `id === 'lionfish'` → `baseIdOf(id) === 'lionfish'` | 同上 |
+| `rules.js` | `getLegalThrowTargets` 改为「六个堆里任何非空堆都能放回」，取消"空滩优先 / 只能盖大阴影 / 满堆不能放" | 本站按站主要求放宽（原版限制较严），顶牌也只露 0 / 1–2 / 3–5 档位而非具体难度 |
+| `abilities.js` | `getCatchLimit` 恒为 1；+1/+2 抽牌能力的说明改为“看更多张，但只能钓走 1 条” | 站主要求：加抽不管抽多少都只保留一张（原版是 1+额外抽） |
 
 其余逻辑（三段回合、抽 2 张、钩数/难度、放回优先级、15 种能力、女妖/僧帽/眼球团/腐鱼四类反应窗口、停滞保护终局、污秽 -2）**一行未改**。
 

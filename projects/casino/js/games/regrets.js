@@ -21,6 +21,10 @@ import { chooseScriptAction, TARGETS, SCRIPT_NAME } from './regrets-core/soloScr
 const T = ABILITY_TYPES;
 const card = (id) => CARD_BY_ID[id] || { name: '?', points: 0, strength: 0, hooks: 0, type: 'fair', ability: null };
 
+/* 浅滩顶牌只露「需求档位」，不露具体数字（原版卡背就是给区间提示） */
+const tierLabel = (st) => (st <= 0 ? '0' : st <= 2 ? '1–2' : '3–5');
+const tierRange = (st) => (st <= 0 ? [0, 0] : st <= 2 ? [1, 2] : [3, 5]);
+
 /* ---------------- 小工具 ---------------- */
 function replaceState(target, src) {
   for (const k of Object.keys(target)) delete target[k];
@@ -272,7 +276,7 @@ const regrets = {
       hint: 'Frod 来自官方 6 张卡单人拓展《The Fisher & The Frod》：固定剧本、不烧 token、按星级评价。选它自动变 1v1。',
     },
   ],
-  rulesBrief: '每回合三段：①能力阶段——可逐个发动自己已钓到的主动能力鱼（整局各一次，发动后横置）；②抽牌——从任意浅滩一共抽 2 张（可同一堆抽两次，能挖到次顶牌）；③钓走/放回——力量（已钓鱼钩数之和）≥ 目标难度就能钓走，每回合最多钓 1 条；有能钓的牌必须先钓走，其余放回。放回优先空浅滩，其次盖在大阴影上，浅滩满 4 张不能放。他人以你的鱼为目标可能触发女妖改向、僧帽反击。全部鱼钓光、或连续一整轮没人钓到鱼、或没人能钓任何可接触的鱼时终局。计分=钓获分值之和，污秽鱼最多者额外 -2。',
+  rulesBrief: '每回合三段：①能力阶段——可逐个发动自己已钓到的主动能力鱼（整局各一次，发动后横置）；②抽牌——从任意浅滩一共抽 2 张（可同一堆抽两次，能挖到次顶牌）；③钓走/放回——力量（已钓鱼钩数之和）≥ 目标难度就能钓走，每回合最多钓 1 条；有能钓的牌必须先钓走，其余放回。放回可以放进六个牌堆里任何一堆非空的堆（不管这堆多满）。浅滩顶牌只露需求档位（0 / 1–2 / 3–5），看不出具体是哪条鱼。他人以你的鱼为目标可能触发女妖改向、僧帽反击。全部鱼钓光、或连续一整轮没人钓到鱼、或没人能钓任何可接触的鱼时终局。计分=钓获分值之和，污秽鱼最多者额外 -2。',
 
   init(opt, seatCount) {
     const mult = Math.max(1, Math.min(3, opt.mult || 1));
@@ -436,10 +440,14 @@ const regrets = {
       if (i === seat) return;
       lines.push(`对手 ${p.name}：${getRawScore(s, i)} 分，力量 ${getPower(s, i)}，已钓 ${p.caught.map((id) => card(id).name).join('、') || '无'}${p.caught.some((id) => !p.exhausted.includes(id) && card(id).ability) ? '（有可用能力鱼）' : ''}`);
     });
-    lines.push('浅滩（顶牌只露阴影，看不出是什么鱼）：');
+    lines.push('浅滩（顶牌只露需求档位，看不出具体是哪条鱼）：');
     s.shoals.forEach((sh, i) => {
       if (!sh.length) { lines.push(`  ${i + 1} 号：空`); return; }
-      lines.push(`  ${i + 1} 号：${sh.length} 张，顶牌${card(sh[0]).strength <= 0 ? '是小阴影（易钓）' : '是大阴影（难）'}`);
+      const topId = sh[0];
+      const [lo, hi] = tierRange(card(topId).strength);
+      const pw = getPower(s, seat);
+      const state2 = pw >= hi ? '你能钓' : (pw >= lo ? '档内看具体鱼，可能钓得动' : '力量不够');
+      lines.push(`  ${i + 1} 号：${sh.length} 张，顶牌需求 ${tierLabel(card(topId).strength)}（你力量 ${pw}，${state2}）`);
     });
     if (s.drawn.length) {
       lines.push('本回合抽到的牌：' + s.drawn.map((id) => {
@@ -626,16 +634,19 @@ const regrets = {
       const canPick = isThrowTarget || (myTurn && s.phase === PHASE.DRAW && sh.length > 0 && ui.drawPicks.length < need);
       const top = sh.length ? card(sh[0]) : null;
       const myPower = getPower(s, 0);
-      const reach = top ? myPower >= top.strength : false;
+      const [tMin, tMax] = top ? tierRange(top.strength) : [0, 0];
+      const sureCan = top ? myPower >= tMax : false;
+      const maybe = top ? (myPower >= tMin && myPower < tMax) : false;
+      const reach = sureCan;
       const box = el('div.shoal' + (canPick ? '.pickable' : '') + (picked ? '.picked' : ''));
       box.append(el('div.shoal-h',
         el('span', { text: `浅滩 ${i + 1}${picked ? ` · 已选 ${picked}` : ''}` }),
         el('span', { text: `${sh.length} 张` })
       ));
       if (top) {
-        box.append(el('div.demand' + (reach ? '.ok' : ''),
-          el('span.dl', { text: `需 ${top.strength} 钩` }),
-          el('span.dv', { text: reach ? '可钓' : `还差 ${top.strength - myPower}` })
+        box.append(el('div.demand' + (sureCan ? '.ok' : (maybe ? '.maybe' : '')),
+          el('span.dl', { text: `需 ${tierLabel(top.strength)}` }),
+          el('span.dv', { text: sureCan ? '可钓' : (maybe ? '看具体鱼' : '力量不够') })
         ));
       }
       const cap = s.cardsPerShoal || CARDS_PER_SHOAL;
