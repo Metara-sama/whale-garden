@@ -533,9 +533,17 @@ const regrets = {
     const ui = ctx.table?.host?.__ui;
     const btns = [];
     if (s.phase === PHASE.ABILITY) {
-      this.legal(s, seat).filter((a) => a.type === ACTION.USE_ABILITY).forEach((a) => {
-        btns.push(el('button.btn.sm', { onClick: () => ctx.act(a), title: a.label },
-          `${card(a.cardId).name} · ${SHORT_ABILITY[card(a.cardId).ability] || ''}`));
+      // 每个能力鱼只出一个按钮；需要目标的点开后再选对象（不再一次铺一堆组合）
+      const uses = this.legal(s, 0).filter((a) => a.type === ACTION.USE_ABILITY);
+      const byCard = new Map();
+      uses.forEach((a) => {
+        if (!byCard.has(a.cardId)) byCard.set(a.cardId, []);
+        byCard.get(a.cardId).push(a);
+      });
+      byCard.forEach((list, cardId) => {
+        btns.push(el('button.btn.sm', {
+          onClick: () => abilityPicker(list, ctx, `${card(cardId).name} · ${SHORT_ABILITY[card(cardId).ability] || ''}`),
+        }, `${card(cardId).name} · ${SHORT_ABILITY[card(cardId).ability] || ''}`));
       });
       btns.push(el('button.btn.sm.primary', {
         onClick: () => ctx.act({ type: ACTION.PASS_ABILITIES, k: 'pass_abilities' })
@@ -887,6 +895,69 @@ function openFishDetail(id, opt = {}) {
   document.getElementById('modalRoot').append(scrim);
   requestAnimationFrame(() => scrim.classList.add('on'));
   scrim.addEventListener('click', (e) => { if (e.target === scrim) scrim.remove(); });
+}
+
+/* 能力目标选择器：先选对象（对手/浅滩），再选具体哪条鱼 */
+function abilityPicker(list, ctx, title) {
+  const scrim = document.createElement('div');
+  scrim.className = 'modal-scrim';
+  scrim.style.zIndex = 82;
+  const box = document.createElement('div');
+  box.className = 'modal';
+  box.style.width = 'auto';
+  box.style.maxWidth = '430px';
+  scrim.append(box);
+  document.getElementById('modalRoot').append(scrim);
+  requestAnimationFrame(() => scrim.classList.add('on'));
+  scrim.addEventListener('click', (e) => { if (e.target === scrim) scrim.remove(); });
+
+  const run = (a) => { scrim.remove(); ctx.act(a); };
+  const showList = (items, t, hint) => {
+    box.innerHTML = '';
+    box.append(el('h3', { text: t }));
+    if (hint) box.append(el('p.tiny.muted', { style: { marginBottom: '8px', whiteSpace: 'pre-line' } }, hint));
+    const col = el('div.col');
+    items.forEach((it) => col.append(el('button.btn.block', { onClick: () => it.run() }, it.label)));
+    box.append(col);
+  };
+  const shortLabel = (a) => (a.label.split('｜')[1] || a.label);
+
+  const level2 = (items) => {
+    if (items.length === 1) return run(items[0]);
+    showList(items.map((a) => ({ label: shortLabel(a), run: () => run(a) })), '选哪一条？');
+  };
+
+  // 先按「对象是谁」分组：对手 / 浅滩 / 不需要目标
+  const groups = new Map();
+  list.forEach((a) => {
+    const t = a.target || {};
+    const key = t.playerIndex !== undefined ? 'p' + t.playerIndex
+      : t.shoalIndexes ? 's' + t.shoalIndexes.join(',')
+        : t.shoalIndex !== undefined ? 's' + t.shoalIndex
+          : 'self';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(a);
+  });
+
+  if (groups.size === 1) {
+    const items = [...groups.values()][0];
+    if (items.length === 1) return run(items[0]);
+    return level2(items);
+  }
+
+  const entries = [...groups.entries()].map(([k, v]) => {
+    let label = '发动';
+    if (k.startsWith('p')) {
+      const raw = shortLabel(v[0]);
+      label = raw.replace(/的【.*$/, '').replace(/^目标：/, '') || `对手 ${Number(k.slice(1)) + 1}`;
+    } else if (k.startsWith('s')) {
+      const idxs = k.slice(1).split(',');
+      label = idxs.length > 1 ? `浅滩 ${idxs.join('、')}` : `浅滩 ${Number(idxs[0]) + 1}`;
+    }
+    return { label, run: () => level2(v) };
+  });
+
+  showList(entries, title || '选目标', '先选对象，再选具体哪一条。');
 }
 
 /* 反应窗口选择器 */
