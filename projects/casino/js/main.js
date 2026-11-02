@@ -101,11 +101,22 @@ function showTable(game) {
   document.title = game.name + ' · 赛博棋牌室';
 }
 
+/* ---------------- 聊天室开关（每个游戏共用同一个聊天室） ---------------- */
+function toggleChat(force) {
+  const pane = $('#chatpane');
+  const fab = $('#chatFab');
+  if (!pane) return;
+  const open = force === undefined ? !pane.classList.contains('on') : !!force;
+  pane.classList.toggle('on', open);
+  if (fab) fab.classList.toggle('hide', open);
+  if (open && table) table.clearUnread();
+}
+
 function backToLobby() {
   if (table) { table.destroy(); table = null; }
   $('#tableview').classList.remove('on');
   $('#lobby').classList.add('on');
-  $('#chatpane').classList.remove('on');
+  toggleChat(false);
   document.title = '赛博棋牌室';
   updateApiDot();
 }
@@ -154,8 +165,14 @@ function init() {
     }
     backToLobby();
   });
-  $('#btnChatToggle')?.addEventListener('click', () => {
-    $('#chatpane').classList.toggle('on');
+  $('#btnChatToggle')?.addEventListener('click', () => toggleChat());
+  $('#chatFab')?.addEventListener('click', () => toggleChat());
+  // 干架时回到桌面尺寸，别把悬浮按钮留着
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 900) {
+      $('#chatpane')?.classList.remove('on');
+      $('#chatFab')?.classList.remove('hide');
+    }
   });
 
   // ESC 关闭抽屉

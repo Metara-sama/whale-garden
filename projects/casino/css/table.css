@@ -86,7 +86,7 @@
 
 /* ---------- 聊天 ---------- */
 .chatpane{
-  flex:0 0 312px;border-left:1px solid var(--line);
+  flex:0 0 340px;border-left:1px solid var(--line);
   display:flex;flex-direction:column;min-height:0;
   background:#fff;
 }
@@ -114,6 +114,29 @@
 @keyframes msgIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 
 .chat-toggle{display:none}
+
+/* 移动端聊天悬浮入口（每个游戏都有） */
+.chat-fab{
+  position:fixed;right:14px;bottom:14px;z-index:55;
+  width:50px;height:50px;border-radius:50%;
+  background:var(--ink);color:#fff;border:0;
+  font-size:20px;line-height:1;cursor:pointer;
+  box-shadow:0 6px 18px rgba(16,24,40,.22);
+  display:none;place-items:center;
+  transition:transform var(--t), box-shadow var(--t);
+}
+.chat-fab:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(16,24,40,.28)}
+.chat-fab:active{transform:scale(.96)}
+.chat-badge{
+  position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;padding:0 5px;
+  border-radius:99px;background:var(--coral);color:#fff;font-size:11px;line-height:18px;
+  font-family:var(--font-num);text-align:center;box-shadow:0 0 0 2px #fff;
+}
+@media (max-width:900px){
+  .chat-fab{display:grid}
+  /* 聊天室打开时让位 */
+  .chatpane.on ~ .chat-fab,.chat-fab.hide{display:none}
+}
 @media (max-width:900px){
   .table-main{position:relative}
   .chatpane{

@@ -59,6 +59,11 @@ export class Table {
     } else {
       this.state = this.game.init(this.cfg.options || {}, this.seats.length);
       this.pushLog(`对局开始 · ${this.game.name}`);
+      // 每个游戏开局都在聊天室里打个招呼，让人知道这儿能说话
+      const names = this.seats.filter((s) => s.kind === 'ai').map((s) => `${s.avatar}${s.name}`);
+      if (names.length) {
+        this.pushChat({ role: 'sys', text: `${this.game.name}开局：${names.join('、')} 已经坐好。想说话直接在下面发，他们会接。` });
+      }
     }
     this.loop();
     return this;
@@ -346,6 +351,32 @@ export class Table {
     if (this.chat.length > 200) this.chat.shift();
     this.renderChat();
     this.save();
+    this.bumpUnread(msg);
+  }
+
+  /** 聊天室没打开时，AI 说话要提示（每个游戏共用同一个聊天室） */
+  bumpUnread(msg) {
+    if (msg.role !== 'ai') return;
+    const pane = document.getElementById('chatpane');
+    const mobile = window.innerWidth <= 900;
+    const shown = pane ? (!mobile || pane.classList.contains('on')) : false;
+    if (!shown) {
+      this.unread = (this.unread || 0) + 1;
+      this.updateBadge();
+    }
+  }
+
+  updateBadge() {
+    const b = document.getElementById('chatBadge');
+    if (!b) return;
+    const n = this.unread || 0;
+    if (n > 0) { b.hidden = false; b.textContent = n > 9 ? '9+' : String(n); }
+    else b.hidden = true;
+  }
+
+  clearUnread() {
+    this.unread = 0;
+    this.updateBadge();
   }
 
   renderChat() {
