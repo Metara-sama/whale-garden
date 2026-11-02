@@ -12,10 +12,11 @@ import {
   canCatch, getCatchableDrawn, getDrawableShoals, getLegalThrowTargets,
   getRequiredDrawCount, getCatchLimit,
 } from './regrets-core/rules.js';
-import { CARD_BY_ID } from './regrets-core/cards.js';
-import { ABILITIES, ABILITY_TYPES } from './regrets-core/abilities.js';
+import { CARD_BY_ID, baseIdOf } from './regrets-core/cards.js';
+import { ABILITIES, ABILITY_TYPES, autoResolution } from './regrets-core/abilities.js';
 import { getResults, getRawScore, getFoulCount, getPlayerScore } from './regrets-core/scoring.js';
 import { chooseAction } from './regrets-core/heuristicAI.js';
+import { chooseScriptAction, TARGETS, SCRIPT_NAME } from './regrets-core/soloScript.js';
 
 const T = ABILITY_TYPES;
 const card = (id) => CARD_BY_ID[id] || { name: '?', points: 0, strength: 0, hooks: 0, type: 'fair', ability: null };
@@ -260,19 +261,58 @@ const regrets = {
       options: [{ v: 1, label: '1 副（6 堆）' }, { v: 2, label: '2 副（12 堆）' }, { v: 3, label: '3 副（18 堆）' }],
       hint: '每副 24 张鱼卡，浅滩固定每堆 4 张。',
     },
+    {
+      key: 'opponent', label: '对手', type: 'seg', def: 'ai',
+      options: [{ v: 'ai', label: 'AI 角色卡' }, { v: 'frod', label: 'Frod（官方单人拓展）' }],
+      hint: 'Frod 来自官方 6 张卡拓展《The Fisher & The Frod》：固定剧本、不烧 token、按星级评价。选它自动变 1v1。',
+    },
   ],
   rulesBrief: '每回合三段：①能力阶段——可逐个发动自己已钓到的主动能力鱼（整局各一次，发动后横置）；②抽牌——从任意浅滩一共抽 2 张（可同一堆抽两次，能挖到次顶牌）；③钓走/放回——力量（已钓鱼钩数之和）≥ 目标难度就能钓走，每回合最多钓 1 条；有能钓的牌必须先钓走，其余放回。放回优先空浅滩，其次盖在大阴影上，浅滩满 4 张不能放。他人以你的鱼为目标可能触发女妖改向、僧帽反击。全部鱼钓光、或连续一整轮没人钓到鱼、或没人能钓任何可接触的鱼时终局。计分=钓获分值之和，污秽鱼最多者额外 -2。',
 
   init(opt, seatCount) {
     const mult = Math.max(1, Math.min(3, opt.mult || 1));
-    const n = Math.max(2, Math.min(4, seatCount || 3));
+    const frod = opt.opponent === 'frod';
+    const n = frod ? 2 : Math.max(2, Math.min(4, seatCount || 3));
     const state = createInitialState({
       seed: (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0,
-      playerNames: Array.from({ length: n }, (_, i) => (i === 0 ? '你' : `座位${i + 1}`)),
+      playerNames: frod ? ['你', SCRIPT_NAME] : Array.from({ length: n }, (_, i) => (i === 0 ? '你' : `座位${i + 1}`)),
       mult,
     });
     state.mult = mult;
+    state.opponent = frod ? 'frod' : 'ai';
+    state.frodSeat = frod ? 1 : null;
     return state;
+  },
+  /** 对手选项决定人数：Frod 拓展固定 1v1 */
+  seatCountFor(options) {
+    return options?.opponent === 'frod' ? 2 : null;
+  },
+
+  /** 开局设置里固定座位（Frod 不用选角色卡） */
+  fixedSeat(seatIdx, options) {
+    if (options?.opponent === 'frod' && seatIdx === 1) {
+      return { name: 'Frod', avatar: '🐸', personaId: 'p_frod', sub: '脚本对手 · 官方 6 张卡拓展' };
+    }
+    return null;
+  },
+
+  /** 脚本对手（Frod）：确定性剧本，不走 LLM */
+  scriptAction(s, seat) {
+    if (s.opponent !== 'frod' || seat !== s.frodSeat) return null;
+    if (s.phase === PHASE.PENDING) {
+      return pendingActor(s) === seat ? { type: ACTION.RESOLVE, resolution: autoResolution(s) } : null;
+    }
+    if (s.currentPlayer !== seat) return null;
+    const a = chooseScriptAction(s);
+    return a || null;
+  },
+
+  /** Frod 的台词（本地，不烧 token） */
+  scriptLine(s, seat) {
+    if (s.opponent !== 'frod' || seat !== s.frodSeat) return '';
+    if (Math.random() > 0.45) return '';
+    const lines = ['Blup.', 'Blupp blup.', 'Blup blup blup.', '……Blup。', 'Blup!', 'Blupp……blup。', 'Blup？'];
+    return lines[Math.floor(Math.random() * lines.length)];
   },
 
   turn(s) {
@@ -319,11 +359,32 @@ const regrets = {
     const top = results[0].score;
     const winners = results.filter((r) => r.score === top).map((r) => r.seat);
     const iWin = winners.includes(0);
+
+    // 单人拓展《The Fisher & The Frod》：4 项特色目标 + 星级评价（RULES 11.6）
+    let extra = '';
+    if (s.opponent === 'frod') {
+      const me = s.players[0];
+      const myScore = getPlayerScore(s, 0);
+      const scriptScore = getPlayerScore(s, s.frodSeat);
+      const owned = me.caught.map((id) => baseIdOf(id));
+      const grabbed = owned.filter((id) => TARGETS.includes(id)).length;
+      const foul = getFoulCount(s, 0);
+      const goals = [
+        { t: '总分高于 Frod', ok: myScore > scriptScore, d: `${myScore} vs ${scriptScore}` },
+        { t: '钓到挪威海怪', ok: owned.includes('kraken'), d: '' },
+        { t: '全程没碰污秽鱼', ok: foul === 0, d: foul ? `污秽 ${foul}` : '' },
+        { t: '抢到 ≥3 条 Frod 的目标鱼', ok: grabbed >= 3, d: `${grabbed}/3` },
+      ];
+      const stars = goals.filter((g) => g.ok).length;
+      const rank = stars <= 1 ? '浅滩之耻' : stars === 2 ? '勉强及格' : stars === 3 ? '合格渔夫' : '深海传奇';
+      extra = `　拓展评价：${rank}（${stars}/4 星）— ` + goals.map((g) => `${g.ok ? '✓' : '✗'}${g.t}${g.d ? ' ' + g.d : ''}`).join('；');
+    }
+
     return {
       over: true,
       result: {
         title: winners.length > 1 ? '平局' : (iWin ? '你赢了' : '你输了'),
-        text: winners.length > 1 ? `并列最高 ${top} 分。` : `${winners[0] === 0 ? '你' : s.players[winners[0]].name} 以 ${top} 分收竿。`,
+        text: (winners.length > 1 ? `并列最高 ${top} 分。` : `${winners[0] === 0 ? '你' : s.players[winners[0]].name} 以 ${top} 分收竿。`) + extra,
         rows: results.map((r) => ({
           seat: r.seat,
           text: `${r.raw} 分${r.foul ? `（污秽 ${r.foul}，-2）` : ''} → ${r.score} 分 · ${r.count} 条`,
@@ -411,8 +472,9 @@ const regrets = {
   seatInfo(s, seat) {
     const p = s.players[seat];
     const foul = getFoulCount(s, seat);
+    const tag = s.frodSeat === seat ? ' · 脚本' : '';
     return {
-      sub: `${getRawScore(s, seat)} 分 · 力量 ${getPower(s, seat)} · ${p.caught.length} 条${foul ? ` · 污秽${foul}` : ''}`,
+      sub: `${getRawScore(s, seat)} 分 · 力量 ${getPower(s, seat)} · ${p.caught.length} 条${foul ? ` · 污秽${foul}` : ''}${tag}`,
       badge: this.turn(s) === seat ? (s.phase === PHASE.PENDING ? '待反应' : '该你') : '',
     };
   },

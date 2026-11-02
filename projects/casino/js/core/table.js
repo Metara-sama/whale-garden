@@ -14,14 +14,19 @@ export class Table {
   constructor(game, cfg) {
     this.game = game;
     this.cfg = cfg;
-    this.seats = cfg.seats.map((s, i) => ({
-      ...s,
-      idx: i,
-      persona: s.kind === 'human' ? null : getPersona(s.personaId),
-      name: s.kind === 'human' ? '你' : getPersona(s.personaId).name,
-      avatar: s.kind === 'human' ? '🙋' : getPersona(s.personaId).avatar,
-      level: s.kind === 'human' ? 0 : (Number.isFinite(s.level) ? s.level : getSettings().ai.level),
-    }));
+    this.seats = cfg.seats.map((s, i) => {
+      const fixed = game.fixedSeat ? game.fixedSeat(i, cfg.options || {}) : null;
+      const personaId = fixed?.personaId || s.personaId;
+      const persona = s.kind === 'human' ? null : getPersona(personaId);
+      return {
+        ...s,
+        idx: i,
+        persona,
+        name: s.kind === 'human' ? '你' : (fixed?.name || persona.name),
+        avatar: s.kind === 'human' ? '🙋' : (fixed?.avatar || persona.avatar),
+        level: s.kind === 'human' ? 0 : (Number.isFinite(s.level) ? s.level : getSettings().ai.level),
+      };
+    });
     this.state = null;
     this.logs = [];
     this.chat = [];
@@ -120,6 +125,23 @@ export class Table {
   async aiTurn(seat) {
     const S = this.seats[seat];
     if (!S) return;
+
+    // 脚本对手（例如浅滩鱼悔的 Frod 单人拓展）：用游戏自带的确定性剧本，不走 LLM
+    let scripted = null;
+    if (typeof this.game.scriptAction === 'function') {
+      try { scripted = this.game.scriptAction(this.state, seat); } catch { scripted = null; }
+    }
+    if (scripted) {
+      const say = this.game.scriptLine ? this.game.scriptLine(this.state, seat) : '';
+      if (say) this.pushChat({ role: 'ai', seat, text: say });
+      const r = this.game.apply(this.state, scripted);
+      this.collectLog(r);
+      this.save();
+      await sleep(300 / (getSettings().ai.speed || 1));
+      this.render();
+      return;
+    }
+
     this.thinking = true;
     this.thinkLabel = `等待 ${S.name} 思考`;
     this.render();

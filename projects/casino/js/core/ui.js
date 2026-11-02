@@ -358,9 +358,10 @@ export function openSetup(game, { hasSave = false } = {}) {
         if (i === 0) seats.push({ kind: 'human', personaId: null, level: st.ai.level });
         else {
           const prev = mem.seats?.[i];
+          const fx = game.fixedSeat ? game.fixedSeat(i, options) : null;
           seats.push({
             kind: 'ai',
-            personaId: prev?.personaId && personas.some((p) => p.id === prev.personaId) ? prev.personaId : (personas[i % personas.length]?.id ?? personas[0].id),
+            personaId: fx?.personaId || (prev?.personaId && personas.some((p) => p.id === prev.personaId) ? prev.personaId : (personas[i % personas.length]?.id ?? personas[0].id)),
             level: Number.isFinite(prev?.level) ? prev.level : st.ai.level,
           });
         }
@@ -386,6 +387,18 @@ export function openSetup(game, { hasSave = false } = {}) {
           ));
           return;
         }
+        // 游戏指定的固定座位（例如浅滩鱼悔的 Frod 脚本对手）
+        const fixed = game.fixedSeat ? game.fixedSeat(i, options) : null;
+        if (fixed) {
+          seatsBox.append(el('div.seat',
+            el('div.seat-av', { text: fixed.avatar || '🤖' }),
+            el('div.seat-info.grow',
+              el('div.seat-name', { style: { maxWidth: 'none' } }, fixed.name),
+              el('div.seat-sub', { text: fixed.sub || '脚本对手 · 不需要角色卡' })
+            )
+          ));
+          return;
+        }
         const pSel = el('select.input', { style: { maxWidth: '150px' } });
         personas.forEach((p) => pSel.append(el('option', { value: p.id, selected: p.id === seat.personaId }, `${p.avatar} ${p.name}`)));
         pSel.addEventListener('change', () => { seat.personaId = pSel.value; });
@@ -403,7 +416,12 @@ export function openSetup(game, { hasSave = false } = {}) {
 
     const renderOptions = () => {
       optBox.innerHTML = '';
-      if (maxP > minP) {
+      // 游戏可以因为选项而锁定人数（例如浅滩鱼悔的 Frod 拓展强制 1v1）
+      const forced = game.seatCountFor ? game.seatCountFor(options) : null;
+      if (forced) {
+        count = forced;
+        ensureSeats(forced);
+      } else if (maxP > minP) {
         const opts = [];
         for (let n = minP; n <= maxP; n++) opts.push({ v: n, label: n + ' 人' });
         countControl = segControl(opts, count, (v) => {
@@ -413,10 +431,11 @@ export function openSetup(game, { hasSave = false } = {}) {
         });
         optBox.append(field('人数', countControl));
       }
+      const refresh = () => { renderOptions(); renderSeats(); };
       for (const o of (game.optionSpec || [])) {
         let control;
         if (o.type === 'seg') {
-          control = segControl(o.options, options[o.key], (v) => { options[o.key] = v; });
+          control = segControl(o.options, options[o.key], (v) => { options[o.key] = v; refresh(); });
         } else if (o.type === 'num') {
           control = el('input.input', { type: 'number', min: o.min, max: o.max, step: o.step || 1, value: options[o.key] });
           control.addEventListener('change', () => {
