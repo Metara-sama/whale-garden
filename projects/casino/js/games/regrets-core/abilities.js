@@ -264,8 +264,17 @@ function applyTargetedEffect(state, initiatorIdx, abilityKey, target) {
       const myIdx = me.caught.indexOf(target.dispenseCardId);
       const oppIdx = opp.caught.indexOf(target.oppCardId);
       if (myIdx === -1 || oppIdx === -1) throw new Error('交换目标卡牌缺失');
+      // 横置态随卡走：换出去的、换进来的都保留各自的原横置状态
+      const moveEx = (from, to, id) => {
+        const j = from.exhausted.indexOf(id);
+        if (j !== -1) { from.exhausted.splice(j, 1); to.exhausted.push(id); }
+      };
+      moveEx(me, opp, target.dispenseCardId);
+      moveEx(opp, me, target.oppCardId);
       me.caught[myIdx] = target.oppCardId;
       opp.caught[oppIdx] = target.dispenseCardId;
+      // 本站规则：能力一旦使用就横置，交换也不例外——交出去的那张在对方手里仍是横置
+      if (!opp.exhausted.includes(target.dispenseCardId)) opp.exhausted.push(target.dispenseCardId);
       break;
     }
   }
