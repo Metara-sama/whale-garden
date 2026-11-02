@@ -12,7 +12,7 @@ import {
   canCatch, getCatchableDrawn, getDrawableShoals, getLegalThrowTargets,
   getRequiredDrawCount, getCatchLimit,
 } from './regrets-core/rules.js';
-import { CARD_BY_ID, baseIdOf } from './regrets-core/cards.js';
+import { CARD_BY_ID, baseIdOf, isExpansionCard } from './regrets-core/cards.js';
 import { ABILITIES, ABILITY_TYPES, autoResolution } from './regrets-core/abilities.js';
 import { getResults, getRawScore, getFoulCount, getPlayerScore } from './regrets-core/scoring.js';
 import { chooseAction } from './regrets-core/heuristicAI.js';
@@ -616,55 +616,55 @@ const regrets = {
 
     /* --- 本回合抽到的牌 --- */
     if (s.drawn.length) {
-      const row = el('div.caught-row', { style: { marginTop: '4px' } });
+      const row = el('div.caught-row', { style: { marginTop: '6px', gap: '8px' } });
       s.drawn.forEach((id, di) => {
-        const c = card(id);
         const canC = canCatch(s, s.currentPlayer, id) && s.caughtThisTurn < getCatchLimit(s);
         const sel = ui.drawnSel === di;
-        row.append(el('div.fish' + (c.type === 'foul' ? '.foul' : ''), {
-          style: {
-            minWidth: '96px',
-            cursor: myTurn && s.phase === PHASE.CATCH ? 'pointer' : 'default',
-            outline: sel ? '2px solid rgba(76,201,240,.95)' : (canC ? '1px solid rgba(93,219,160,.55)' : 'none'),
-          },
+        row.append(cardFace(id, {
+          picked: sel,
+          info: true,
+          dim: !canC,
           onClick: myTurn && s.phase === PHASE.CATCH ? () => { ui.drawnSel = sel ? null : di; ctx.rerender(); } : null,
-        },
-          el('div.fn', { text: c.name }),
-          el('div.fs',
-            el('span', { text: `难度${c.strength}` }),
-            el('span', { text: `${c.points}分` }),
-            c.hooks ? el('span', { text: `+${c.hooks}钩` }) : null,
-          ),
-        ));
+          onInfo: () => openFishDetail(id, { where: `本回合抽到的第 ${di + 1} 张` }),
+        }));
       });
-      host.append(el('div', { style: { marginTop: '10px' } }, el('div.tiny.muted', { text: '本回合抽到' }), row));
+      host.append(el('div', { style: { marginTop: '10px' } },
+        el('div.tiny.muted', { text: '本回合抽到（点卡面选中，点 i 看详情）' }), row));
     }
 
     /* --- 我的钓获 --- */
     const meP = s.players[me];
-    const mineRow = el('div.caught-row', { style: { marginTop: '4px' } });
+    const mineRow = el('div.caught-row', { style: { marginTop: '6px', gap: '8px' } });
     meP.caught.forEach((id) => {
-      const c = card(id);
       const ex = meP.exhausted.includes(id);
-      mineRow.append(el('div.fish' + (c.type === 'foul' ? '.foul' : ''), { style: { minWidth: '88px', opacity: ex ? 0.5 : 1 } },
-        el('div.fn', { text: c.name + (ex ? '（横置）' : '') }),
-        el('div.fs', el('span', { text: `${c.points}分` }), c.hooks ? el('span', { text: `+${c.hooks}钩` }) : null),
-      ));
+      mineRow.append(cardFace(id, {
+        exhausted: ex,
+        onClick: () => openFishDetail(id, { where: ex ? '你的钓获 · 已横置（能力已用掉）' : '你的钓获' }),
+      }));
     });
     host.append(el('div', { style: { marginTop: '10px' } },
-      el('div.tiny.muted', { text: `你的钓获 · ${getRawScore(s, me)} 分 · 力量 ${getPower(s, me)}` }),
+      el('div.tiny.muted', { text: `你的钓获 · ${getRawScore(s, me)} 分 · 力量 ${getPower(s, me)}（点卡看详情）` }),
       meP.caught.length ? mineRow : el('div.tiny.muted', { text: '还空着' })
     ));
 
     /* --- 对手（公开信息）--- */
-    const oppBox = el('div', { style: { marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' } });
+    const oppBox = el('div', { style: { marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' } });
     s.players.forEach((p, i) => {
       if (i === me) return;
-      oppBox.append(el('div.row.wrap', { style: { gap: '4px' } },
+      const prow = el('div.row.wrap', { style: { gap: '6px', alignItems: 'flex-end' } },
         el('span.tiny.muted', { style: { minWidth: '58px' }, text: p.name }),
-        el('span.tiny', { text: `${getRawScore(s, i)}分` }),
-        ...p.caught.map((id) => el('span.chip', { text: card(id).name + (p.exhausted.includes(id) ? '(横置)' : '') }))
-      ));
+        el('span.tiny', { text: `${getRawScore(s, i)}分` })
+      );
+      if (!p.caught.length) prow.append(el('span.tiny.muted', { text: '还没钓到' }));
+      p.caught.forEach((id) => {
+        const ex = p.exhausted.includes(id);
+        prow.append(cardFace(id, {
+          mini: true,
+          exhausted: ex,
+          onClick: () => openFishDetail(id, { where: `${p.name} 的钓获${ex ? ' · 已横置' : ''}` }),
+        }));
+      });
+      oppBox.append(prow);
     });
     host.append(oppBox);
 
@@ -683,6 +683,97 @@ const regrets = {
       `第 ${s.turn} 轮 · 连续空手 ${s.stagnation}/${s.players.length} · ${s.pool === 'base' ? '基础 18 张' : (s.includeExpansion === false ? '基础 18 张' : '24 张（含拓展）')} · ${s.mult || 1} 副 · ${s.shoals.length} 堆 × ${s.cardsPerShoal || 4} 张`));
   },
 };
+
+/* ---------------- 上游卡面 ---------------- */
+const CARD_IMG = (id) => `assets/cards/${baseIdOf(id)}.webp`;
+
+/**
+ * 一张鱼卡（用上游卡图）。
+ * opt: {mini, picked, exhausted, dim, info, onClick, onInfo}
+ */
+function cardFace(id, opt = {}) {
+  const c = card(id);
+  const cls = 'div.fcard'
+    + (opt.mini ? '.mini' : '')
+    + (c.type === 'foul' ? '.foul' : '')
+    + (opt.picked ? '.picked' : '')
+    + (opt.exhausted ? '.exhausted' : '');
+  const style = { backgroundImage: `url(${CARD_IMG(id)})` };
+  if (opt.dim) { style.filter = 'grayscale(.85)'; style.opacity = '.55'; }
+  const node = el(cls, {
+    style,
+    title: `${c.name}｜${c.points >= 0 ? '+' : ''}${c.points} 分｜需 ${c.strength} 钩${c.hooks ? `｜钓到给 ${c.hooks} 钩` : ''}｜${c.type === 'foul' ? '污秽' : '正品'}`,
+    onClick: opt.onClick || null,
+  });
+  node.append(
+    el('div.pt', { text: (c.points > 0 ? '+' : '') + c.points }),
+    el('div.str', { text: `🪝${c.strength}` }),
+    el('div.nm', { text: c.name }),
+    c.ability ? el('div.ab', { text: '✦' }) : null,
+  );
+  if (opt.info) {
+    node.append(el('button.info', {
+      text: 'i',
+      onClick: (e) => {
+        e.stopPropagation();
+        (opt.onInfo || (() => openFishDetail(id, {})))();
+      },
+    }));
+  }
+  return node;
+}
+
+/** 卡牌详情：属性 + 能力全文 + 当前状态 */
+function openFishDetail(id, opt = {}) {
+  const c = card(id);
+  const meta = c.ability ? ABILITIES[c.ability] : null;
+  const scrim = document.createElement('div');
+  scrim.className = 'modal-scrim';
+  scrim.style.zIndex = 82;
+  const box = document.createElement('div');
+  box.className = 'modal';
+  box.style.width = 'min(470px,100%)';
+
+  const info = el('div.fdetail-info',
+    el('h4', { text: c.name }, el('span.en', { text: c.nameEn || '' })),
+    el('div.row.wrap', { style: { gap: '5px' } },
+      el('span.tagx' + (c.type === 'foul' ? '.foul' : ''), { text: c.type === 'foul' ? '污秽鱼（污秽最多者 -2）' : '正品鱼' }),
+      isExpansionCard(id) ? el('span.tagx.exp', { text: 'Lingering Remorse 拓展' }) : null,
+      meta
+        ? el('span.tagx', { text: meta.kind === 'active' ? '主动能力 · 每局一次' : '永续被动' })
+        : el('span.tagx', { text: '无能力' })
+    ),
+    el('div.frow',
+      el('span', { text: '分值 ' }, el('b', { text: (c.points > 0 ? '+' : '') + c.points })),
+      el('span', { text: '难度 ' }, el('b', { text: String(c.strength) }), el('span', { text: ' 钩' })),
+      el('span', { text: '钓到给 ' }, el('b', { text: String(c.hooks) }), el('span', { text: ' 钩' }))
+    ),
+    meta
+      ? el('div.abbox',
+        el('b', { text: '能力：' + (meta.desc || '') }),
+        el('span', {
+          text: meta.kind === 'active'
+            ? '发动时机：自己回合开始的能力阶段；发动后这张鱼横置，能力整局只能用这一次。'
+            : '永续：只要这张鱼没被横置就一直生效（被对手横置后失效）。',
+        })
+      )
+      : el('div.abbox', el('b', { text: '没有能力' }), el('span', { text: '纯渔获，只给分值和钩数。' })),
+    opt.where ? el('div.tiny.muted', { text: '位置：' + opt.where }) : null,
+    el('div.tiny.muted', { text: '卡图由上游开源项目用 AI 生成（MIT），非本站绘制。' })
+  );
+
+  const face = cardFace(id, {});
+  face.style.width = '132px';
+
+  box.append(el('div.fdetail', face, info));
+  box.append(el('div.modal-foot',
+    el('button.btn', { onClick: () => scrim.remove() }, '关掉')
+  ));
+  scrim.append(box);
+  document.getElementById('modalRoot').append(scrim);
+  requestAnimationFrame(() => scrim.classList.add('on'));
+  scrim.addEventListener('click', (e) => { if (e.target === scrim) scrim.remove(); });
+}
 
 /* 反应窗口选择器 */
 function openPendingPicker(s, game, ctx) {

@@ -335,6 +335,60 @@
 .pick-hint{font-size:10.5px;color:var(--aqua);text-align:center;margin-top:auto}
 .caught-row{display:flex;flex-wrap:wrap;gap:5px}
 
+/* ---- 上游卡面（3:4 竖版） ---- */
+.fcard{
+  position:relative;width:98px;aspect-ratio:3/4;border-radius:8px;overflow:hidden;
+  background-color:#eef1f5;background-position:center;background-size:cover;
+  border:1px solid rgba(17,24,39,.16);box-shadow:0 1px 3px rgba(16,24,40,.14);
+  transition:transform var(--t), box-shadow var(--t), border-color var(--t);
+  user-select:none;flex:0 0 auto;
+}
+.fcard:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(16,24,40,.2)}
+.fcard.mini{width:74px}
+.fcard.mini .pt,.fcard.mini .str{font-size:10px;padding:1px 4px}
+.fcard.mini .nm{font-size:10px;padding:3px 5px}
+.fcard .pt,.fcard .str{
+  position:absolute;top:4px;font-family:var(--font-num);font-weight:700;font-size:11px;
+  padding:1px 5px;border-radius:5px;background:rgba(255,255,255,.94);color:#111827;
+  box-shadow:0 1px 2px rgba(16,24,40,.18);line-height:1.5;
+}
+.fcard .pt{left:4px}
+.fcard .str{right:4px;color:#1f5f9e}
+.fcard .nm{
+  position:absolute;left:0;right:0;bottom:0;padding:4px 6px;font-size:11px;font-weight:600;
+  color:#fff;background:linear-gradient(180deg,transparent,rgba(8,14,22,.82) 42%);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.fcard .ab{position:absolute;top:4px;left:50%;transform:translateX(-50%);font-size:10px;color:#9a7b2f;text-shadow:0 0 3px #fff}
+.fcard .info{
+  position:absolute;right:3px;bottom:22%;width:16px;height:16px;border-radius:50%;
+  background:rgba(255,255,255,.94);border:1px solid rgba(17,24,39,.25);color:#111827;
+  font-size:10px;font-weight:700;display:grid;place-items:center;cursor:pointer;padding:0;line-height:1;
+}
+.fcard .info:hover{background:#111827;color:#fff}
+.fcard.mini .info{width:14px;height:14px;font-size:9px}
+.fcard.foul{box-shadow:0 0 0 2px rgba(217,74,90,.55),0 1px 3px rgba(16,24,40,.14)}
+.fcard.picked{transform:translateY(-6px);box-shadow:0 0 0 2px var(--aqua),0 8px 18px rgba(16,24,40,.2)}
+.fcard.exhausted{transform:rotate(90deg) scale(.84);filter:grayscale(.8) brightness(.95);opacity:.8}
+.fcard.exhausted:hover{transform:rotate(90deg) scale(.88)}
+
+/* 卡牌详情弹窗 */
+.fdetail{display:flex;gap:14px;align-items:flex-start}
+.fdetail .fcard{width:132px}
+.fdetail-info{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:7px}
+.fdetail-info h4{font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.fdetail-info .en{font-size:11px;color:var(--ink-mute);font-weight:400}
+.frow{display:flex;gap:10px;font-size:12.5px;color:var(--ink-soft);flex-wrap:wrap}
+.frow b{color:var(--ink);font-family:var(--font-num)}
+.fdetail-info .abbox{
+  font-size:12.5px;line-height:1.6;color:var(--ink-soft);
+  background:var(--bg-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;
+}
+.fdetail-info .abbox b{display:block;color:var(--ink);font-size:12.5px;margin-bottom:2px}
+.tagx{font-size:10.5px;padding:1px 6px;border-radius:99px;border:1px solid var(--line);background:var(--bg-2);color:var(--ink-soft)}
+.tagx.foul{background:#fff8f9;border-color:rgba(217,74,90,.3);color:#b0263c}
+.tagx.exp{background:#fdf8ec;border-color:rgba(154,123,47,.25);color:var(--gold)}
+
 /* ---- 结算 ---- */
 .result-badge{font-size:22px;font-weight:600;letter-spacing:.01em;color:var(--ink)}
 .rank-row{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px}
