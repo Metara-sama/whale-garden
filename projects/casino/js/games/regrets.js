@@ -51,6 +51,16 @@ const SHORT_ABILITY = {
   swap_any: '换鱼', swap_fair: '换正品', swap_zero: '换难度0',
   give_card: '送鱼', peek_multi: '偷看', remove_zero: '移除难度0', rearrange_shoal: '重排鱼群',
 };
+/* 需要「点对方一条鱼」的能力：直接告诉他点哪，不用先选人 */
+const OPP_HINT = {
+  swap_any: '点一张对方的鱼，和它交换',
+  swap_fair: '点一张对方的正品鱼，和它交换',
+  swap_zero: '点一张对方难度 0 的鱼，和它交换',
+  exhaust_foul: '点一条对方的污秽鱼，把它横置',
+  exhaust_fair: '点一条对方的正品鱼，把它横置',
+  exhaust_any: '点一条对方的鱼，把它横置',
+  remove_zero: '点一条难度 0 的鱼，把它移除',
+};
 
 function abilityLabel(key, target, s) {
   if (!target) return ABILITIES[key]?.desc || key;
@@ -541,9 +551,21 @@ const regrets = {
         byCard.get(a.cardId).push(a);
       });
       byCard.forEach((list, cardId) => {
+        const key = card(cardId).ability;
+        const label = `${card(cardId).name} · ${SHORT_ABILITY[key] || ''}`;
+        // 目标是「对方某条鱼」的，点技能后直接在对方那边点鱼（不用先选人）
+        const oppActs = list.filter((a) => a.target && a.target.playerIndex !== undefined && (a.target.oppCardId || a.target.cardId));
         btns.push(el('button.btn.sm', {
-          onClick: () => abilityPicker(list, ctx, `${card(cardId).name} · ${SHORT_ABILITY[card(cardId).ability] || ''}`),
-        }, `${card(cardId).name} · ${SHORT_ABILITY[card(cardId).ability] || ''}`));
+          onClick: () => {
+            const ui2 = ctx.host?.__ui || ctx.table?.host?.__ui;
+            if (oppActs.length === list.length && ui2) {
+              ui2.oppPick = { cardId, hint: OPP_HINT[key] || '点一条对方的鱼', acts: oppActs };
+              ctx.rerender();
+              return;
+            }
+            abilityPicker(list, ctx, label);
+          },
+        }, label));
       });
       btns.push(el('button.btn.sm.primary', {
         onClick: () => ctx.act({ type: ACTION.PASS_ABILITIES, k: 'pass_abilities' })
@@ -636,6 +658,21 @@ const regrets = {
         el('span', { text: `点一个浅滩，把【${card(ui.throwCardId).name}】放回去` }),
         el('button.btn.sm.ghost', {
           onClick: () => { ui.throwMode = false; ui.throwCardId = null; ctx.rerender(); },
+        }, '取消')
+      ));
+    }
+
+    /* 能力目标模式：直接在对方那边点鱼（换鱼 / 横置 / 移除） */
+    if (ui.oppPick) {
+      const stillOk = myTurn && s.phase === PHASE.ABILITY && this.legal(s, me)
+        .some((a) => a.type === ACTION.USE_ABILITY && a.cardId === ui.oppPick.cardId);
+      if (!stillOk) ui.oppPick = null;
+    }
+    if (ui.oppPick) {
+      host.append(el('div.throwbar',
+        el('span', { text: ui.oppPick.hint }),
+        el('button.btn.sm.ghost', {
+          onClick: () => { ui.oppPick = null; ctx.rerender(); },
         }, '取消')
       ));
     }
@@ -763,14 +800,21 @@ const regrets = {
       p.caught.forEach((id) => {
         const ex = p.exhausted.includes(id);
         const acq = s.acq?.[id];
+        const pick = ui.oppPick
+          ? ui.oppPick.acts.find((a) => a.target && a.target.playerIndex === i
+            && (a.target.oppCardId === id || a.target.cardId === id))
+          : null;
         prow.append(cardFace(id, {
           mini: true,
           exhausted: ex,
           acq,
-          onClick: () => openFishDetail(id, {
-            where: `${p.name} 的钓获${ex ? ' · 已横置' : ''}（当前力量 ${getPower(s, i)}）`,
-            acq,
-          }),
+          picked: !!pick,
+          onClick: pick
+            ? () => { ui.oppPick = null; ctx.act(pick); }
+            : () => openFishDetail(id, {
+              where: `${p.name} 的钓获${ex ? ' · 已横置' : ''}（当前力量 ${getPower(s, i)}）`,
+              acq,
+            }),
         }));
       });
       oppBox.append(prow);
