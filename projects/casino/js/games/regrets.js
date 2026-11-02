@@ -551,33 +551,65 @@ const regrets = {
     if (!ui.drawPicks) ui.drawPicks = [];
     const myTurn = this.turn(s) === me && !s.gameOver;
 
+    /* --- 阶段进度条：让人一眼知道现在该干什么 --- */
+    const stepIdx = s.phase === PHASE.ABILITY ? 0 : s.phase === PHASE.DRAW ? 1 : s.phase === PHASE.CATCH ? 2 : -1;
+    const steps = ['① 能力', '② 抽牌', '③ 钓走 / 放回'];
+    host.append(el('div.steps',
+      ...steps.map((t, i) => el('div.step' + (i === stepIdx ? '.on' : '') + (stepIdx > i ? '.done' : ''), { text: t })),
+      s.phase === PHASE.PENDING ? el('div.step.on', { text: '反应窗口' }) : null
+    ));
+
+    // 能力阶段没有可用能力时自动进抽牌，免得玩家点了半天没反应
+    if (myTurn && s.phase === PHASE.ABILITY) {
+      const acts = this.legal(s, 0);
+      const onlyPass = acts.length === 1 && acts[0].type === ACTION.PASS_ABILITIES;
+      if (onlyPass) {
+        if (!ui.autoPassed) {
+          ui.autoPassed = true;
+          setTimeout(() => ctx.act({ type: ACTION.PASS_ABILITIES, k: 'pass_abilities' }), 240);
+        }
+      } else ui.autoPassed = false;
+    } else ui.autoPassed = false;
+
     /* --- 浅滩 --- */
     const grid = el('div.shoals');
     s.shoals.forEach((sh, i) => {
       const picked = ui.drawPicks.filter((x) => x === i).length;
-      const canPick = myTurn && s.phase === PHASE.DRAW && sh.length > 0 && ui.drawPicks.length < getRequiredDrawCount(s);
-      const box = el('div.shoal' + (canPick ? '.pickable' : ''),
-        picked ? { style: { borderColor: 'rgba(232,195,122,.9)', background: 'rgba(232,195,122,.12)' } } : null);
+      const need = getRequiredDrawCount(s);
+      const canPick = myTurn && s.phase === PHASE.DRAW && sh.length > 0 && ui.drawPicks.length < need;
+      const top = sh.length ? card(sh[0]) : null;
+      const myPower = getPower(s, 0);
+      const reach = top ? myPower >= top.strength : false;
+      const box = el('div.shoal' + (canPick ? '.pickable' : '') + (picked ? '.picked' : ''));
       box.append(el('div.shoal-h',
-        el('span', { text: `浅滩 ${i + 1}${picked ? `（已选 ${picked}）` : ''}` }),
+        el('span', { text: `浅滩 ${i + 1}${picked ? ` · 已选 ${picked}` : ''}` }),
         el('span', { text: `${sh.length} 张` })
       ));
+      if (top) {
+        box.append(el('div.demand' + (reach ? '.ok' : ''),
+          el('span.dl', { text: `需 ${top.strength} 钩` }),
+          el('span.dv', { text: reach ? '可钓' : `还差 ${top.strength - myPower}` })
+        ));
+      }
       const cap = s.cardsPerShoal || CARDS_PER_SHOAL;
       const show = Math.min(cap, 6);
       sh.slice(0, show).forEach((id, ci) => {
-        if (ci === 0) {
-          const small = card(id).strength <= 0;
-          box.append(el('div.fish' + (small ? '' : '.foul'),
-            el('div.fn', { text: small ? '小阴影' : '大阴影' }),
-            el('div.fs', el('span', { text: small ? '顶牌易钓' : '顶牌难钓' })),
-          ));
-        } else {
-          box.append(el('div.fish.backface', { text: '?' }));
-        }
+        box.append(ci === 0
+          ? el('div.fish.topcard', { text: '顶' })
+          : el('div.fish.backface'));
       });
       if (!sh.length) box.append(el('div.tiny.muted.center', { text: '空了' }));
-      else if (sh.length > show) box.append(el('div.tiny.muted', { text: `…下面还有 ${sh.length - show} 张` }));
-      if (canPick) box.addEventListener('click', () => { ui.drawPicks.push(i); ctx.rerender(); });
+      else if (sh.length > show) box.append(el('div.tiny.muted', { text: `…还有 ${sh.length - show} 张` }));
+      if (canPick) {
+        box.append(el('div.pick-hint', { text: `点这里抽（${ui.drawPicks.length}/${need}）` }));
+        box.addEventListener('click', () => {
+          if (ui.drawPicks.length >= need) return;
+          ui.drawPicks.push(i);
+          ctx.rerender();
+        });
+      } else if (myTurn && s.phase === PHASE.DRAW) {
+        box.append(el('div.tiny.muted.center', { text: '已选满' }));
+      }
       grid.append(box);
     });
     host.append(grid);
