@@ -264,7 +264,7 @@ const regrets = {
     {
       key: 'pool', label: '牌池', type: 'seg', def: 'all',
       options: [{ v: 'all', label: '24 张（含 Lingering Remorse）' }, { v: 'base', label: '基础 18 张' }],
-      hint: '官方拓展《Lingering Remorse》加了 6 条带「永续效果」的鱼（海猴、女妖、僧帽水母、狮子鱼、巨型乌贼、旧日支配者）。4 人局必须带拓展（官方：4 人时发 8 堆）。',
+      hint: '官方拓展《Lingering Remorse》加了 6 条带「永续效果」的鱼（海猴、女妖、僧帽水母、狮子鱼、巨型乌贼、旧日支配者）。基础 18 张 → 6 堆 × 3 张；含拓展 24 张 → 6 堆 × 4 张（4 人局也是 6 堆）。',
     },
     {
       key: 'opponent', label: '对手', type: 'seg', def: 'ai',
