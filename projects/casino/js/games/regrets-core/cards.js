@@ -79,14 +79,33 @@ export const CARD_BY_ID = new Proxy(Object.create(null), {
 export const TOTAL_CARDS = CARDS.length; // 24
 
 /**
+ * 拓展《Lingering Remorse》的 6 张卡。
+ *
+ * 官方描述：「Add the 6 expansion cards to the core 18-card game … the new expansion
+ * creatures feature lingering effects. These ongoing abilities remain active unless the
+ * creature is exhausted.」
+ *
+ * 判定依据：这 6 张正是本卡池里唯一带「永续被动」能力的 6 张
+ * （catch_restrict_zero / catch_restrict_high / untargetable / redirect_target /
+ *   counter_exhaust / force_swap_lionfish），与「lingering effects」一一对应。
+ */
+export const LINGERING_EXPANSION_IDS = ['seaMonkey', 'banshee', 'manOWar', 'lionfish', 'giantSquid', 'elderThing'];
+export const isExpansionCard = (id) => LINGERING_EXPANSION_IDS.includes(String(id).split('#')[0]);
+
+/**
  * 生成一副（或多副）牌组：mult=1 时 id 就是卡牌 id；
  * mult>1 时同种鱼各带 `#k` 后缀，成为互相独立的实例。
+ * @param {number} mult 牌组倍数
+ * @param {boolean} includeExpansion 是否加入《Lingering Remorse》的 6 张拓展卡
  */
-export function buildDeck(mult = 1) {
+export function buildDeck(mult = 1, includeExpansion = true) {
   const out = [];
   const m = Math.max(1, Math.min(3, mult | 0 || 1));
   for (let k = 0; k < m; k++) {
-    for (const c of CARDS) out.push(m === 1 ? c.id : `${c.id}#${k}`);
+    for (const c of CARDS) {
+      if (!includeExpansion && LINGERING_EXPANSION_IDS.includes(c.id)) continue;
+      out.push(m === 1 ? c.id : `${c.id}#${k}`);
+    }
   }
   return out;
 }

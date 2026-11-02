@@ -62,13 +62,14 @@ export function getCatchableDrawn(state) {
   return state.drawn.filter((id) => canCatch(state, p, id));
 }
 
-/** 合法放回目标浅滩索引列表（满堆 CARDS_PER_SHOAL 不可放回；有空浅滩必须放回空滩） */
+/** 合法放回目标浅滩索引列表（满堆不可放回；有空浅滩必须放回空滩） */
 export function getLegalThrowTargets(state) {
+  const cap = state.cardsPerShoal || CARDS_PER_SHOAL;
   const empty = [];
   const large = [];
   const all = [];
   state.shoals.forEach((s, i) => {
-    if (s.length >= CARDS_PER_SHOAL) return;
+    if (s.length >= cap) return;
     all.push(i);
     if (s.length === 0) empty.push(i);
     else if (!isSmallShadow(s)) large.push(i);

@@ -14,18 +14,21 @@ export const MIN_SMALL_TOPS = 4;
 
 /**
  * 创建初始对局状态。
- * @param {{seed:number, playerNames:string[], mult?:number}} opts
- *   mult = 牌组倍数（1 副 6 堆，2 副 12 堆，3 副 18 堆；每堆始终 4 张）
- * @returns {object} 初始状态
+ * @param {{seed:number, playerNames:string[], mult?:number, includeExpansion?:boolean}} opts
+ *   mult = 牌组倍数（1 副基础 18 张 / 含拓展 24 张）
+ *   includeExpansion = 是否加入《Lingering Remorse》的 6 张拓展鱼
+ *   堆数与每堆张数按官方规则：2-3 人 6 堆；4 人（需带拓展）8 堆；每堆 = 总牌数 / 堆数。
  */
-export function createInitialState({ seed, playerNames, mult = 1 }) {
+export function createInitialState({ seed, playerNames, mult = 1, includeExpansion = true }) {
   const m = Math.max(1, Math.min(3, mult | 0 || 1));
   const rng = createRng(seed);
-  const deck = rng.shuffle(buildDeck(m));
-  const shoalCount = Math.floor(deck.length / CARDS_PER_SHOAL);
+  const deck = rng.shuffle(buildDeck(m, includeExpansion));
+  const playerCount = playerNames.length;
+  const shoalCount = (playerCount >= 4 && deck.length >= 24) ? 8 : NUM_SHOALS;
+  const perShoal = Math.max(2, Math.floor(deck.length / shoalCount));
   const shoals = [];
   for (let i = 0; i < shoalCount; i++) {
-    shoals.push(deck.slice(i * CARDS_PER_SHOAL, (i + 1) * CARDS_PER_SHOAL));
+    shoals.push(deck.slice(i * perShoal, (i + 1) * perShoal));
   }
   ensureSmallTops(shoals, rng);
   if (!hasEnoughSmallTops(shoals)) throw new Error('ensureSmallTops 未保证至少 4 个易钓顶牌');
@@ -43,6 +46,8 @@ export function createInitialState({ seed, playerNames, mult = 1 }) {
     version: 2,
     seed,
     mult: m,
+    includeExpansion: !!includeExpansion,
+    cardsPerShoal: perShoal,
     players,
     shoals,
     currentPlayer: 0,

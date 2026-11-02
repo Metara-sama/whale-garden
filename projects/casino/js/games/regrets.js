@@ -258,13 +258,18 @@ const regrets = {
   optionSpec: [
     {
       key: 'mult', label: '牌组倍数', type: 'seg', def: 1,
-      options: [{ v: 1, label: '1 副（6 堆）' }, { v: 2, label: '2 副（12 堆）' }, { v: 3, label: '3 副（18 堆）' }],
-      hint: '每副 24 张鱼卡，浅滩固定每堆 4 张。',
+      options: [{ v: 1, label: '1 副' }, { v: 2, label: '2 副' }, { v: 3, label: '3 副' }],
+      hint: '每副牌按下面「牌池」算：基础 18 张，或含拓展 24 张。',
+    },
+    {
+      key: 'pool', label: '牌池', type: 'seg', def: 'all',
+      options: [{ v: 'all', label: '24 张（含 Lingering Remorse）' }, { v: 'base', label: '基础 18 张' }],
+      hint: '官方拓展《Lingering Remorse》加了 6 条带「永续效果」的鱼（海猴、女妖、僧帽水母、狮子鱼、巨型乌贼、旧日支配者）。4 人局必须带拓展（官方：4 人时发 8 堆）。',
     },
     {
       key: 'opponent', label: '对手', type: 'seg', def: 'ai',
       options: [{ v: 'ai', label: 'AI 角色卡' }, { v: 'frod', label: 'Frod（官方单人拓展）' }],
-      hint: 'Frod 来自官方 6 张卡拓展《The Fisher & The Frod》：固定剧本、不烧 token、按星级评价。选它自动变 1v1。',
+      hint: 'Frod 来自官方 6 张卡单人拓展《The Fisher & The Frod》：固定剧本、不烧 token、按星级评价。选它自动变 1v1。',
     },
   ],
   rulesBrief: '每回合三段：①能力阶段——可逐个发动自己已钓到的主动能力鱼（整局各一次，发动后横置）；②抽牌——从任意浅滩一共抽 2 张（可同一堆抽两次，能挖到次顶牌）；③钓走/放回——力量（已钓鱼钩数之和）≥ 目标难度就能钓走，每回合最多钓 1 条；有能钓的牌必须先钓走，其余放回。放回优先空浅滩，其次盖在大阴影上，浅滩满 4 张不能放。他人以你的鱼为目标可能触发女妖改向、僧帽反击。全部鱼钓光、或连续一整轮没人钓到鱼、或没人能钓任何可接触的鱼时终局。计分=钓获分值之和，污秽鱼最多者额外 -2。',
@@ -273,12 +278,16 @@ const regrets = {
     const mult = Math.max(1, Math.min(3, opt.mult || 1));
     const frod = opt.opponent === 'frod';
     const n = frod ? 2 : Math.max(2, Math.min(4, seatCount || 3));
+    // 官方：4 人局必须加入《Lingering Remorse》（6 张拓展鱼，浅滩改为 8 堆）
+    const includeExpansion = n >= 4 ? true : opt.pool !== 'base';
     const state = createInitialState({
       seed: (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0,
       playerNames: frod ? ['你', SCRIPT_NAME] : Array.from({ length: n }, (_, i) => (i === 0 ? '你' : `座位${i + 1}`)),
       mult,
+      includeExpansion,
     });
     state.mult = mult;
+    state.pool = includeExpansion ? 'all' : 'base';
     state.opponent = frod ? 'frod' : 'ai';
     state.frodSeat = frod ? 1 : null;
     return state;
@@ -553,7 +562,9 @@ const regrets = {
         el('span', { text: `浅滩 ${i + 1}${picked ? `（已选 ${picked}）` : ''}` }),
         el('span', { text: `${sh.length} 张` })
       ));
-      sh.slice(0, CARDS_PER_SHOAL).forEach((id, ci) => {
+      const cap = s.cardsPerShoal || CARDS_PER_SHOAL;
+      const show = Math.min(cap, 6);
+      sh.slice(0, show).forEach((id, ci) => {
         if (ci === 0) {
           const small = card(id).strength <= 0;
           box.append(el('div.fish' + (small ? '' : '.foul'),
@@ -565,6 +576,7 @@ const regrets = {
         }
       });
       if (!sh.length) box.append(el('div.tiny.muted.center', { text: '空了' }));
+      else if (sh.length > show) box.append(el('div.tiny.muted', { text: `…下面还有 ${sh.length - show} 张` }));
       if (canPick) box.addEventListener('click', () => { ui.drawPicks.push(i); ctx.rerender(); });
       grid.append(box);
     });
@@ -636,7 +648,7 @@ const regrets = {
     }
 
     host.append(el('div.tiny.muted', { style: { marginTop: '6px' } },
-      `第 ${s.turn} 轮 · 连续空手 ${s.stagnation}/${s.players.length} · 牌组 ${s.mult || 1} 副`));
+      `第 ${s.turn} 轮 · 连续空手 ${s.stagnation}/${s.players.length} · ${s.pool === 'base' ? '基础 18 张' : (s.includeExpansion === false ? '基础 18 张' : '24 张（含拓展）')} · ${s.mult || 1} 副 · ${s.shoals.length} 堆 × ${s.cardsPerShoal || 4} 张`));
   },
 };
 
