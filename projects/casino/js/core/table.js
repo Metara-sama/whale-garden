@@ -262,9 +262,15 @@ export class Table {
     const hint = this.game.hint ? this.game.hint(this.state, seat) : (isMine ? '轮到你' : '');
     this.actionbar.append(el('span.hintline', { text: hint || '' }));
     if (isMine && this.game.extraButtons) {
-      const btns = this.game.extraButtons(this.state, seat, {
-        act: (a) => this.act(a, 0), table: this,
-      }) || [];
+      const bctx = {
+        act: (a) => this.act(a, 0),
+        table: this,
+        host: this.host,
+        me: 0,
+        seats: this.seats,
+        rerender: () => this.render(),
+      };
+      const btns = this.game.extraButtons(this.state, seat, bctx) || [];
       btns.forEach((b) => b && this.actionbar.append(b));
     }
     if (!isMine && seat !== null && this.seats[seat]) {

@@ -518,27 +518,35 @@ const regrets = {
     }
     if (s.phase === PHASE.CATCH) {
       const sel = ui?.drawnSel;
+      const pickedId = sel != null ? s.drawn[sel] : null;
       btns.push(el('button.btn.sm.primary', {
         onClick: () => {
-          if (sel == null) return window.__cgToast?.('先点一张抽到的牌', 'err');
-          const id = s.drawn[sel];
-          if (!canCatch(s, seat, id)) return window.__cgToast?.('力量不够，钓不了这张', 'err');
-          if (ui) ui.drawnSel = null;
-          ctx.act({ type: ACTION.CATCH, cardId: id });
+          if (!pickedId) return window.__cgToast?.('先点一张抽到的牌', 'err');
+          if (s.caughtThisTurn >= getCatchLimit(s)) return window.__cgToast?.('本回合已经钓够了，剩下这张只能放回', 'err');
+          if (!canCatch(s, seat, pickedId)) {
+            return window.__cgToast?.(`力量不够：这张需 ${card(pickedId).strength} 钩，你只有 ${getPower(s, 0)}`, 'err');
+          }
+          if (ui) { ui.drawnSel = null; ui.throwMode = false; }
+          ctx.act({ type: ACTION.CATCH, cardId: pickedId });
         }
       }, '钓走这张'));
+      btns.push(el('button.btn.sm', {
+        onClick: () => {
+          if (!pickedId) return window.__cgToast?.('先点一张抽到的牌', 'err');
+          if (s.caughtThisTurn === 0 && getCatchableDrawn(s).length > 0) {
+            return window.__cgToast?.('规则：有能钓的鱼必须先钓走一条，之后才能放回', 'err');
+          }
+          const targets = getLegalThrowTargets(s);
+          if (!targets.length) return window.__cgToast?.('所有浅滩都满了，这张放不回去', 'err');
+          if (ui) { ui.throwMode = true; ui.throwCardId = pickedId; ui.drawnSel = null; }
+          ctx.rerender();
+        }
+      }, '放回…'));
       btns.push(el('button.btn.sm.ghost', {
         onClick: () => {
-          if (sel == null) return window.__cgToast?.('先点一张抽到的牌', 'err');
-          const id = s.drawn[sel];
-          const targets = getLegalThrowTargets(s);
-          if (!targets.length) return window.__cgToast?.('没有合法放回位置', 'err');
-          if (ui) ui.drawnSel = null;
-          ctx.act({ type: ACTION.THROW_BACK, cardId: id, shoalIndex: targets[0] });
+          if (ui) { ui.drawnSel = null; ui.throwMode = false; ui.throwCardId = null; }
+          ctx.rerender();
         }
-      }, '放回（自动选合法浅滩）'));
-      btns.push(el('button.btn.sm.ghost', {
-        onClick: () => { if (ui) ui.drawnSel = null; ctx.rerender(); }
       }, '取消选择'));
     }
     return btns;
@@ -571,12 +579,29 @@ const regrets = {
       } else ui.autoPassed = false;
     } else ui.autoPassed = false;
 
+    // 放回模式：牌已经被钓走 / 阶段变了，就退出选择
+    if (ui.throwMode && (s.phase !== PHASE.CATCH || !s.drawn.includes(ui.throwCardId))) {
+      ui.throwMode = false;
+      ui.throwCardId = null;
+    }
+    if (ui.throwMode) {
+      host.append(el('div.throwbar',
+        el('span', { text: `点一个浅滩，把【${card(ui.throwCardId).name}】放回去` }),
+        el('button.btn.sm.ghost', {
+          onClick: () => { ui.throwMode = false; ui.throwCardId = null; ctx.rerender(); },
+        }, '取消')
+      ));
+    }
+
     /* --- 浅滩 --- */
     const grid = el('div.shoals');
     s.shoals.forEach((sh, i) => {
       const picked = ui.drawPicks.filter((x) => x === i).length;
       const need = getRequiredDrawCount(s);
-      const canPick = myTurn && s.phase === PHASE.DRAW && sh.length > 0 && ui.drawPicks.length < need;
+      const throwMode = !!ui.throwMode && myTurn && s.phase === PHASE.CATCH;
+      const legalThrowTargets = throwMode ? getLegalThrowTargets(s) : [];
+      const isThrowTarget = throwMode && legalThrowTargets.includes(i);
+      const canPick = isThrowTarget || (myTurn && s.phase === PHASE.DRAW && sh.length > 0 && ui.drawPicks.length < need);
       const top = sh.length ? card(sh[0]) : null;
       const myPower = getPower(s, 0);
       const reach = top ? myPower >= top.strength : false;
@@ -600,7 +625,16 @@ const regrets = {
       });
       if (!sh.length) box.append(el('div.tiny.muted.center', { text: '空了' }));
       else if (sh.length > show) box.append(el('div.tiny.muted', { text: `…还有 ${sh.length - show} 张` }));
-      if (canPick) {
+      if (isThrowTarget) {
+        box.append(el('div.pick-hint', { text: '点这里放回' }));
+        box.addEventListener('click', () => {
+          const cardId = ui.throwCardId;
+          ui.throwMode = false;
+          ui.throwCardId = null;
+          ui.drawnSel = null;
+          ctx.act({ type: ACTION.THROW_BACK, cardId, shoalIndex: i });
+        });
+      } else if (canPick) {
         box.append(el('div.pick-hint', { text: `点这里抽（${ui.drawPicks.length}/${need}）` }));
         box.addEventListener('click', () => {
           if (ui.drawPicks.length >= need) return;
@@ -609,6 +643,8 @@ const regrets = {
         });
       } else if (myTurn && s.phase === PHASE.DRAW) {
         box.append(el('div.tiny.muted.center', { text: '已选满' }));
+      } else if (throwMode) {
+        box.append(el('div.tiny.muted.center', { text: '不能放这里' }));
       }
       grid.append(box);
     });
@@ -638,6 +674,7 @@ const regrets = {
     meP.caught.forEach((id) => {
       const ex = meP.exhausted.includes(id);
       mineRow.append(cardFace(id, {
+        mini: true,
         exhausted: ex,
         onClick: () => openFishDetail(id, { where: ex ? '你的钓获 · 已横置（能力已用掉）' : '你的钓获' }),
       }));
